@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/owner_theme.dart';
+import '../core/owner_state.dart';
 import '../ui/owner_components.dart';
 
 class OwnerAiScreen extends StatefulWidget {
@@ -29,8 +30,8 @@ class _OwnerAiScreenState extends State<OwnerAiScreen> {
   @override
   Widget build(BuildContext context) {
     if (OwnerScope.of(context).live) {
-      return OwnerScreenFrame(children: [
-        const OwnerRestaurantPicker(),
+      return const OwnerScreenFrame(children: [
+        OwnerRestaurantPicker(),
         const SizedBox(height: 14),
         const OwnerHeading('AI Smart Horeca Assistant'),
         const SizedBox(height: 14),
