@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../ui/owner_text.dart';
 import '../core/owner_theme.dart';
+import '../core/owner_l10n.dart';
 import '../core/owner_state.dart';
 import '../ui/owner_components.dart';
 
@@ -59,7 +60,7 @@ class _OwnerAiScreenState extends State<OwnerAiScreen> {
               const Text('AI Smart Horeca Assistant', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ]),
             const SizedBox(height: 12),
-            const Text('Здравствуйте! Я помогу анализировать продажи, кассы и склады ваших ресторанов.'),
+            const OwnerText('Здравствуйте! Я помогу анализировать продажи, кассы и склады ваших ресторанов.'),
           ])),
           const SizedBox(height: 19),
           const OwnerHeading('Популярные вопросы'),
@@ -75,7 +76,7 @@ class _OwnerAiScreenState extends State<OwnerAiScreen> {
               child: Row(children: [
                 Icon(Icons.auto_awesome_outlined, color: OwnerPalette.accent(context), size: 19),
                 const SizedBox(width: 10),
-                Expanded(child: Text(question, style: const TextStyle(fontSize: 13))),
+                Expanded(child: Text(OwnerL10n.tr(OwnerScope.of(context).language, question), style: const TextStyle(fontSize: 13))),
                 const Icon(Icons.chevron_right, size: 18),
               ]),
             ),
@@ -91,7 +92,7 @@ class _OwnerAiScreenState extends State<OwnerAiScreen> {
                   color: OwnerPalette.accent(context),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Text(demoQuestion, style: const TextStyle(color: Colors.white)),
+                child: Text(OwnerL10n.tr(OwnerScope.of(context).language, demoQuestion), style: const TextStyle(color: Colors.white)),
               ),
             ),
             const SizedBox(height: 11),
@@ -100,11 +101,11 @@ class _OwnerAiScreenState extends State<OwnerAiScreen> {
               children: [
                 const OwnerText('Пример аналитического ответа', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 7),
-                const Text('В реальном приложении здесь будут данные из Smart Horeca, отфильтрованные по выбранным ресторанам.'),
+                const OwnerText('В реальном приложении здесь будут данные из Smart Horeca, отфильтрованные по выбранным ресторанам.'),
                 const SizedBox(height: 10),
                 const OwnerBars(values: [23, 33, 29, 49, 38], labels: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт']),
                 const SizedBox(height: 6),
-                Text('Демонстрация: источник не подключён.', style: TextStyle(fontSize: 11, color: OwnerPalette.muted(context))),
+                OwnerText('Демонстрация: источник не подключён.', style: TextStyle(fontSize: 11, color: OwnerPalette.muted(context))),
               ],
             )),
           ],
@@ -114,7 +115,7 @@ class _OwnerAiScreenState extends State<OwnerAiScreen> {
               context: context,
               builder: (_) => AlertDialog(
                 title: const OwnerText('История диалогов'),
-                content: const Text('При подключении AI здесь будут личные разговоры пользователя. Демо не сохраняет переписку.'),
+                content: const OwnerText('При подключении AI здесь будут личные разговоры пользователя. Демо не сохраняет переписку.'),
                 actions: [TextButton(onPressed: () => Navigator.pop(context), child: const OwnerText('Закрыть'))],
               ),
             ),
@@ -131,16 +132,17 @@ class _OwnerAiScreenState extends State<OwnerAiScreen> {
           child: Row(children: [
             Expanded(child: TextField(
               controller: controller,
-              decoration: const InputDecoration(hintText: 'Напишите вопрос...'),
+              decoration: InputDecoration(hintText: OwnerL10n.tr(
+                OwnerScope.of(context).language, 'Напишите вопрос...')),
               onSubmitted: (s) { if (s.trim().isNotEmpty) showDemo(s.trim()); },
             )),
             IconButton(
-              tooltip: 'Голосовой ввод (скоро)',
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Голосовой ввод подключим к API на следующем этапе.'))),
+              tooltip: OwnerL10n.tr(OwnerScope.of(context).language, 'Голосовой ввод (скоро)'),
+              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: OwnerText('Голосовой ввод подключим к API на следующем этапе.'))),
               icon: Icon(Icons.mic_rounded, color: OwnerPalette.accent(context)),
             ),
             IconButton.filled(
-              tooltip: 'Отправить демо-вопрос',
+              tooltip: OwnerL10n.tr(OwnerScope.of(context).language, 'Отправить демо-вопрос'),
               onPressed: () {
                 if (controller.text.trim().isNotEmpty) showDemo(controller.text.trim());
               },
