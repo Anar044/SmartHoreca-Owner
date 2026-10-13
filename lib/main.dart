@@ -24,7 +24,10 @@ class _SmartHorecaOwnerAppState extends State<SmartHorecaOwnerApp> {
   @override
   void initState() {
     super.initState();
-    Future<void>.microtask(owner.restoreSession);
+    Future<void>.microtask(() async {
+      await owner.loadPreferences();
+      await owner.restoreSession();
+    });
   }
 
   @override
