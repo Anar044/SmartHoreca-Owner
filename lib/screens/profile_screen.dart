@@ -40,39 +40,45 @@ class OwnerProfileScreen extends StatelessWidget {
         const SizedBox(height: 12),
         const OwnerHeading('Тема оформления'),
         const SizedBox(height: 9),
-        OwnerCard(child: Column(children: [
-          for (final row in const [
-            (ThemeMode.light, 'Светлая', Icons.light_mode_outlined),
-            (ThemeMode.dark, 'Тёмная', Icons.dark_mode_outlined),
-            (ThemeMode.system, 'Автоматически', Icons.settings_brightness_outlined),
-          ])
-            RadioListTile<ThemeMode>(
-              value: row.$1,
-              groupValue: state.themeMode,
-              title: Text(row.$2),
-              secondary: Icon(row.$3),
-              onChanged: (value) { if (value != null) state.setTheme(value); },
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-            ),
-        ])),
+        OwnerCard(child: RadioGroup<ThemeMode>(
+          groupValue: state.themeMode,
+          onChanged: (value) { if (value != null) state.setTheme(value); },
+          child: Column(children: [
+            for (final row in const [
+              (ThemeMode.light, 'Светлая', Icons.light_mode_outlined),
+              (ThemeMode.dark, 'Тёмная', Icons.dark_mode_outlined),
+              (ThemeMode.system, 'Автоматически', Icons.settings_brightness_outlined),
+            ])
+              RadioListTile<ThemeMode>(
+                value: row.$1,
+                title: Text(row.$2),
+                secondary: Icon(row.$3),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+          ]),
+        )),
         const SizedBox(height: 13),
         const OwnerHeading('Язык интерфейса'),
         const SizedBox(height: 8),
-        OwnerCard(child: Column(children: [
-          for (final value in ['Русский', 'Azərbaycan', 'English'])
-            RadioListTile<String>(
-              value: value,
-              groupValue: state.language,
-              title: Text(value),
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              onChanged: (v) {
-                if (v != null) state.setLanguage(v);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Это выбор оформления. Полный перевод подключим до выпуска.')));
-              },
-            ),
-        ])),
+        OwnerCard(child: RadioGroup<String>(
+          groupValue: state.language,
+          onChanged: (value) {
+            if (value != null) state.setLanguage(value);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Полный перевод подключим до выпуска.')),
+            );
+          },
+          child: Column(children: [
+            for (final value in ['Русский', 'Azərbaycan', 'English'])
+              RadioListTile<String>(
+                value: value,
+                title: Text(value),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+          ]),
+        )),
         const SizedBox(height: 12),
         OwnerCard(
           onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const OwnerNotificationsScreen())),
