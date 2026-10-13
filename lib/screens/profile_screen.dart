@@ -95,7 +95,7 @@ class OwnerProfileScreen extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: () {
             Navigator.pop(context);
-            state.logOutPreview();
+            state.signOut();
           },
           icon: const Icon(Icons.logout),
           label: const Text('Выйти из демо'),
