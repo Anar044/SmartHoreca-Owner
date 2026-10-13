@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../ui/owner_components.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
+import '../core/owner_demo_data.dart';
 
 class OwnerHomeScreen extends StatelessWidget {
   const OwnerHomeScreen({super.key});
@@ -19,6 +20,7 @@ class OwnerHomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = OwnerScope.of(context);
     final selected = state.selectedRestaurants;
+    final demo = OwnerDemoData.snapshot(selected, state.period);
     final data = state.summary;
     final metrics = data?['metrics'] is Map ? data!['metrics'] as Map : const {};
     final daily = (data?['daily'] is List ? data!['daily'] as List : const [])
@@ -85,60 +87,66 @@ class OwnerHomeScreen extends StatelessWidget {
               'будут доступны после подключения соответствующих серверных отчётов.')),
         ] else const OwnerCard(child: Text('Данные ещё не загружены.')),
       ] else ...[
-        const Row(children: [
-          Expanded(child: OwnerMetric('Выручка', '48 230 AZN', trend: '↑ 12,5%')),
-          SizedBox(width: 10),
-          Expanded(child: OwnerMetric('Чеков', '642', trend: '↑ 8%')),
+        Row(children: [
+          Expanded(child: OwnerMetric('Выручка',
+            OwnerDemoData.money(demo.revenue), trend: '↑ 12,5%')),
+          const SizedBox(width: 10),
+          Expanded(child: OwnerMetric('Чеков',
+            demo.checks.toString(), trend: '↑ 8%')),
         ]),
         const SizedBox(height: 10),
-        const Row(children: [
-          Expanded(child: OwnerMetric('Средний чек', '75,12 AZN', trend: '↑ 4%')),
-          SizedBox(width: 10),
-          Expanded(child: OwnerMetric('Валовая прибыль*', '12 840 AZN', trend: '↑ 11%')),
+        Row(children: [
+          Expanded(child: OwnerMetric('Средний чек',
+            demo.averageCheck == null ? '—'
+                : OwnerDemoData.money(demo.averageCheck!, decimals: true),
+            trend: '↑ 4%')),
+          const SizedBox(width: 10),
+          Expanded(child: OwnerMetric('Валовая прибыль*',
+            OwnerDemoData.money(demo.grossProfit), trend: '↑ 11%')),
         ]),
         const SizedBox(height: 13),
         OwnerCard(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const OwnerHeading('Выручка по дням'),
+            OwnerHeading(demo.chartTitle),
             const SizedBox(height: 14),
-            const OwnerBars(
-              values: [18, 26, 23, 32, 43, 37, 50],
-              labels: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
+            OwnerBars(
+              values: demo.chartValues,
+              labels: demo.chartLabels,
             ),
-            Text('Демонстрационные значения',
-                style: TextStyle(color: OwnerPalette.muted(context), fontSize: 11)),
+            Text('Демонстрационные значения • ${state.period}',
+              style: TextStyle(
+                color: OwnerPalette.muted(context), fontSize: 11)),
           ],
         )),
         const SizedBox(height: 20),
         const OwnerHeading('Выручка по ресторанам'),
         const SizedBox(height: 9),
-        for (final row in const [
-          ('Ресторан Баку', '24 450 AZN'),
-          ('Jelly Park', '16 320 AZN'),
-          ('Jelly Metropark', '7 460 AZN'),
-        ]) ...[
-          if (selected.contains(row.$1))
-            OwnerCard(child: Row(
-              children: [
-                Icon(Icons.store_outlined, color: OwnerPalette.accent(context)),
-                const SizedBox(width: 10),
-                Expanded(child: Text(row.$1, overflow: TextOverflow.ellipsis)),
-                Text(row.$2, style: const TextStyle(fontWeight: FontWeight.bold)),
-              ],
-            )),
+        for (final restaurant in demo.restaurants) ...[
+          OwnerCard(child: Row(
+            children: [
+              Icon(Icons.store_outlined, color: OwnerPalette.accent(context)),
+              const SizedBox(width: 10),
+              Expanded(child: Text(restaurant.name,
+                overflow: TextOverflow.ellipsis)),
+              Text(OwnerDemoData.money(
+                OwnerDemoData.restaurantRevenue(restaurant, state.period)),
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          )),
           const SizedBox(height: 8),
         ],
         const SizedBox(height: 12),
         const OwnerHeading('Популярные блюда'),
         const SizedBox(height: 9),
-        const OwnerCard(child: Column(children: [
-          ListTile(contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.restaurant_outlined), title: Text('Стейк Рибай'), trailing: Text('245 порций')),
-          ListTile(contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.restaurant_outlined), title: Text('Цезарь с курицей'), trailing: Text('190 порций')),
-          ListTile(contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.restaurant_outlined), title: Text('Люля-кебаб'), trailing: Text('168 порций')),
+        OwnerCard(child: Column(children: [
+          for (var i = 0; i < OwnerDemoData.dishNames.length; i++)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.restaurant_outlined),
+              title: Text(OwnerDemoData.dishNames[i]),
+              trailing: Text('${demo.dishQuantities[i]} порций'),
+            ),
         ])),
         const SizedBox(height: 9),
         const OwnerDemoNotice(),
