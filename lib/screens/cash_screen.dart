@@ -4,6 +4,7 @@ import '../core/owner_state.dart';
 import '../ui/owner_components.dart';
 import 'live_cash_shifts.dart';
 import '../core/owner_demo_data.dart';
+import '../core/owner_demo_receipts.dart';
 
 class OwnerCashScreen extends StatelessWidget {
   const OwnerCashScreen({super.key});
@@ -173,44 +174,83 @@ class _OwnerCashDetailState extends State<OwnerCashDetail> {
           ],
           const OwnerDemoNotice(),
         ] else if (tab == 2) ...[
-          const OwnerHeading('История смен'),
+          const OwnerHeading('История смен', caption: 'Пример последних смен выбранной кассы'),
           const SizedBox(height: 10),
-          for (final shift in const [
-            ('№12548', 'Открыта • 14.10, 10:24', '12 450 AZN'),
-            ('№12547', 'Закрыта • 13.10, 23:45', '8 230 AZN'),
-            ('№12546', 'Закрыта • 12.10, 23:50', '6 780 AZN'),
-          ]) ...[
-            OwnerCard(onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => OwnerShiftDetail(shift: shift.$1))),
-              child: Row(children: [
-                const Icon(Icons.history),
-                const SizedBox(width: 9),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Смена ${shift.$1}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                  Text(shift.$2, style: TextStyle(color: OwnerPalette.muted(context), fontSize: 11)),
-                ])),
-                Text(shift.$3, style: const TextStyle(fontWeight: FontWeight.w600)),
-                const Icon(Icons.chevron_right, size: 18),
-              ]),
+          for (final shift in [
+            (
+              id: '№12548',
+              label: demo.open ? 'Открыта • 14.10, 10:24'
+                  : 'Закрыта • 14.10, 02:15',
+              sum: demo.revenue('Сегодня'),
+              checks: demo.checks('Сегодня'),
+              day: 'Сегодня',
             ),
+            (
+              id: '№12547',
+              label: 'Закрыта • 13.10, 23:45',
+              sum: demo.revenue('Вчера'),
+              checks: demo.checks('Вчера'),
+              day: 'Вчера',
+            ),
+            (
+              id: '№12546',
+              label: 'Закрыта • 12.10, 23:50',
+              sum: (demo.revenueToday * 0.8).round(),
+              checks: (demo.checksToday * 0.8).round(),
+              day: 'Ранее',
+            ),
+          ]) ...[
+            if (period != 'Сегодня' && period != 'Вчера' ||
+                period == shift.day)
+              OwnerCard(
+                onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+                  builder: (_) => OwnerShiftDetail(
+                    shift: shift.id,
+                    cashName: widget.name,
+                    amount: shift.sum,
+                    checkCount: shift.checks,
+                  ))),
+                child: Row(children: [
+                  const Icon(Icons.history),
+                  const SizedBox(width: 9),
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Смена ${shift.id}',
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                      Text(shift.label, style: TextStyle(
+                        color: OwnerPalette.muted(context), fontSize: 11)),
+                    ],
+                  )),
+                  Text(OwnerDemoData.money(shift.sum),
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const Icon(Icons.chevron_right, size: 18),
+                ]),
+              ),
             const SizedBox(height: 8),
           ],
         ] else ...[
-          const OwnerHeading('Список чеков'),
+          const OwnerHeading('Список чеков', caption: 'Демо выбранной кассы'),
           const SizedBox(height: 10),
-          for (final receipt in const [
-            ('№25680', '14:32', '75,00 AZN', 'Карта'),
-            ('№25679', '14:28', '24,30 AZN', 'Наличные'),
-            ('№25678', '14:25', '18,00 AZN', 'Карта'),
-          ]) ...[
-            OwnerCard(onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => OwnerReceiptDetail(number: receipt.$1))),
+          for (final receipt in OwnerDemoReceipt.forCash(widget.name)) ...[
+            OwnerCard(
+              onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+                builder: (_) => OwnerReceiptDetail(receipt: receipt))),
               child: Row(children: [
                 const Icon(Icons.receipt_long_outlined),
                 const SizedBox(width: 9),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Чек ${receipt.$1}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                  Text('${receipt.$2} • ${receipt.$4}', style: TextStyle(color: OwnerPalette.muted(context), fontSize: 12)),
-                ])),
-                Text(receipt.$3, style: const TextStyle(fontWeight: FontWeight.w700)),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Чек ${receipt.number}',
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text('${receipt.time} • ${receipt.paymentLabel}',
+                      style: TextStyle(color: OwnerPalette.muted(context),
+                        fontSize: 12)),
+                  ],
+                )),
+                Text(OwnerDemoData.money(receipt.amount, decimals: true),
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
               ]),
             ),
             const SizedBox(height: 8),
@@ -223,50 +263,68 @@ class _OwnerCashDetailState extends State<OwnerCashDetail> {
 
 class OwnerShiftDetail extends StatelessWidget {
   final String shift;
-  const OwnerShiftDetail({super.key, required this.shift});
+  final String cashName;
+  final int amount;
+  final int checkCount;
+
+  const OwnerShiftDetail({
+    super.key,
+    required this.shift,
+    required this.cashName,
+    required this.amount,
+    required this.checkCount,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Смена $shift')),
-      body: OwnerScreenFrame(children: [
-        const OwnerHeading('Детали смены'),
-        const SizedBox(height: 12),
-        const Row(children: [
-          Expanded(child: OwnerMetric('Выручка', '11 320 AZN')),
-          SizedBox(width: 10),
-          Expanded(child: OwnerMetric('Чеки', '172')),
-        ]),
-        const SizedBox(height: 12),
-        const OwnerCard(child: Column(children: [
-          ListTile(title: Text('Начало смены'), trailing: Text('09:58')),
-          Divider(height: 1),
-          ListTile(title: Text('Конец смены'), trailing: Text('23:45')),
-          Divider(height: 1),
-          ListTile(title: Text('Возвраты'), trailing: Text('180 AZN')),
-        ])),
-        const SizedBox(height: 14),
-        FilledButton.tonalIcon(
-          onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const OwnerReceiptList())),
-          icon: const Icon(Icons.receipt_long_outlined),
-          label: const Text('Просмотреть чеки смены'),
-        ),
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text('Смена $shift')),
+    body: OwnerScreenFrame(children: [
+      const OwnerHeading('Детали смены'),
+      const SizedBox(height: 12),
+      Row(children: [
+        Expanded(child: OwnerMetric('Выручка', OwnerDemoData.money(amount))),
+        const SizedBox(width: 10),
+        Expanded(child: OwnerMetric('Чеки', checkCount.toString())),
       ]),
-    );
-  }
+      const SizedBox(height: 12),
+      OwnerCard(child: Column(children: [
+        ListTile(title: const Text('Касса'), trailing: Text(cashName)),
+        const Divider(height: 1),
+        const ListTile(title: Text('Начало смены'), trailing: Text('09:58')),
+        const Divider(height: 1),
+        const ListTile(title: Text('Конец смены'), trailing: Text('23:45')),
+      ])),
+      const SizedBox(height: 14),
+      FilledButton.tonalIcon(
+        onPressed: () => Navigator.push(context, MaterialPageRoute<void>(
+          builder: (_) => OwnerReceiptList(cashName: cashName))),
+        icon: const Icon(Icons.receipt_long_outlined),
+        label: const Text('Примеры чеков смены'),
+      ),
+    ]),
+  );
 }
 
 class OwnerReceiptList extends StatelessWidget {
-  const OwnerReceiptList({super.key});
+  final String cashName;
+  const OwnerReceiptList({super.key, required this.cashName});
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Чеки смены')),
     body: OwnerScreenFrame(children: [
-      for (final n in ['№25680', '№25679', '№25678'])
-        Padding(padding: const EdgeInsets.only(bottom: 9),
+      for (final receipt in OwnerDemoReceipt.forCash(cashName))
+        Padding(
+          padding: const EdgeInsets.only(bottom: 9),
           child: OwnerCard(
-            onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => OwnerReceiptDetail(number: n))),
-            child: ListTile(title: Text('Чек $n'), subtitle: const Text('Карта • 14:32'), trailing: const Icon(Icons.chevron_right)),
+            onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+              builder: (_) => OwnerReceiptDetail(receipt: receipt))),
+            child: ListTile(
+              title: Text('Чек ${receipt.number}'),
+              subtitle: Text('${receipt.time} • ${receipt.paymentLabel}'),
+              trailing: Text(OwnerDemoData.money(
+                receipt.amount, decimals: true)),
+            ),
           ),
         ),
     ]),
@@ -274,34 +332,56 @@ class OwnerReceiptList extends StatelessWidget {
 }
 
 class OwnerReceiptDetail extends StatelessWidget {
-  final String number;
-  const OwnerReceiptDetail({super.key, required this.number});
+  final OwnerDemoReceipt receipt;
+  const OwnerReceiptDetail({super.key, required this.receipt});
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text('Чек $number')),
+    appBar: AppBar(title: Text('Чек ${receipt.number}')),
     body: OwnerScreenFrame(children: [
-      const OwnerCard(child: Column(children: [
-        ListTile(title: Text('Касса'), trailing: Text('Касса 1')),
-        Divider(height: 1),
-        ListTile(title: Text('Оплата'), trailing: Text('Карта')),
-        Divider(height: 1),
-        ListTile(title: Text('Статус'), trailing: Text('Закрыт')),
+      OwnerCard(child: Column(children: [
+        ListTile(title: const Text('Касса'),
+          trailing: Text(receipt.cashName)),
+        const Divider(height: 1),
+        ListTile(title: const Text('Оплата'),
+          trailing: Text(receipt.paymentLabel)),
+        const Divider(height: 1),
+        const ListTile(title: Text('Статус'), trailing: Text('Закрыт')),
       ])),
       const SizedBox(height: 13),
       const OwnerHeading('Состав чека'),
       const SizedBox(height: 9),
       OwnerCard(child: Column(children: [
-        for (final item in const [
-          ('Стейк Рибай', '42,00 AZN'),
-          ('Салат Цезарь', '12,00 AZN'),
-          ('Лимонад', '12,00 AZN'),
-          ('Хлеб', '3,00 AZN'),
-        ])
-          ListTile(contentPadding: EdgeInsets.zero, title: Text(item.$1), trailing: Text(item.$2)),
+        for (final line in receipt.lines)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(line.name),
+            trailing: Text(OwnerDemoData.money(
+                line.amount, decimals: true)),
+          ),
         const Divider(),
-        const ListTile(contentPadding: EdgeInsets.zero, title: Text('Итого', style: TextStyle(fontWeight: FontWeight.bold)), trailing: Text('75,00 AZN')),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Итого',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+          trailing: Text(OwnerDemoData.money(
+            receipt.amount, decimals: true)),
+        ),
       ])),
+      const SizedBox(height: 13),
+      const OwnerHeading('Способы оплаты'),
+      const SizedBox(height: 9),
+      OwnerCard(child: Column(children: [
+        for (final tender in receipt.tenders)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(tender.name),
+            trailing: Text(OwnerDemoData.money(
+              tender.amount, decimals: true)),
+          ),
+      ])),
+      const SizedBox(height: 12),
+      const OwnerDemoNotice(),
     ]),
   );
 }
