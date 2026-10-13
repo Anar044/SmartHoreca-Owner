@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
+import '../core/owner_l10n.dart';
 import 'home_screen.dart';
 import 'cash_screen.dart';
 import 'reports_screen.dart';
@@ -22,23 +23,23 @@ class OwnerShell extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Smart Horeca Owner', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            Text('Ваш бизнес под контролем', style: TextStyle(fontSize: 11, fontWeight: FontWeight.normal)),
+            const Text('Smart Horeca Owner', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            Text(OwnerL10n.tr(state.language, 'Ваш бизнес под контролем'), style: TextStyle(fontSize: 11, fontWeight: FontWeight.normal)),
           ],
         ),
         actions: [
           IconButton(
-            tooltip: 'Уведомления',
+            tooltip: OwnerL10n.tr(state.language, 'Уведомления'),
             onPressed: () => Navigator.push(context, MaterialPageRoute<void>(
               builder: (_) => const OwnerNotificationsScreen(),
             )),
             icon: const Icon(Icons.notifications_none_outlined),
           ),
           IconButton(
-            tooltip: 'Профиль',
+            tooltip: OwnerL10n.tr(state.language, 'Профиль'),
             onPressed: () => Navigator.push(context, MaterialPageRoute<void>(
               builder: (_) => const OwnerProfileScreen(),
             )),
@@ -58,10 +59,10 @@ class OwnerShell extends StatelessWidget {
         unselectedFontSize: 11,
         currentIndex: state.tabIndex,
         onTap: state.setTab,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Главная'),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_outlined), activeIcon: Icon(Icons.account_balance_wallet), label: 'Кассы'),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), activeIcon: Icon(Icons.bar_chart), label: 'Отчёты'),
+        items: [
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: OwnerL10n.tr(state.language, 'Главная')),
+          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_outlined), activeIcon: Icon(Icons.account_balance_wallet), label: OwnerL10n.tr(state.language, 'Кассы')),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), activeIcon: Icon(Icons.bar_chart), label: OwnerL10n.tr(state.language, 'Отчёты')),
           BottomNavigationBarItem(icon: Icon(Icons.smart_toy_outlined), activeIcon: Icon(Icons.smart_toy), label: 'AI'),
         ],
       ),
