@@ -327,8 +327,10 @@ class OwnerReceiptList extends StatelessWidget {
             onTap: () => Navigator.push(context, MaterialPageRoute<void>(
               builder: (_) => OwnerReceiptDetail(receipt: receipt))),
             child: ListTile(
-              title: Text('Чек ${receipt.number}'),
-              subtitle: Text('${receipt.time} • ${receipt.paymentLabel}'),
+              title: Text(OwnerL10n.previewLabel(
+                OwnerScope.of(context).language, 'Чек ${receipt.number}')),
+              subtitle: Text('${receipt.time} • ${OwnerL10n.previewTender(
+                OwnerScope.of(context).language, receipt.paymentLabel)}'),
               trailing: Text(OwnerDemoData.money(
                 receipt.amount, decimals: true)),
             ),
