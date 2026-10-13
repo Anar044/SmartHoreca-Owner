@@ -29,15 +29,17 @@ class _SmartHorecaOwnerAppState extends State<SmartHorecaOwnerApp> {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: owner,
-      builder: (context, _) => MaterialApp(
-        title: 'Smart Horeca Owner',
-        debugShowCheckedModeBanner: false,
-        theme: OwnerPalette.light,
-        darkTheme: OwnerPalette.dark,
-        themeMode: owner.themeMode,
-        home: OwnerScope(
-          state: owner,
-          child: switch (owner.stage) {
+      builder: (context, _) => OwnerScope(
+        state: owner,
+        // Scope is above the Navigator so pushed routes keep the same settings
+        // and selected restaurants, including theme switches from Profile.
+        child: MaterialApp(
+          title: 'Smart Horeca Owner',
+          debugShowCheckedModeBanner: false,
+          theme: OwnerPalette.light,
+          darkTheme: OwnerPalette.dark,
+          themeMode: owner.themeMode,
+          home: switch (owner.stage) {
             OwnerStage.signIn => const OwnerSignInScreen(),
             OwnerStage.restaurants => const OwnerRestaurantSelectScreen(),
             OwnerStage.shell => const OwnerShell(),
