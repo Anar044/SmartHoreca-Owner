@@ -22,9 +22,9 @@ class OwnerProfileScreen extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(tr('Владелец ресторана'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-            SizedBox(height: 4),
-            Text(tr('Настройки владельца'), style: TextStyle(fontSize: 11)),
+            Text(tr('Владелец ресторана'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(tr('Настройки владельца'), style: const TextStyle(fontSize: 11)),
           ])),
         ])),
         const SizedBox(height: 12),
@@ -97,7 +97,7 @@ class OwnerProfileScreen extends StatelessWidget {
         const SizedBox(height: 9),
         OwnerCard(child: ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.shield_outlined),
+          leading: const Icon(Icons.shield_outlined),
           title: Text(tr('Безопасность')),
           subtitle: Text(tr('Авторизация и биометрия подключаются отдельно')),
         )),
