@@ -205,8 +205,10 @@ class OwnerScreenFrame extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
-        const OwnerDemoNotice(),
-        const SizedBox(height: 12),
+        if (!OwnerScope.of(context).live) ...[
+          const OwnerDemoNotice(),
+          const SizedBox(height: 12),
+        ],
         ...children,
       ],
     );
