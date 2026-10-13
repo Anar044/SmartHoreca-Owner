@@ -7,6 +7,7 @@ class OwnerReportsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLive = OwnerScope.of(context).live;
     const reports = [
       ('Продажи и выручка', Icons.bar_chart),
       ('Блюда и категории', Icons.restaurant_menu),
