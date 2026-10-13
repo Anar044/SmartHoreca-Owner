@@ -83,7 +83,7 @@ class OwnerHomeScreen extends StatelessWidget {
           const SizedBox(height: 16),
           const OwnerCard(child: Text('Показатели по отдельным ресторанам и топ блюд '
               'будут доступны после подключения соответствующих серверных отчётов.')),
-        ] else const OwnerCard(child Text('Данные ещё не загружены.')),
+        ] else const OwnerCard(child: Text('Данные ещё не загружены.')),
       ] else ...[
         const Row(children: [
           Expanded(child: OwnerMetric('Выручка', '48 230 AZN', trend: '↑ 12,5%')),
