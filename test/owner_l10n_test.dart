@@ -22,6 +22,31 @@ void main() {
     }
   });
 
+  test('cash, receipts, reports and stock core labels have AZ and EN values', () {
+    for (final language in ['Azərbaycan', 'English']) {
+      for (final label in [
+        'Обзор', 'Оплаты', 'Смены', 'Чеки',
+        'История смен', 'Способы оплаты', 'Состав чека',
+        'Продажи и выручка', 'Блюда и категории',
+        'Остатки на складах', 'График', 'Таблица', 'Итого',
+        'В наличии', 'Ниже минимума', 'Популярные вопросы',
+      ]) {
+        expect(OwnerL10n.hasTranslation(language, label), isTrue,
+          reason: 'Missing $language: $label');
+      }
+    }
+  });
+
+  test('demo prefix and split tenders translate without changing amounts', () {
+    expect(OwnerL10n.previewLabel('English', 'Касса 2'), 'Register 2');
+    expect(OwnerL10n.previewLabel('Azərbaycan', 'Чек №25680'),
+        'Çek №25680');
+    expect(OwnerL10n.previewTender('English', 'Карта + Наличные'),
+        'Card + Cash');
+    expect(OwnerL10n.previewTender('Azərbaycan', 'Карта + Наличные'),
+        'Kart + Nağd');
+  });
+
   test('untranslated business terms are not replaced with fake translations', () {
     expect(OwnerL10n.tr('English', 'Новый отчёт iiko'), 'Новый отчёт iiko');
   });
