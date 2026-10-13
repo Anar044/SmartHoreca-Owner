@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import '../ui/owner_components.dart';
 import '../core/owner_theme.dart';
+import '../core/owner_state.dart';
 
 class OwnerHomeScreen extends StatelessWidget {
   const OwnerHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final selected = OwnerScope.of(context).selectedRestaurants;
     return OwnerScreenFrame(children: [
       const OwnerHeading('Главная', caption: 'Обзор бизнеса'),
       const SizedBox(height: 14),
@@ -48,7 +50,7 @@ class OwnerHomeScreen extends StatelessWidget {
         ('Jelly Park', '16 320 AZN'),
         ('Jelly Metropark', '7 460 AZN'),
       ]) ...[
-        OwnerCard(child: Row(
+        if (selected.contains(row.$1)) OwnerCard(child: Row(
           children: [
             Icon(Icons.store_outlined, color: OwnerPalette.accent(context)),
             const SizedBox(width: 10),
