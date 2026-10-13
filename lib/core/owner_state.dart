@@ -1,9 +1,29 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'owner_backend.dart';
 
 enum OwnerStage { signIn, workspaces, restaurants, shell }
 
 class OwnerState extends ChangeNotifier {
+  final SharedPreferencesAsync _prefs = SharedPreferencesAsync();
+
+  Future<void> loadPreferences() async {
+    try {
+      final theme = await _prefs.getString('sh_owner_theme');
+      themeMode = switch (theme) {
+        'light' => ThemeMode.light,
+        'dark' => ThemeMode.dark,
+        _ => ThemeMode.system
+      };
+      language = await _prefs.getString('sh_owner_language') ?? 'Русский';
+      period = await _prefs.getString('sh_owner_period') ?? 'Сегодня';
+      notifyListeners();
+    } catch (_) {
+      // Preferences failure cannot block sign-in or app access.
+    }
+  }
+
   ThemeMode themeMode = ThemeMode.system;
   OwnerStage stage = OwnerStage.signIn;
   int tabIndex = 0;
@@ -36,14 +56,17 @@ class OwnerState extends ChangeNotifier {
 
   void setTheme(ThemeMode value) {
     themeMode = value;
+    unawaited(_prefs.setString('sh_owner_theme', value.name));
     notifyListeners();
   }
   void setLanguage(String value) {
     language = value;
+    unawaited(_prefs.setString('sh_owner_language', value));
     notifyListeners();
   }
   void setPeriod(String value) {
     period = value;
+    unawaited(_prefs.setString('sh_owner_period', value));
     notifyListeners();
     if (live) loadSummary();
   }
@@ -133,7 +156,16 @@ class OwnerState extends ChangeNotifier {
       restaurantIdsByName[label] = id;
     }
     availableRestaurants = restaurantIdsByName.keys.toList();
-    selectedRestaurants = {...availableRestaurants};
+    final prior = await _prefs.getStringList('sh_owner_depts_$id');
+    selectedRestaurants = prior == null
+      ? {...availableRestaurants}
+      : {
+          for (final entry in restaurantIdsByName.entries)
+            if (prior.contains(entry.value)) entry.key
+        };
+    if (selectedRestaurants.isEmpty) {
+      selectedRestaurants = {...availableRestaurants};
+    }
     workspaceId = id;
     workspaceName =
         (data['workspace']?['name'] ?? 'Smart Horeca').toString();
@@ -160,6 +192,10 @@ class OwnerState extends ChangeNotifier {
 
   void enterPreview() {
     if (selectedRestaurants.isEmpty) return;
+    if (live && workspaceId != null) {
+      unawaited(_prefs.setStringList('sh_owner_depts_$workspaceId',
+          selectedRestaurantIds.toList()));
+    }
     stage = OwnerStage.shell;
     notifyListeners();
     if (live) loadSummary();
