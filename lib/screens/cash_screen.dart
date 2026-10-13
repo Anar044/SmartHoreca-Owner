@@ -9,8 +9,8 @@ class OwnerCashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (OwnerScope.of(context).live) {
-      return OwnerScreenFrame(children: [
-        const OwnerHeading('Кассы', caption: 'Кассовые смены и чеки'),
+      return const OwnerScreenFrame(children: [
+        OwnerHeading('Кассы', caption: 'Кассовые смены и чеки'),
         const SizedBox(height: 14),
         const OwnerRestaurantPicker(),
         const SizedBox(height: 14),
