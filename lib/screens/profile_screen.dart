@@ -22,7 +22,7 @@ class OwnerProfileScreen extends StatelessWidget {
           const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Владелец ресторана', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
             SizedBox(height: 4),
-            Text('Дизайн-предпросмотр • не авторизован', style: TextStyle(fontSize: 11)),
+            Text('Настройки владельца', style: TextStyle(fontSize: 11)),
           ])),
         ])),
         const SizedBox(height: 12),
