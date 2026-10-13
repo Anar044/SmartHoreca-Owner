@@ -3,6 +3,7 @@ import '../ui/owner_components.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
 import '../core/owner_demo_data.dart';
+import '../core/owner_l10n.dart';
 
 class OwnerHomeScreen extends StatelessWidget {
   const OwnerHomeScreen({super.key});
@@ -114,7 +115,7 @@ class OwnerHomeScreen extends StatelessWidget {
               values: demo.chartValues,
               labels: demo.chartLabels,
             ),
-            Text('Демонстрационные значения • ${state.period}',
+            Text('${OwnerL10n.tr(state.language, 'Демонстрационные значения')} • ${OwnerL10n.tr(state.language, state.period)}',
               style: TextStyle(
                 color: OwnerPalette.muted(context), fontSize: 11)),
           ],
@@ -144,7 +145,7 @@ class OwnerHomeScreen extends StatelessWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.restaurant_outlined),
-              title: Text(OwnerDemoData.dishNames[i]),
+              title: Text(OwnerL10n.tr(state.language, OwnerDemoData.dishNames[i])),
               trailing: Text('${demo.dishQuantities[i]} порций'),
             ),
         ])),
