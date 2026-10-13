@@ -6,6 +6,7 @@ import '../ui/owner_components.dart';
 import 'live_cash_shifts.dart';
 import '../core/owner_demo_data.dart';
 import '../core/owner_demo_receipts.dart';
+import '../core/owner_l10n.dart';
 
 class OwnerCashScreen extends StatelessWidget {
   const OwnerCashScreen({super.key});
@@ -39,11 +40,12 @@ class OwnerCashScreen extends StatelessWidget {
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text(OwnerL10n.previewLabel(owner.language, item.name), style: const TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
                 Text(item.restaurant, style: TextStyle(color: OwnerPalette.muted(context), fontSize: 12)),
                 const SizedBox(height: 5),
-                Text(item.open ? '● Открыта 10:24' : '● Закрыта 02:15',
+                Text(OwnerL10n.previewLabel(owner.language,
+                    item.open ? 'Открыта • 10:24' : 'Закрыта • 02:15'),
                     style: TextStyle(fontSize: 12, color: item.open ? OwnerPalette.green : OwnerPalette.error)),
               ],
             )),
@@ -83,12 +85,13 @@ class _OwnerCashDetailState extends State<OwnerCashDetail> {
   Widget build(BuildContext context) {
     const tabs = ['Обзор', 'Оплаты', 'Смены', 'Чеки'];
     final period = OwnerScope.of(context).period;
+    final language = OwnerScope.of(context).language;
     final demo = OwnerDemoCash.find(widget.name);
     final payments = demo.payments(period);
     final checks = demo.checks(period);
     final revenue = demo.revenue(period);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.name)),
+      appBar: AppBar(title: Text(OwnerL10n.previewLabel(language, widget.name))),
       body: OwnerScreenFrame(children: [
         OwnerCard(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,7 +101,7 @@ class _OwnerCashDetailState extends State<OwnerCashDetail> {
             Row(children: [
               Icon(Icons.circle, size: 11, color: widget.active ? OwnerPalette.green : OwnerPalette.error),
               const SizedBox(width: 6),
-              Text(widget.active ? 'Открыта' : 'Закрыта'),
+              Text(OwnerL10n.tr(language, widget.active ? 'Открыта' : 'Закрыта')),
             ]),
           ],
         )),
@@ -110,7 +113,7 @@ class _OwnerCashDetailState extends State<OwnerCashDetail> {
             child: ChoiceChip(
               showCheckmark: false,
               selected: tab == i,
-              label: Text(tabs[i]),
+              label: Text(OwnerL10n.tr(language, tabs[i])),
               onSelected: (_) => setState(() => tab = i),
             ),
           ))),
@@ -159,7 +162,8 @@ class _OwnerCashDetailState extends State<OwnerCashDetail> {
             OwnerCard(child: Column(children: [
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(['Наличные', 'Карта', 'Безналичные', 'Другое'][i]),
+                  Text(OwnerL10n.tr(language,
+                    ['Наличные', 'Карта', 'Безналичные', 'Другое'][i])),
                   Text(OwnerDemoData.money(payments[i]),
                     style: const TextStyle(fontWeight: FontWeight.bold)),
                 ],
@@ -217,9 +221,9 @@ class _OwnerCashDetailState extends State<OwnerCashDetail> {
                   Expanded(child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Смена ${shift.id}',
+                      Text(OwnerL10n.previewLabel(language, 'Смена ${shift.id}'),
                         style: const TextStyle(fontWeight: FontWeight.w600)),
-                      Text(shift.label, style: TextStyle(
+                      Text(OwnerL10n.previewLabel(language, shift.label), style: TextStyle(
                         color: OwnerPalette.muted(context), fontSize: 11)),
                     ],
                   )),
@@ -243,9 +247,9 @@ class _OwnerCashDetailState extends State<OwnerCashDetail> {
                 Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Чек ${receipt.number}',
+                    Text(OwnerL10n.previewLabel(language, 'Чек ${receipt.number}'),
                       style: const TextStyle(fontWeight: FontWeight.w600)),
-                    Text('${receipt.time} • ${receipt.paymentLabel}',
+                    Text('${receipt.time} • ${OwnerL10n.previewTender(language, receipt.paymentLabel)}',
                       style: TextStyle(color: OwnerPalette.muted(context),
                         fontSize: 12)),
                   ],
@@ -278,7 +282,8 @@ class OwnerShiftDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text('Смена $shift')),
+    appBar: AppBar(title: Text(OwnerL10n.previewLabel(
+      OwnerScope.of(context).language, 'Смена $shift'))),
     body: OwnerScreenFrame(children: [
       const OwnerHeading('Детали смены'),
       const SizedBox(height: 12),
@@ -289,7 +294,8 @@ class OwnerShiftDetail extends StatelessWidget {
       ]),
       const SizedBox(height: 12),
       OwnerCard(child: Column(children: [
-        ListTile(title: const OwnerText('Касса'), trailing: Text(cashName)),
+        ListTile(title: const OwnerText('Касса'), trailing: Text(OwnerL10n.previewLabel(
+        OwnerScope.of(context).language, cashName))),
         const Divider(height: 1),
         const ListTile(title: OwnerText('Начало смены'), trailing: Text('09:58')),
         const Divider(height: 1),
@@ -338,14 +344,17 @@ class OwnerReceiptDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text('Чек ${receipt.number}')),
+    appBar: AppBar(title: Text(OwnerL10n.previewLabel(
+      OwnerScope.of(context).language, 'Чек ${receipt.number}'))),
     body: OwnerScreenFrame(children: [
       OwnerCard(child: Column(children: [
         ListTile(title: const OwnerText('Касса'),
-          trailing: Text(receipt.cashName)),
+          trailing: Text(OwnerL10n.previewLabel(
+            OwnerScope.of(context).language, receipt.cashName))),
         const Divider(height: 1),
         ListTile(title: const OwnerText('Оплата'),
-          trailing: Text(receipt.paymentLabel)),
+          trailing: Text(OwnerL10n.previewTender(
+            OwnerScope.of(context).language, receipt.paymentLabel))),
         const Divider(height: 1),
         const ListTile(title: OwnerText('Статус'), trailing: OwnerText('Закрыт')),
       ])),
@@ -356,7 +365,7 @@ class OwnerReceiptDetail extends StatelessWidget {
         for (final line in receipt.lines)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(line.name),
+            title: Text(OwnerL10n.tr(OwnerScope.of(context).language, line.name)),
             trailing: Text(OwnerDemoData.money(
                 line.amount, decimals: true)),
           ),
@@ -376,7 +385,7 @@ class OwnerReceiptDetail extends StatelessWidget {
         for (final tender in receipt.tenders)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(tender.name),
+            title: Text(OwnerL10n.tr(OwnerScope.of(context).language, tender.name)),
             trailing: Text(OwnerDemoData.money(
               tender.amount, decimals: true)),
           ),
