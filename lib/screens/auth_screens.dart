@@ -174,6 +174,7 @@ class OwnerRestaurantSelectScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = OwnerScope.of(context);
+    String tr(String ru) => OwnerL10n.tr(state.language, ru);
     return Scaffold(
       appBar: AppBar(title: Text(tr('Выбор ресторанов'))),
       body: SafeArea(
