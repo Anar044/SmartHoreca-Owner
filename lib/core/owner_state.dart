@@ -19,6 +19,7 @@ class OwnerState extends ChangeNotifier {
   String workspaceName = '';
   List<Map<String, dynamic>> workspaces = [];
   Map<String, dynamic>? summary;
+  int _summaryGeneration = 0;
 
   List<String> availableRestaurants = [
     'Ресторан Баку', 'Jelly Park', 'Jelly Metropark'
@@ -121,10 +122,16 @@ class OwnerState extends ChangeNotifier {
       '/api/mobile/v1/bootstrap', workspaceId: id);
     final restaurants = (data['restaurants'] as List? ?? [])
         .whereType<Map<String, dynamic>>().toList();
-    restaurantIdsByName = {
-      for (final restaurant in restaurants)
-        restaurant['name'].toString(): restaurant['id'].toString()
-    };
+    restaurantIdsByName = {};
+    for (final restaurant in restaurants) {
+      final id = restaurant['id'].toString();
+      final name = (restaurant['name'] ?? id).toString();
+      var label = name;
+      if (restaurantIdsByName.containsKey(label)) {
+        label = '$name · ${id.substring(0, id.length < 7 ? id.length : 7)}';
+      }
+      restaurantIdsByName[label] = id;
+    }
     availableRestaurants = restaurantIdsByName.keys.toList();
     selectedRestaurants = {...availableRestaurants};
     workspaceId = id;
@@ -137,6 +144,7 @@ class OwnerState extends ChangeNotifier {
   }
 
   void showRestaurants() {
+    ++_summaryGeneration;
     stage = OwnerStage.restaurants;
     notifyListeners();
   }
@@ -174,6 +182,7 @@ class OwnerState extends ChangeNotifier {
 
   Future<void> loadSummary() async {
     if (!live || workspaceId == null || selectedRestaurantIds.isEmpty) return;
+    final generation = ++_summaryGeneration;
     dashboardLoading = true;
     dashboardError = null;
     summary = null; // Never show stale or demonstration finance data as live.
@@ -195,13 +204,19 @@ class OwnerState extends ChangeNotifier {
         departmentIds: selectedRestaurantIds,
         query: {'from': fmt(from), 'to': fmt(to)},
       );
-      if (live && stage == OwnerStage.shell) summary = result;
+      if (generation == _summaryGeneration && live && stage == OwnerStage.shell) {
+        summary = result;
+      }
     } catch (e) {
-      dashboardError =
-          e is OwnerApiException ? e.message : 'Ошибка получения данных SH.';
+      if (generation == _summaryGeneration) {
+        dashboardError =
+            e is OwnerApiException ? e.message : 'Ошибка получения данных SH.';
+      }
     } finally {
-      dashboardLoading = false;
-      notifyListeners();
+      if (generation == _summaryGeneration) {
+        dashboardLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -216,6 +231,7 @@ class OwnerState extends ChangeNotifier {
   }
 
   void logOutPreview() {
+    ++_summaryGeneration;
     live = false;
     stage = OwnerStage.signIn;
     tabIndex = 0;
