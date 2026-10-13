@@ -26,7 +26,7 @@ class OwnerBackend {
     if (!configured) return;
     await Supabase.initialize(
       url: supabaseUrl,
-      anonKey: supabasePublishableKey,
+      publishableKey: supabasePublishableKey,
     );
   }
 
