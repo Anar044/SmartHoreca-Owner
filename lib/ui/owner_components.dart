@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
+import '../core/owner_l10n.dart';
 
 class OwnerCard extends StatelessWidget {
   final Widget child;
@@ -43,7 +44,8 @@ class OwnerMetric extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(color: OwnerPalette.muted(context), fontSize: 12)),
+          Text(OwnerL10n.tr(OwnerScope.of(context).language, label),
+            style: TextStyle(color: OwnerPalette.muted(context), fontSize: 12)),
           const SizedBox(height: 8),
           FittedBox(
             alignment: Alignment.centerLeft,
@@ -70,10 +72,12 @@ class OwnerHeading extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(OwnerL10n.tr(OwnerScope.of(context).language, title),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         if (caption != null) ...[
           const SizedBox(height: 4),
-          Text(caption!, style: TextStyle(color: OwnerPalette.muted(context), fontSize: 12)),
+          Text(OwnerL10n.tr(OwnerScope.of(context).language, caption!),
+            style: TextStyle(color: OwnerPalette.muted(context), fontSize: 12)),
         ],
       ],
     );
@@ -91,7 +95,8 @@ class OwnerDemoNotice extends StatelessWidget {
         const SizedBox(width: 6),
         Expanded(
           child: Text(
-            'Демо дизайна • данные условные, API пока не подключён',
+            OwnerL10n.tr(OwnerScope.of(context).language,
+              'Демо дизайна • данные условные, API пока не подключён'),
             style: TextStyle(fontSize: 11, color: OwnerPalette.muted(context)),
           ),
         ),
@@ -108,10 +113,10 @@ class OwnerRestaurantPicker extends StatelessWidget {
     final state = OwnerScope.of(context);
     final count = state.selectedRestaurants.length;
     final title = count == state.availableRestaurants.length
-        ? 'Все рестораны ($count)'
+        ? '${OwnerL10n.tr(state.language, 'Все рестораны')} ($count)'
         : count == 1
             ? state.selectedRestaurants.first
-            : 'Выбрано ресторанов: $count';
+            : '${OwnerL10n.tr(state.language, 'Выбран')}: $count';
     return OwnerCard(
       padding: EdgeInsets.zero,
       onTap: state.showRestaurants,
@@ -141,7 +146,8 @@ class OwnerPeriodPicker extends StatelessWidget {
       runSpacing: 7,
       children: ['Сегодня', 'Вчера', '7 дней', 'Месяц'].map((item) {
         return ChoiceChip(
-          label: Text(item, style: const TextStyle(fontSize: 12)),
+          label: Text(OwnerL10n.tr(state.language, item),
+            style: const TextStyle(fontSize: 12)),
           selected: state.period == item,
           onSelected: (_) => state.setPeriod(item),
           showCheckmark: false,
