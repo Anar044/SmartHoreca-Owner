@@ -53,6 +53,24 @@ void main() {
     }
   });
 
+  test('cash register and tender totals follow selected period', () {
+    final cash = OwnerDemoCash.find('Касса 1');
+    expect(cash.revenue('Сегодня'), 12450);
+    expect(cash.checks('Сегодня'), 186);
+    expect(cash.payments('Сегодня'), [4230, 7820, 320, 80]);
+    for (final period in ['Сегодня', 'Вчера', '7 дней', 'Месяц']) {
+      expect(cash.payments(period).fold<int>(0, (a, b) => a + b),
+          cash.revenue(period));
+      expect(cash.averageCheck(period), isPositive);
+    }
+    expect(cash.revenue('7 дней'), greaterThan(cash.revenue('Сегодня')));
+  });
+
+  test('cash register groups are attached to a single restaurant', () {
+    final restaurants = OwnerDemoCash.registers.map((r) => r.restaurant).toSet();
+    expect(restaurants, OwnerDemoData.restaurants.map((r) => r.name).toSet());
+  });
+
   test('format numbers in AZN without misleading dot-decimal notation', () {
     expect(OwnerDemoData.money(48230), '48 230 AZN');
     expect(OwnerDemoData.money(75.12, decimals: true), '75,12 AZN');
