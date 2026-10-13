@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/owner_theme.dart';
+import '../core/owner_state.dart';
 import '../ui/owner_components.dart';
 
 class OwnerReportsScreen extends StatelessWidget {
