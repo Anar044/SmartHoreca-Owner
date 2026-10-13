@@ -27,7 +27,14 @@ class OwnerReportsScreen extends StatelessWidget {
       const SizedBox(height: 15),
       for (final report in reports) ...[
         OwnerCard(
-          onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+          onTap: () {
+            if (isLive) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text(
+                    'Этот отчёт появится после подключения read-only API.')));
+              return;
+            }
+            Navigator.push(context, MaterialPageRoute<void>(
             builder: (_) => report.$1 == 'Остатки на складах'
                 ? const OwnerInventoryScreen()
                 : OwnerReportDetail(title: report.$1),
