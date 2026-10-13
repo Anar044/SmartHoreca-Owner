@@ -38,7 +38,8 @@ class OwnerReportsScreen extends StatelessWidget {
             builder: (_) => report.$1 == 'Остатки на складах'
                 ? const OwnerInventoryScreen()
                 : OwnerReportDetail(title: report.$1),
-          )),
+          ));
+          },
           child: Row(children: [
             Container(
               decoration: BoxDecoration(
