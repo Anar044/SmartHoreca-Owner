@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
 import '../ui/owner_components.dart';
+import 'live_cash_shifts.dart';
 
 class OwnerCashScreen extends StatelessWidget {
   const OwnerCashScreen({super.key});
@@ -9,25 +10,7 @@ class OwnerCashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (OwnerScope.of(context).live) {
-      return const OwnerScreenFrame(children: [
-        OwnerHeading('Кассы', caption: 'Кассовые смены и чеки'),
-        SizedBox(height: 14),
-        OwnerRestaurantPicker(),
-        SizedBox(height: 14),
-        OwnerCard(child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.lock_outline, size: 32),
-            SizedBox(height: 10),
-            Text('Список касс пока не подключён',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            Text('Для настоящих касс и чеков подготовим отдельный '
-                'серверный API только для просмотра. Демонстрационные '
-                'суммы здесь не отображаются.'),
-          ],
-        )),
-      ]);
+      return const OwnerLiveCashShifts();
     }
     final selected = OwnerScope.of(context).selectedRestaurants;
     return OwnerScreenFrame(children: [
