@@ -31,8 +31,8 @@ GET /api/mobile/v1/workspaces
 POST /api/mobile/v1/context/select
 GET /api/mobile/v1/summary
 GET /api/mobile/v1/cash-registers
-GET /api/mobile/v1/shifts
-GET /api/mobile/v1/shifts/:id
+GET /api/mobile/v1/shifts?from=YYYY-MM-DD&to=YYYY-MM-DD (implemented in backend feature branch; max 7 days)
+GET /api/mobile/v1/shift?id=<shift-id> (implemented in backend feature branch; checked department before serialization)
 GET /api/mobile/v1/checks
 GET /api/mobile/v1/checks/:id
 POST /api/mobile/v1/reports/query (query only)
@@ -41,7 +41,7 @@ GET /api/mobile/v1/inventory/products/:id
 GET /api/mobile/v1/notifications
 POST /api/mobile/v1/notifications/subscriptions (per-user settings only)
 
-These paths are a proposal and do not imply that the endpoints exist.
+The workspaces, bootstrap, summary, shifts and shift routes exist **only in the separate backend feature branch** until reviewed and deployed. Cash checks/list/receipt details and stock/AI mobile endpoints are not yet implemented. No endpoint is production-ready without tenant isolation and CHAIN integration testing.
 
 ## Acceptance
 - Authorized selected restaurants never leak unselected ones.
