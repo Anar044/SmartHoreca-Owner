@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../ui/owner_text.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
 import '../ui/owner_components.dart';
@@ -288,18 +289,18 @@ class OwnerShiftDetail extends StatelessWidget {
       ]),
       const SizedBox(height: 12),
       OwnerCard(child: Column(children: [
-        ListTile(title: const Text('Касса'), trailing: Text(cashName)),
+        ListTile(title: const OwnerText('Касса'), trailing: Text(cashName)),
         const Divider(height: 1),
-        const ListTile(title: Text('Начало смены'), trailing: Text('09:58')),
+        const ListTile(title: OwnerText('Начало смены'), trailing: Text('09:58')),
         const Divider(height: 1),
-        const ListTile(title: Text('Конец смены'), trailing: Text('23:45')),
+        const ListTile(title: OwnerText('Конец смены'), trailing: Text('23:45')),
       ])),
       const SizedBox(height: 14),
       FilledButton.tonalIcon(
         onPressed: () => Navigator.push(context, MaterialPageRoute<void>(
           builder: (_) => OwnerReceiptList(cashName: cashName))),
         icon: const Icon(Icons.receipt_long_outlined),
-        label: const Text('Примеры чеков смены'),
+        label: const OwnerText('Примеры чеков смены'),
       ),
     ]),
   );
@@ -311,7 +312,7 @@ class OwnerReceiptList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Чеки смены')),
+    appBar: AppBar(title: const OwnerText('Чеки смены')),
     body: OwnerScreenFrame(children: [
       for (final receipt in OwnerDemoReceipt.forCash(cashName))
         Padding(
@@ -340,13 +341,13 @@ class OwnerReceiptDetail extends StatelessWidget {
     appBar: AppBar(title: Text('Чек ${receipt.number}')),
     body: OwnerScreenFrame(children: [
       OwnerCard(child: Column(children: [
-        ListTile(title: const Text('Касса'),
+        ListTile(title: const OwnerText('Касса'),
           trailing: Text(receipt.cashName)),
         const Divider(height: 1),
-        ListTile(title: const Text('Оплата'),
+        ListTile(title: const OwnerText('Оплата'),
           trailing: Text(receipt.paymentLabel)),
         const Divider(height: 1),
-        const ListTile(title: Text('Статус'), trailing: Text('Закрыт')),
+        const ListTile(title: OwnerText('Статус'), trailing: OwnerText('Закрыт')),
       ])),
       const SizedBox(height: 13),
       const OwnerHeading('Состав чека'),
@@ -362,7 +363,7 @@ class OwnerReceiptDetail extends StatelessWidget {
         const Divider(),
         ListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Итого',
+          title: const OwnerText('Итого',
             style: TextStyle(fontWeight: FontWeight.bold)),
           trailing: Text(OwnerDemoData.money(
             receipt.amount, decimals: true)),
