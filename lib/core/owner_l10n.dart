@@ -62,6 +62,8 @@ class OwnerL10n {
       'Русский': 'Русский',
       'Azərbaycan': 'Azərbaycan',
       'English': 'English',
+      'Смена': 'Növbə',
+      'Чек': 'Çek',
       'Кассовые смены, выручка и чеки': 'Kassa növbələri, satış və çeklər',
       'Кассы • список': 'Kassalar • siyahı',
       'Обзор': 'İcmal',
@@ -353,6 +355,21 @@ class OwnerL10n {
 
   static String tr(String language, String sourceRussian) =>
       _translations[language]?[sourceRussian] ?? sourceRussian;
+
+  /// Formats illustrative register / shift / check labels.
+  /// Do not apply to live names received from restaurant servers.
+  static String previewLabel(String language, String original) {
+    for (final key in ['Касса', 'Смена', 'Чек', 'Открыта', 'Закрыта']) {
+      if (original == key || original.startsWith('$key ') ||
+          original.startsWith('$key •')) {
+        return '${tr(language, key)}${original.substring(key.length)}';
+      }
+    }
+    return tr(language, original);
+  }
+
+  static String previewTender(String language, String original) =>
+      original.split(' + ').map((part) => tr(language, part)).join(' + ');
 
   static bool hasTranslation(String language, String sourceRussian) =>
       language == 'Русский' ||
