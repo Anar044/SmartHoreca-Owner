@@ -6,7 +6,7 @@ import 'owner_backend.dart';
 enum OwnerStage { signIn, workspaces, restaurants, shell }
 
 class OwnerState extends ChangeNotifier {
-  final SharedPreferencesAsync _prefs = SharedPreferencesAsync();
+  late final SharedPreferencesAsync _prefs = SharedPreferencesAsync();
 
   Future<void> loadPreferences() async {
     try {
