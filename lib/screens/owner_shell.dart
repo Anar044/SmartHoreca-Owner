@@ -27,7 +27,7 @@ class OwnerShell extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Smart Horeca Owner', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            Text(OwnerL10n.tr(state.language, 'Ваш бизнес под контролем'), style: TextStyle(fontSize: 11, fontWeight: FontWeight.normal)),
+            Text(OwnerL10n.tr(state.language, 'Ваш бизнес под контролем'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.normal)),
           ],
         ),
         actions: [
@@ -60,10 +60,10 @@ class OwnerShell extends StatelessWidget {
         currentIndex: state.tabIndex,
         onTap: state.setTab,
         items: [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: OwnerL10n.tr(state.language, 'Главная')),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_outlined), activeIcon: Icon(Icons.account_balance_wallet), label: OwnerL10n.tr(state.language, 'Кассы')),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), activeIcon: Icon(Icons.bar_chart), label: OwnerL10n.tr(state.language, 'Отчёты')),
-          BottomNavigationBarItem(icon: Icon(Icons.smart_toy_outlined), activeIcon: Icon(Icons.smart_toy), label: 'AI'),
+          BottomNavigationBarItem(icon: const Icon(Icons.home_outlined), activeIcon: const Icon(Icons.home), label: OwnerL10n.tr(state.language, 'Главная')),
+          BottomNavigationBarItem(icon: const Icon(Icons.account_balance_wallet_outlined), activeIcon: const Icon(Icons.account_balance_wallet), label: OwnerL10n.tr(state.language, 'Кассы')),
+          BottomNavigationBarItem(icon: const Icon(Icons.bar_chart_outlined), activeIcon: const Icon(Icons.bar_chart), label: OwnerL10n.tr(state.language, 'Отчёты')),
+          const BottomNavigationBarItem(icon: Icon(Icons.smart_toy_outlined), activeIcon: Icon(Icons.smart_toy), label: 'AI'),
         ],
       ),
     );
