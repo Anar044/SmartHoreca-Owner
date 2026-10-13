@@ -28,8 +28,8 @@ class OwnerProfileScreen extends StatelessWidget {
         const SizedBox(height: 12),
         OwnerCard(
           onTap: () {
-            state.showRestaurants();
             Navigator.pop(context);
+            state.showRestaurants();
           },
           child: ListTile(contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.store_outlined),
