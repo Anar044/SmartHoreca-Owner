@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../ui/owner_text.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
 import '../ui/owner_components.dart';
@@ -97,7 +98,7 @@ class _OwnerAiScreenState extends State<OwnerAiScreen> {
             OwnerCard(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Пример аналитического ответа', style: TextStyle(fontWeight: FontWeight.bold)),
+                const OwnerText('Пример аналитического ответа', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 7),
                 const Text('В реальном приложении здесь будут данные из Smart Horeca, отфильтрованные по выбранным ресторанам.'),
                 const SizedBox(height: 10),
@@ -112,13 +113,13 @@ class _OwnerAiScreenState extends State<OwnerAiScreen> {
             onPressed: () => showDialog<void>(
               context: context,
               builder: (_) => AlertDialog(
-                title: const Text('История диалогов'),
+                title: const OwnerText('История диалогов'),
                 content: const Text('При подключении AI здесь будут личные разговоры пользователя. Демо не сохраняет переписку.'),
-                actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Закрыть'))],
+                actions: [TextButton(onPressed: () => Navigator.pop(context), child: const OwnerText('Закрыть'))],
               ),
             ),
             icon: const Icon(Icons.history),
-            label: const Text('История разговоров'),
+            label: const OwnerText('История разговоров'),
           ),
         ],
       )),
