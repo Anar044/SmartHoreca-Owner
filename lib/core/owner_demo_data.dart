@@ -133,3 +133,55 @@ class OwnerDemoData {
     return '${buf.toString()} AZN';
   }
 }
+
+class OwnerDemoCash {
+  final String name;
+  final String restaurant;
+  final bool open;
+  final int revenueToday;
+  final int checksToday;
+  final int returnsToday;
+
+  const OwnerDemoCash({
+    required this.name,
+    required this.restaurant,
+    required this.open,
+    required this.revenueToday,
+    required this.checksToday,
+    required this.returnsToday,
+  });
+
+  static const List<OwnerDemoCash> registers = [
+    OwnerDemoCash(name: 'Касса 1', restaurant: 'Ресторан Баку',
+      open: true, revenueToday: 12450, checksToday: 186, returnsToday: 230),
+    OwnerDemoCash(name: 'Касса 2', restaurant: 'Jelly Park',
+      open: true, revenueToday: 8230, checksToday: 116, returnsToday: 110),
+    OwnerDemoCash(name: 'Касса 3', restaurant: 'Jelly Metropark',
+      open: false, revenueToday: 6780, checksToday: 94, returnsToday: 75),
+  ];
+
+  static OwnerDemoCash find(String name) => registers.firstWhere(
+      (cash) => cash.name == name);
+
+  int revenue(String period) =>
+      (revenueToday * OwnerDemoData.multiplier(period)).round();
+  int checks(String period) =>
+      (checksToday * OwnerDemoData.multiplier(period)).round();
+  int returns(String period) =>
+      (returnsToday * OwnerDemoData.multiplier(period)).round();
+
+  /// Payments are proportions of the *collected* demo sum. Returns and
+  /// cash movements are separate accounting categories, not added here.
+  List<int> payments(String period) {
+    final total = revenue(period);
+    final cash = (total * 4230 / 12450).round();
+    final card = (total * 7820 / 12450).round();
+    final transfer = (total * 320 / 12450).round();
+    return [cash, card, transfer, total - cash - card - transfer];
+  }
+
+  double? averageCheck(String period) {
+    final qty = checks(period);
+    return qty > 0 ? revenue(period) / qty : null;
+  }
+}
