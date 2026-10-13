@@ -28,6 +28,19 @@ class _OwnerAiScreenState extends State<OwnerAiScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (OwnerScope.of(context).live) {
+      return OwnerScreenFrame(children: [
+        const OwnerRestaurantPicker(),
+        const SizedBox(height: 14),
+        const OwnerHeading('AI Smart Horeca Assistant'),
+        const SizedBox(height: 14),
+        const OwnerCard(child: Text(
+          'Интерфейс AI утверждён. Реальные сообщения, история и голос '
+          'будут подключены после серверной проверки прав доступа. '
+          'До этого мы не будем показывать вымышленные AI-ответы.',
+        )),
+      ]);
+    }
     final bg = OwnerPalette.surface(context);
     return Column(children: [
       Expanded(child: ListView(
