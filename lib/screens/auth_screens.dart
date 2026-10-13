@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/owner_backend.dart';
 import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
+import '../core/owner_l10n.dart';
 import '../ui/owner_components.dart';
 
 const bool _allowPreview = bool.fromEnvironment(
@@ -30,6 +31,7 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
   Widget build(BuildContext context) {
     final dark = OwnerPalette.isDark(context);
     final state = OwnerScope.of(context);
+    String tr(String ru) => OwnerL10n.tr(state.language, ru);
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -54,11 +56,11 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
                 Text('Owner', style: TextStyle(fontSize: 17,
                     color: OwnerPalette.accent(context), fontWeight: FontWeight.w700)),
                 const SizedBox(height: 9),
-                Text('Ваш бизнес всегда под контролем', style: TextStyle(
+                Text(tr('Ваш бизнес всегда под контролем'), style: TextStyle(
                     color: OwnerPalette.muted(context), fontSize: 13)),
                 const SizedBox(height: 36),
                 Align(alignment: Alignment.centerLeft, child: Text(
-                    'Вход в аккаунт', style: Theme.of(context).textTheme.titleLarge)),
+                    tr('Вход в аккаунт'), style: Theme.of(context).textTheme.titleLarge)),
                 const SizedBox(height: 15),
                 TextField(
                   controller: email,
@@ -73,7 +75,7 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
                   obscureText: !showPassword,
                   autofillHints: const [AutofillHints.password],
                   decoration: InputDecoration(
-                    labelText: 'Пароль',
+                    labelText: tr('Пароль'),
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       onPressed: () => setState(() => showPassword = !showPassword),
@@ -100,7 +102,7 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
                     child: state.busy
                         ? const SizedBox(width: 18, height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Войти'),
+                        : Text(tr('Войти')),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -111,7 +113,7 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
                   const SizedBox(height: 10),
                   TextButton(
                     onPressed: state.busy ? null : state.previewSignIn,
-                    child: const Text('Посмотреть утверждённый дизайн'),
+                    child: Text(tr('Посмотреть утверждённый дизайн')),
                   ),
                   const OwnerDemoNotice(),
                 ],
@@ -173,7 +175,7 @@ class OwnerRestaurantSelectScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = OwnerScope.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Выбор ресторанов')),
+      appBar: AppBar(title: Text(tr('Выбор ресторанов'))),
       body: SafeArea(
         child: Column(children: [
           Expanded(child: ListView(
@@ -186,8 +188,8 @@ class OwnerRestaurantSelectScreen extends StatelessWidget {
               const SizedBox(height: 12),
               OwnerCard(child: CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Выбрать все'),
-                subtitle: Text('Доступно: ${state.availableRestaurants.length}'),
+                title: Text(tr('Выбрать все')),
+                subtitle: Text('${tr('Доступно')}: ${state.availableRestaurants.length}'),
                 value: state.selectedRestaurants.length ==
                     state.availableRestaurants.length,
                 onChanged: (v) => state.selectAllRestaurants(v ?? false),
@@ -211,7 +213,7 @@ class OwnerRestaurantSelectScreen extends StatelessWidget {
               child: FilledButton(
                 onPressed: state.selectedRestaurants.isEmpty
                     ? null : state.enterPreview,
-                child: Text('Применить (${state.selectedRestaurants.length})'),
+                child: Text('${tr('Применить')} (${state.selectedRestaurants.length})'),
               ),
             ),
           ),
