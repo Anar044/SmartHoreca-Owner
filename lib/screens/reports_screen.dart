@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
+import '../core/owner_demo_data.dart';
 import '../ui/owner_components.dart';
 
 class OwnerReportsScreen extends StatelessWidget {
@@ -77,6 +78,12 @@ class _OwnerReportDetailState extends State<OwnerReportDetail> {
   @override
   Widget build(BuildContext context) {
     final olap = widget.title.contains('OLAP');
+    final state = OwnerScope.of(context);
+    final demo = OwnerDemoData.snapshot(state.selectedRestaurants, state.period);
+    final groupNames = [
+      for (final name in state.selectedRestaurants)
+        if (OwnerDemoData.restaurants.any((r) => r.name == name)) name,
+    ];
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title, style: const TextStyle(fontSize: 17)),
@@ -93,10 +100,12 @@ class _OwnerReportDetailState extends State<OwnerReportDetail> {
         const SizedBox(height: 13),
         const OwnerPeriodPicker(),
         const SizedBox(height: 15),
-        const Row(children: [
-          Expanded(child: OwnerMetric('Сумма', '124 520 AZN', trend: '↑ 12,5%')),
-          SizedBox(width: 10),
-          Expanded(child: OwnerMetric('Чеки', '1 482', trend: '↑ 8,3%')),
+        Row(children: [
+          Expanded(child: OwnerMetric('Выручка',
+            OwnerDemoData.money(demo.revenue), trend: '↑ 12,5%')),
+          const SizedBox(width: 10),
+          Expanded(child: OwnerMetric('Чеки',
+            demo.checks.toString(), trend: '↑ 8,3%')),
         ]),
         const SizedBox(height: 15),
         SegmentedButton<bool>(
@@ -109,52 +118,93 @@ class _OwnerReportDetailState extends State<OwnerReportDetail> {
         ),
         const SizedBox(height: 12),
         if (!table) ...[
-          const OwnerCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            OwnerHeading('Выручка по периодам'),
-            SizedBox(height: 14),
-            OwnerBars(values: [14, 18, 23, 16, 26, 28, 24], labels: ['01', '02', '03', '04', '05', '06', '07']),
-          ])),
+          OwnerCard(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              OwnerHeading(demo.chartTitle),
+              const SizedBox(height: 14),
+              OwnerBars(values: demo.chartValues, labels: demo.chartLabels),
+              const SizedBox(height: 7),
+              Text('Демонстрация • ${state.period}',
+                style: TextStyle(color: OwnerPalette.muted(context),
+                  fontSize: 11)),
+            ],
+          )),
         ] else if (olap) ...[
-          OwnerCard(child: Column(children: [
-            const OwnerHeading('Касса → Блюдо'),
-            const SizedBox(height: 12),
-            for (final cash in const [
-              ('Касса 1', '42 150 AZN'),
-              ('Касса 2', '38 320 AZN'),
-              ('Касса 3', '28 840 AZN'),
-            ]) ...[
+          OwnerCard(child: Column(
+            children: [
+              const OwnerHeading('Касса → Блюдо'),
+              const SizedBox(height: 12),
+              for (var idx = 0; idx < groupNames.length; idx++) ...[
+                Builder(builder: (context) {
+                  final name = groupNames[idx];
+                  final restaurant = OwnerDemoData.restaurants.firstWhere(
+                    (r) => r.name == name);
+                  final total = OwnerDemoData.restaurantRevenue(
+                    restaurant, state.period);
+                  final items = [
+                    (total * 0.50).round(),
+                    (total * 0.30).round(),
+                    total - (total * 0.50).round() -
+                        (total * 0.30).round(),
+                  ];
+                  final groupName = 'Касса ${idx + 1} — $name';
+                  return Column(children: [
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(groupName),
+                      trailing: Text(OwnerDemoData.money(total)),
+                      leading: Icon(expanded.contains(groupName)
+                          ? Icons.expand_more : Icons.chevron_right),
+                      onTap: () => setState(() {
+                        if (!expanded.add(groupName)) {
+                          expanded.remove(groupName);
+                        }
+                      }),
+                    ),
+                    if (expanded.contains(groupName))
+                      for (var i = 0; i < items.length; i++)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 22),
+                          child: ListTile(
+                            dense: true,
+                            title: Text(OwnerDemoData.dishNames[i]),
+                            trailing: Text(OwnerDemoData.money(items[i])),
+                          ),
+                        ),
+                    const Divider(height: 1),
+                  ]);
+                }),
+              ],
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(cash.$1),
-                trailing: Text(cash.$2),
-                leading: Icon(expanded.contains(cash.$1) ? Icons.expand_more : Icons.chevron_right),
-                onTap: () => setState(() {
-                  if (!expanded.add(cash.$1)) expanded.remove(cash.$1);
-                }),
+                title: const Text('Всего',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                trailing: Text(OwnerDemoData.money(demo.revenue),
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
-              if (expanded.contains(cash.$1))
-                for (final dish in const [
-                  ('Люля-кебаб', '2 450 AZN'),
-                  ('Плов', '1 980 AZN'),
-                  ('Куриный суп', '1 560 AZN'),
-                ])
-                  Padding(
-                    padding: const EdgeInsets.only(left: 22),
-                    child: ListTile(dense: true, title: Text(dish.$1), trailing: Text(dish.$2)),
-                  ),
-              const Divider(height: 1),
             ],
-          ])),
+          )),
         ] else ...[
-          OwnerCard(child: Column(children: [
-            for (final item in const [
-              ('01 октября', '16 420 AZN'),
-              ('02 октября', '17 850 AZN'),
-              ('03 октября', '18 230 AZN'),
-              ('04 октября', '15 940 AZN'),
-            ])
-              ListTile(contentPadding: EdgeInsets.zero, title: Text(item.$1), trailing: Text(item.$2)),
-          ])),
+          OwnerCard(child: Column(
+            children: [
+              for (var i = 0; i < demo.chartValues.length; i++)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(demo.chartLabels[i]),
+                  trailing: Text(OwnerDemoData.money(
+                    demo.chartValues[i], decimals: true)),
+                ),
+              const Divider(),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Всего',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                trailing: Text(OwnerDemoData.money(demo.revenue),
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          )),
         ],
         const SizedBox(height: 13),
         Text('Экспорт и реальные OLAP поля будут подключены после серверного read-only API.',
