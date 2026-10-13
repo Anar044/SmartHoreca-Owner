@@ -201,6 +201,10 @@ class OwnerL10n {
       'Операций оплаты не найдено.': 'Ödəniş əməliyyatı tapılmadı.',
       'Получаем кассовые смены…': 'Kassa növbələri yüklənir…',
       'Поиск кассы, смены или кассира': 'Kassa, növbə və ya kassir axtarın',
+      '1 нед.': '1-ci həftə',
+      '2 нед.': '2-ci həftə',
+      '3 нед.': '3-cü həftə',
+      '4 нед.': '4-cü həftə',
     },
     'English': {
       'Главная': 'Home',
@@ -394,6 +398,10 @@ class OwnerL10n {
       'Операций оплаты не найдено.': 'No payment operations found.',
       'Получаем кассовые смены…': 'Loading cash shifts…',
       'Поиск кассы, смены или кассира': 'Search register, shift or cashier',
+      '1 нед.': 'Week 1',
+      '2 нед.': 'Week 2',
+      '3 нед.': 'Week 3',
+      '4 нед.': 'Week 4',
     },
   };
 
