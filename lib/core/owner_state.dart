@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'owner_backend.dart';
 
-enum OwnerStage { signIn, restaurants, shell }
+enum OwnerStage { signIn, workspaces, restaurants, shell }
 
 class OwnerState extends ChangeNotifier {
   ThemeMode themeMode = ThemeMode.system;
@@ -8,31 +9,131 @@ class OwnerState extends ChangeNotifier {
   int tabIndex = 0;
   String language = 'Русский';
   String period = 'Сегодня';
+  bool busy = false;
+  bool live = false;
+  String? error;
+  String? dashboardError;
+  bool dashboardLoading = false;
 
-  final List<String> availableRestaurants = const [
-    'Ресторан Баку',
-    'Jelly Park',
-    'Jelly Metropark',
+  String? workspaceId;
+  String workspaceName = '';
+  List<Map<String, dynamic>> workspaces = [];
+  Map<String, dynamic>? summary;
+
+  List<String> availableRestaurants = [
+    'Ресторан Баку', 'Jelly Park', 'Jelly Metropark'
   ];
-  final Set<String> selectedRestaurants = {
-    'Ресторан Баку',
-    'Jelly Park',
-    'Jelly Metropark',
+  Set<String> selectedRestaurants = {
+    'Ресторан Баку', 'Jelly Park', 'Jelly Metropark'
   };
+  Map<String, String> restaurantIdsByName = {};
 
-  void setTheme(ThemeMode next) {
-    themeMode = next;
+  Set<String> get selectedRestaurantIds => selectedRestaurants
+      .map((name) => restaurantIdsByName[name] ?? '')
+      .where((id) => id.isNotEmpty)
+      .toSet();
+
+  void setTheme(ThemeMode value) {
+    themeMode = value;
     notifyListeners();
   }
-
   void setLanguage(String value) {
     language = value;
     notifyListeners();
   }
-
   void setPeriod(String value) {
     period = value;
     notifyListeners();
+    if (live) loadSummary();
+  }
+
+  Future<void> restoreSession() async {
+    if (!OwnerBackend.hasSession) return;
+    await loadWorkspaces();
+  }
+
+  Future<void> signIn(String email, String password) async {
+    busy = true;
+    error = null;
+    notifyListeners();
+    try {
+      await OwnerBackend.signIn(email, password);
+      await _loadWorkspacesAfterSignIn();
+    } catch (e) {
+      error = e is OwnerApiException ? e.message : 'Не удалось войти: $e';
+    } finally {
+      busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadWorkspaces() async {
+    busy = true;
+    error = null;
+    notifyListeners();
+    try {
+      await _loadWorkspacesAfterSignIn();
+    } catch (e) {
+      error = e is OwnerApiException ? e.message : 'Ошибка загрузки доступа.';
+      stage = OwnerStage.signIn;
+    } finally {
+      busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadWorkspacesAfterSignIn() async {
+    final data = await OwnerBackend.getJson('/api/mobile/v1/workspaces');
+    final items = (data['workspaces'] as List? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .where((item) => item['isOwner'] == true &&
+            item['status'] == 'ACTIVE')
+        .toList();
+    workspaces = items;
+    if (items.isEmpty) {
+      throw const OwnerApiException(
+        'OWNER_ONLY', 'Доступ владельца не назначен.', 403);
+    }
+    if (items.length == 1) {
+      await _chooseWorkspace(items.first['id'].toString());
+    } else {
+      stage = OwnerStage.workspaces;
+    }
+  }
+
+  Future<void> chooseWorkspace(String id) async {
+    busy = true;
+    error = null;
+    notifyListeners();
+    try {
+      await _chooseWorkspace(id);
+    } catch (e) {
+      error = e is OwnerApiException ? e.message : 'Не удалось выбрать организацию.';
+    } finally {
+      busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _chooseWorkspace(String id) async {
+    // Explicit workspace header: no dependency on browser cookies.
+    final data = await OwnerBackend.getJson(
+      '/api/mobile/v1/bootstrap', workspaceId: id);
+    final restaurants = (data['restaurants'] as List? ?? [])
+        .whereType<Map<String, dynamic>>().toList();
+    restaurantIdsByName = {
+      for (final restaurant in restaurants)
+        restaurant['name'].toString(): restaurant['id'].toString()
+    };
+    availableRestaurants = restaurantIdsByName.keys.toList();
+    selectedRestaurants = {...availableRestaurants};
+    workspaceId = id;
+    workspaceName =
+        (data['workspace']?['name'] ?? 'Smart Horeca').toString();
+    live = true;
+    summary = null;
+    dashboardError = null;
+    stage = OwnerStage.restaurants;
   }
 
   void showRestaurants() {
@@ -41,7 +142,10 @@ class OwnerState extends ChangeNotifier {
   }
 
   void previewSignIn() {
-    // DESIGN PREVIEW ONLY. This deliberately does not perform authentication.
+    // Explicit design preview, never a real authenticated session.
+    live = false;
+    workspaceId = null;
+    error = null;
     stage = OwnerStage.restaurants;
     notifyListeners();
   }
@@ -50,6 +154,7 @@ class OwnerState extends ChangeNotifier {
     if (selectedRestaurants.isEmpty) return;
     stage = OwnerStage.shell;
     notifyListeners();
+    if (live) loadSummary();
   }
 
   void selectRestaurant(String value, bool selected) {
@@ -67,14 +172,56 @@ class OwnerState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> loadSummary() async {
+    if (!live || workspaceId == null || selectedRestaurantIds.isEmpty) return;
+    dashboardLoading = true;
+    dashboardError = null;
+    summary = null; // Never show stale or demonstration finance data as live.
+    notifyListeners();
+    final now = DateTime.now();
+    String fmt(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
+        '${d.month.toString().padLeft(2, '0')}-'
+        '${d.day.toString().padLeft(2, '0')}';
+    final to = period == 'Вчера' ? now.subtract(const Duration(days: 1)) : now;
+    final from = switch (period) {
+      '7 дней' => to.subtract(const Duration(days: 6)),
+      'Месяц' => to.subtract(const Duration(days: 29)),
+      _ => to,
+    };
+    try {
+      final result = await OwnerBackend.getJson(
+        '/api/mobile/v1/summary',
+        workspaceId: workspaceId!,
+        departmentIds: selectedRestaurantIds,
+        query: {'from': fmt(from), 'to': fmt(to)},
+      );
+      if (live && stage == OwnerStage.shell) summary = result;
+    } catch (e) {
+      dashboardError =
+          e is OwnerApiException ? e.message : 'Ошибка получения данных SH.';
+    } finally {
+      dashboardLoading = false;
+      notifyListeners();
+    }
+  }
+
   void setTab(int value) {
     tabIndex = value;
     notifyListeners();
   }
 
+  Future<void> signOut() async {
+    await OwnerBackend.signOut();
+    logOutPreview();
+  }
+
   void logOutPreview() {
+    live = false;
     stage = OwnerStage.signIn;
     tabIndex = 0;
+    workspaceId = null;
+    summary = null;
+    error = null;
     notifyListeners();
   }
 }
