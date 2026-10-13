@@ -11,10 +11,10 @@ class OwnerCashScreen extends StatelessWidget {
     if (OwnerScope.of(context).live) {
       return const OwnerScreenFrame(children: [
         OwnerHeading('Кассы', caption: 'Кассовые смены и чеки'),
-        const SizedBox(height: 14),
-        const OwnerRestaurantPicker(),
-        const SizedBox(height: 14),
-        const OwnerCard(child: Column(
+        SizedBox(height: 14),
+        OwnerRestaurantPicker(),
+        SizedBox(height: 14),
+        OwnerCard(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(Icons.lock_outline, size: 32),
