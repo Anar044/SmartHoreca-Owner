@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../ui/owner_text.dart';
 
 import '../core/owner_backend.dart';
 import '../core/owner_state.dart';
@@ -159,7 +160,7 @@ class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
           Text(error!, textAlign: TextAlign.center),
           const SizedBox(height: 12),
           FilledButton.icon(onPressed: _load,
-              icon: const Icon(Icons.refresh), label: const Text('Повторить')),
+              icon: const Icon(Icons.refresh), label: const OwnerText('Повторить')),
         ]))
       else ...[
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -167,7 +168,7 @@ class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
               style: const TextStyle(fontWeight: FontWeight.w600)),
           TextButton.icon(onPressed: _load,
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Обновить')),
+              label: const OwnerText('Обновить')),
         ]),
         const SizedBox(height: 8),
         if (visible.isEmpty)
@@ -305,7 +306,7 @@ class _OwnerLiveShiftDetailState extends State<OwnerLiveShiftDetail> {
     final ops = (shift?['operations'] as List? ?? [])
         .whereType<Map<String, dynamic>>().toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('Детали смены')),
+      appBar: AppBar(title: const OwnerText('Детали смены')),
       body: OwnerScreenFrame(children: [
         if (loading)
           const OwnerCard(child: Padding(
@@ -316,7 +317,7 @@ class _OwnerLiveShiftDetailState extends State<OwnerLiveShiftDetail> {
           OwnerCard(child: Column(children: [
             Text(error!, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            FilledButton(onPressed: _load, child: const Text('Повторить')),
+            FilledButton(onPressed: _load, child: const OwnerText('Повторить')),
           ]))
         else if (shift != null) ...[
           OwnerHeading('Смена ${display(shift['number'])}',
@@ -330,15 +331,15 @@ class _OwnerLiveShiftDetailState extends State<OwnerLiveShiftDetail> {
           const SizedBox(height: 12),
           OwnerCard(child: Column(children: [
             ListTile(contentPadding: EdgeInsets.zero,
-              title: const Text('Открытие'),
+              title: const OwnerText('Открытие'),
               trailing: Text(display(shift['openedAt']))),
             const Divider(height: 1),
             ListTile(contentPadding: EdgeInsets.zero,
-              title: const Text('Закрытие'),
+              title: const OwnerText('Закрытие'),
               trailing: Text(display(shift['closedAt']))),
             const Divider(height: 1),
             ListTile(contentPadding: EdgeInsets.zero,
-              title: const Text('Кассир'),
+              title: const OwnerText('Кассир'),
               trailing: Text(display(shift['cashierName']))),
           ])),
           const SizedBox(height: 16),
