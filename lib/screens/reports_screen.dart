@@ -3,6 +3,7 @@ import '../ui/owner_text.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
 import '../core/owner_demo_data.dart';
+import '../core/owner_l10n.dart';
 import '../ui/owner_components.dart';
 
 class OwnerReportsScreen extends StatelessWidget {
@@ -54,7 +55,7 @@ class OwnerReportsScreen extends StatelessWidget {
               child: Icon(report.$2, color: OwnerPalette.accent(context)),
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(report.$1, style: const TextStyle(fontWeight: FontWeight.w600))),
+            Expanded(child: Text(OwnerL10n.tr(OwnerScope.of(context).language, report.$1), style: const TextStyle(fontWeight: FontWeight.w600))),
             const Icon(Icons.chevron_right),
           ]),
         ),
@@ -87,7 +88,7 @@ class _OwnerReportDetailState extends State<OwnerReportDetail> {
     ];
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title, style: const TextStyle(fontSize: 17)),
+        title: Text(OwnerL10n.tr(state.language, widget.title), style: const TextStyle(fontSize: 17)),
         actions: [
           IconButton(
             icon: const Icon(Icons.tune_outlined),
@@ -126,7 +127,7 @@ class _OwnerReportDetailState extends State<OwnerReportDetail> {
               const SizedBox(height: 14),
               OwnerBars(values: demo.chartValues, labels: demo.chartLabels),
               const SizedBox(height: 7),
-              Text('Демонстрация • ${state.period}',
+              Text('${OwnerL10n.tr(state.language, 'Демонстрация')} • ${OwnerL10n.tr(state.language, state.period)}',
                 style: TextStyle(color: OwnerPalette.muted(context),
                   fontSize: 11)),
             ],
@@ -153,7 +154,7 @@ class _OwnerReportDetailState extends State<OwnerReportDetail> {
                   return Column(children: [
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text(groupName),
+                      title: Text(OwnerL10n.previewLabel(state.language, groupName)),
                       trailing: Text(OwnerDemoData.money(total)),
                       leading: Icon(expanded.contains(groupName)
                           ? Icons.expand_more : Icons.chevron_right),
@@ -169,7 +170,7 @@ class _OwnerReportDetailState extends State<OwnerReportDetail> {
                           padding: const EdgeInsets.only(left: 22),
                           child: ListTile(
                             dense: true,
-                            title: Text(OwnerDemoData.dishNames[i]),
+                            title: Text(OwnerL10n.tr(state.language, OwnerDemoData.dishNames[i])),
                             trailing: Text(OwnerDemoData.money(items[i])),
                           ),
                         ),
@@ -275,7 +276,7 @@ class _OwnerInventoryScreenState extends State<OwnerInventoryScreen> {
         DropdownButtonFormField<String>(
           initialValue: warehouse,
           decoration: const InputDecoration(labelText: 'Склад'),
-          items: ['Все склады', 'Основной склад', 'Бар'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          items: ['Все склады', 'Основной склад', 'Бар'].map((e) => DropdownMenuItem(value: e, child: Text(OwnerL10n.tr(OwnerScope.of(context).language, e)))).toList(),
           onChanged: (v) => setState(() => warehouse = v ?? 'Все склады'),
         ),
         const SizedBox(height: 13),
@@ -302,7 +303,7 @@ class _OwnerInventoryScreenState extends State<OwnerInventoryScreen> {
             child: ChoiceChip(
               showCheckmark: false,
               selected: filter == f,
-              label: Text(f),
+              label: Text(OwnerL10n.tr(OwnerScope.of(context).language, f)),
               onSelected: (_) => setState(() => filter = f),
             ),
           )).toList(),
@@ -314,8 +315,8 @@ class _OwnerInventoryScreenState extends State<OwnerInventoryScreen> {
               Icon(Icons.inventory_2_outlined, color: OwnerPalette.accent(context)),
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(p.$1, style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text(p.$4, style: TextStyle(color: p.$4 == 'В наличии' ? OwnerPalette.green : OwnerPalette.error, fontSize: 11)),
+                Text(OwnerL10n.tr(OwnerScope.of(context).language, p.$1), style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(OwnerL10n.tr(OwnerScope.of(context).language, p.$4), style: TextStyle(color: p.$4 == 'В наличии' ? OwnerPalette.green : OwnerPalette.error, fontSize: 11)),
               ])),
               Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Text(p.$2, style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -337,9 +338,10 @@ class OwnerProductDetail extends StatelessWidget {
   const OwnerProductDetail({super.key, required this.name});
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(name)),
+    appBar: AppBar(title: Text(OwnerL10n.tr(OwnerScope.of(context).language, name))),
     body: OwnerScreenFrame(children: [
-      OwnerHeading(name, caption: 'Овощи / Складской товар'),
+      OwnerHeading(OwnerL10n.tr(OwnerScope.of(context).language, name),
+        caption: 'Овощи / Складской товар'),
       const SizedBox(height: 13),
       const Row(children: [
         Expanded(child: OwnerMetric('Остаток', '12,5 кг')),
