@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
+import '../core/owner_l10n.dart';
 import '../ui/owner_components.dart';
 
 class OwnerProfileScreen extends StatelessWidget {
@@ -9,8 +10,9 @@ class OwnerProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = OwnerScope.of(context);
+    String tr(String value) => OwnerL10n.tr(state.language, value);
     return Scaffold(
-      appBar: AppBar(title: const Text('Профиль')),
+      appBar: AppBar(title: Text(tr('Профиль'))),
       body: OwnerScreenFrame(children: [
         OwnerCard(child: Row(children: [
           CircleAvatar(
@@ -19,10 +21,10 @@ class OwnerProfileScreen extends StatelessWidget {
             child: const Icon(Icons.person_outline, color: Colors.white),
           ),
           const SizedBox(width: 12),
-          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Владелец ресторана', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(tr('Владелец ресторана'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
             SizedBox(height: 4),
-            Text('Настройки владельца', style: TextStyle(fontSize: 11)),
+            Text(tr('Настройки владельца'), style: TextStyle(fontSize: 11)),
           ])),
         ])),
         const SizedBox(height: 12),
@@ -33,12 +35,12 @@ class OwnerProfileScreen extends StatelessWidget {
           },
           child: ListTile(contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.store_outlined),
-            title: const Text('Мои рестораны'),
+            title: Text(tr('Мои рестораны')),
             trailing: Text('${state.selectedRestaurants.length}'),
           ),
         ),
         const SizedBox(height: 12),
-        const OwnerHeading('Тема оформления'),
+        OwnerHeading(tr('Тема оформления')),
         const SizedBox(height: 9),
         OwnerCard(child: RadioGroup<ThemeMode>(
           groupValue: state.themeMode,
@@ -51,7 +53,7 @@ class OwnerProfileScreen extends StatelessWidget {
             ])
               RadioListTile<ThemeMode>(
                 value: row.$1,
-                title: Text(row.$2),
+                title: Text(tr(row.$2)),
                 secondary: Icon(row.$3),
                 contentPadding: EdgeInsets.zero,
                 dense: true,
@@ -59,15 +61,17 @@ class OwnerProfileScreen extends StatelessWidget {
           ]),
         )),
         const SizedBox(height: 13),
-        const OwnerHeading('Язык интерфейса'),
+        OwnerHeading(tr('Язык интерфейса')),
         const SizedBox(height: 8),
         OwnerCard(child: RadioGroup<String>(
           groupValue: state.language,
           onChanged: (value) {
-            if (value != null) state.setLanguage(value);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Полный перевод подключим до выпуска.')),
-            );
+            if (value != null) {
+              // Change language without a persistent floating snackbar that
+              // covers bottom navigation and check details.
+              ScaffoldMessenger.of(context).removeCurrentSnackBar();
+              state.setLanguage(value);
+            }
           },
           child: Column(children: [
             for (final value in ['Русский', 'Azərbaycan', 'English'])
@@ -79,17 +83,23 @@ class OwnerProfileScreen extends StatelessWidget {
               ),
           ]),
         )),
+        if (state.language != 'Русский') ...[
+          const SizedBox(height: 7),
+          Text(tr('Перевод остальных разделов находится в разработке'),
+            style: TextStyle(fontSize: 11,
+              color: OwnerPalette.muted(context))),
+        ],
         const SizedBox(height: 12),
         OwnerCard(
           onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const OwnerNotificationsScreen())),
-          child: const ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.notifications_outlined), title: Text('Уведомления'), trailing: Icon(Icons.chevron_right)),
+          child: ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.notifications_outlined), title: Text(tr('Уведомления')), trailing: const Icon(Icons.chevron_right)),
         ),
         const SizedBox(height: 9),
-        const OwnerCard(child: ListTile(
+        OwnerCard(child: ListTile(
           contentPadding: EdgeInsets.zero,
           leading: Icon(Icons.shield_outlined),
-          title: Text('Безопасность'),
-          subtitle: Text('Авторизация и биометрия подключаются отдельно'),
+          title: Text(tr('Безопасность')),
+          subtitle: Text(tr('Авторизация и биометрия подключаются отдельно')),
         )),
         const SizedBox(height: 15),
         OutlinedButton.icon(
@@ -98,7 +108,7 @@ class OwnerProfileScreen extends StatelessWidget {
             state.signOut();
           },
           icon: const Icon(Icons.logout),
-          label: const Text('Выйти из демо'),
+          label: Text(tr(state.live ? 'Выйти' : 'Выйти из демо')),
         ),
       ]),
     );
