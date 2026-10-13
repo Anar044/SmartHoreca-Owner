@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/owner_theme.dart';
+import '../core/owner_state.dart';
 import '../ui/owner_components.dart';
 
 class OwnerCashScreen extends StatelessWidget {
@@ -7,6 +8,7 @@ class OwnerCashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final selected = OwnerScope.of(context).selectedRestaurants;
     return OwnerScreenFrame(children: [
       const OwnerHeading('Кассы', caption: 'Кассовые смены, выручка и чеки'),
       const SizedBox(height: 12),
@@ -21,7 +23,7 @@ class OwnerCashScreen extends StatelessWidget {
         ('Касса 2', 'Jelly Park', '8 230 AZN', true),
         ('Касса 3', 'Jelly Metropark', '6 780 AZN', false),
       ]) ...[
-        OwnerCard(
+        if (selected.contains(item.$2)) OwnerCard(
           onTap: () => Navigator.push(context, MaterialPageRoute<void>(
             builder: (_) => OwnerCashDetail(name: item.$1, restaurant: item.$2, active: item.$4),
           )),
