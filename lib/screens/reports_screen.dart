@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../ui/owner_text.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
 import '../core/owner_demo_data.dart';
@@ -110,8 +111,8 @@ class _OwnerReportDetailState extends State<OwnerReportDetail> {
         const SizedBox(height: 15),
         SegmentedButton<bool>(
           segments: const [
-            ButtonSegment(value: false, label: Text('График'), icon: Icon(Icons.bar_chart)),
-            ButtonSegment(value: true, label: Text('Таблица'), icon: Icon(Icons.table_chart_outlined)),
+            ButtonSegment(value: false, label: OwnerText('График'), icon: Icon(Icons.bar_chart)),
+            ButtonSegment(value: true, label: OwnerText('Таблица'), icon: Icon(Icons.table_chart_outlined)),
           ],
           selected: {table},
           onSelectionChanged: (v) => setState(() => table = v.first),
@@ -178,7 +179,7 @@ class _OwnerReportDetailState extends State<OwnerReportDetail> {
               ],
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Всего',
+                title: const OwnerText('Всего',
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 trailing: Text(OwnerDemoData.money(demo.revenue),
                     style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -198,7 +199,7 @@ class _OwnerReportDetailState extends State<OwnerReportDetail> {
               const Divider(),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Всего',
+                title: const OwnerText('Всего',
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 trailing: Text(OwnerDemoData.money(demo.revenue),
                     style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -220,7 +221,7 @@ class OwnerReportFilters extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Фильтры отчёта')),
+      appBar: AppBar(title: const OwnerText('Фильтры отчёта')),
       body: OwnerScreenFrame(children: [
         const OwnerHeading('Период и рестораны'),
         const SizedBox(height: 14),
@@ -229,12 +230,12 @@ class OwnerReportFilters extends StatelessWidget {
         const OwnerRestaurantPicker(),
         const SizedBox(height: 14),
         const OwnerCard(child: Column(children: [
-          ListTile(title: Text('Категории'), trailing: Text('Все категории')),
+          ListTile(title: OwnerText('Категории'), trailing: OwnerText('Все категории')),
           Divider(),
-          ListTile(title: Text('Блюда'), trailing: Text('Все блюда')),
+          ListTile(title: OwnerText('Блюда'), trailing: OwnerText('Все блюда')),
         ])),
         const SizedBox(height: 20),
-        FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Применить')),
+        FilledButton(onPressed: () => Navigator.pop(context), child: const OwnerText('Применить')),
       ]),
     );
   }
@@ -267,7 +268,7 @@ class _OwnerInventoryScreenState extends State<OwnerInventoryScreen> {
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Остатки на складах')),
+      appBar: AppBar(title: const OwnerText('Остатки на складах')),
       body: OwnerScreenFrame(children: [
         const OwnerRestaurantPicker(),
         const SizedBox(height: 10),
@@ -347,13 +348,13 @@ class OwnerProductDetail extends StatelessWidget {
       ]),
       const SizedBox(height: 10),
       const OwnerCard(child: Column(children: [
-        ListTile(title: Text('Себестоимость / кг'), trailing: Text('18 AZN')),
+        ListTile(title: OwnerText('Себестоимость / кг'), trailing: Text('18 AZN')),
         Divider(height: 1),
-        ListTile(title: Text('Основной склад'), trailing: Text('8,0 кг')),
+        ListTile(title: OwnerText('Основной склад'), trailing: Text('8,0 кг')),
         Divider(height: 1),
-        ListTile(title: Text('Бар'), trailing: Text('4,5 кг')),
+        ListTile(title: OwnerText('Бар'), trailing: Text('4,5 кг')),
         Divider(height: 1),
-        ListTile(title: Text('Срез на дату'), trailing: Text('13.10.2026')),
+        ListTile(title: OwnerText('Срез на дату'), trailing: Text('13.10.2026')),
       ])),
       const SizedBox(height: 14),
       const OwnerDemoNotice(),
