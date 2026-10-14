@@ -4,6 +4,7 @@ import '../core/owner_theme.dart';
 import '../core/owner_l10n.dart';
 import '../core/owner_state.dart';
 import '../ui/owner_components.dart';
+import 'owner_live_assistant.dart';
 
 class OwnerAiScreen extends StatefulWidget {
   const OwnerAiScreen({super.key});
@@ -32,17 +33,7 @@ class _OwnerAiScreenState extends State<OwnerAiScreen> {
   @override
   Widget build(BuildContext context) {
     if (OwnerScope.of(context).live) {
-      return const OwnerScreenFrame(children: [
-        OwnerRestaurantPicker(),
-        SizedBox(height: 14),
-        OwnerHeading('AI Smart Horeca Assistant'),
-        SizedBox(height: 14),
-        OwnerCard(child: Text(
-          'Интерфейс AI утверждён. Реальные сообщения, история и голос '
-          'будут подключены после серверной проверки прав доступа. '
-          'До этого мы не будем показывать вымышленные AI-ответы.',
-        )),
-      ]);
+      return const OwnerLiveAssistantScreen();
     }
     final bg = OwnerPalette.surface(context);
     return Column(children: [
