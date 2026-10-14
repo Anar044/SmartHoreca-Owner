@@ -154,7 +154,7 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
                     style: TextStyle(fontSize: 12,
                       color: OwnerPalette.muted(context))),
                   const Text('● Онлайн',
-                    style: const TextStyle(fontSize: 11,
+                    style: TextStyle(fontSize: 11,
                       color: OwnerPalette.green)),
                 ],
               )),
