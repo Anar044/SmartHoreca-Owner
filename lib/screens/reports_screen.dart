@@ -248,7 +248,7 @@ class _OwnerReportDetailState extends State<OwnerReportDetail> {
           )),
         ],
         const SizedBox(height: 13),
-        Text('Экспорт и реальные OLAP поля будут подключены после серверного read-only API.',
+        OwnerText('Экспорт и реальные OLAP поля будут подключены после серверного read-only API.',
           style: TextStyle(color: OwnerPalette.muted(context), fontSize: 12)),
       ]),
     );
@@ -314,7 +314,8 @@ class _OwnerInventoryScreenState extends State<OwnerInventoryScreen> {
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
           initialValue: warehouse,
-          decoration: const InputDecoration(labelText: 'Склад'),
+          decoration: InputDecoration(labelText: OwnerL10n.tr(
+            OwnerScope.of(context).language, 'Склад')),
           items: ['Все склады', 'Основной склад', 'Бар'].map((e) => DropdownMenuItem(value: e, child: Text(OwnerL10n.tr(OwnerScope.of(context).language, e)))).toList(),
           onChanged: (v) => setState(() => warehouse = v ?? 'Все склады'),
         ),
@@ -325,14 +326,20 @@ class _OwnerInventoryScreenState extends State<OwnerInventoryScreen> {
           Expanded(child: OwnerMetric('Позиций', '157')),
         ]),
         const SizedBox(height: 10),
-        const Row(children: [
-          Expanded(child: OwnerMetric('Отрицательные', '4', trend: 'Требуют проверки', trendColor: OwnerPalette.error)),
-          SizedBox(width: 10),
-          Expanded(child: OwnerMetric('Ниже минимума', '9', trend: 'Порог настроен', trendColor: OwnerPalette.warning)),
+        Row(children: [
+          Expanded(child: OwnerMetric('Отрицательные', '4',
+            trend: OwnerL10n.tr(OwnerScope.of(context).language,
+              'Требуют проверки'), trendColor: OwnerPalette.error)),
+          const SizedBox(width: 10),
+          Expanded(child: OwnerMetric('Ниже минимума', '9',
+            trend: OwnerL10n.tr(OwnerScope.of(context).language,
+              'Порог настроен'), trendColor: OwnerPalette.warning)),
         ]),
         const SizedBox(height: 13),
         TextField(
-          decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Поиск товара, кода...'),
+          decoration: InputDecoration(prefixIcon: const Icon(Icons.search),
+            hintText: OwnerL10n.tr(OwnerScope.of(context).language,
+              'Поиск товара, кода...')),
           onChanged: (v) => setState(() => search = v),
         ),
         const SizedBox(height: 10),
@@ -358,7 +365,9 @@ class _OwnerInventoryScreenState extends State<OwnerInventoryScreen> {
                 Text(OwnerL10n.tr(OwnerScope.of(context).language, p.$4), style: TextStyle(color: p.$4 == 'В наличии' ? OwnerPalette.green : OwnerPalette.error, fontSize: 11)),
               ])),
               Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text(p.$2, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(OwnerL10n.previewQuantity(
+                  OwnerScope.of(context).language, p.$2),
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
                 Text(p.$3, style: TextStyle(color: OwnerPalette.muted(context), fontSize: 11)),
               ]),
             ]),
@@ -382,20 +391,25 @@ class OwnerProductDetail extends StatelessWidget {
       OwnerHeading(OwnerL10n.tr(OwnerScope.of(context).language, name),
         caption: 'Овощи / Складской товар'),
       const SizedBox(height: 13),
-      const Row(children: [
-        Expanded(child: OwnerMetric('Остаток', '12,5 кг')),
-        SizedBox(width: 10),
-        Expanded(child: OwnerMetric('Стоимость', '225 AZN')),
+      Row(children: [
+        Expanded(child: OwnerMetric('Остаток', OwnerL10n.previewQuantity(
+          OwnerScope.of(context).language, '12,5 кг'))),
+        const SizedBox(width: 10),
+        const Expanded(child: OwnerMetric('Стоимость', '225 AZN')),
       ]),
       const SizedBox(height: 10),
-      const OwnerCard(child: Column(children: [
-        ListTile(title: OwnerText('Себестоимость / кг'), trailing: Text('18 AZN')),
-        Divider(height: 1),
-        ListTile(title: OwnerText('Основной склад'), trailing: Text('8,0 кг')),
-        Divider(height: 1),
-        ListTile(title: OwnerText('Бар'), trailing: Text('4,5 кг')),
-        Divider(height: 1),
-        ListTile(title: OwnerText('Срез на дату'), trailing: Text('13.10.2026')),
+      OwnerCard(child: Column(children: [
+        const ListTile(title: OwnerText('Себестоимость / кг'), trailing: Text('18 AZN')),
+        const Divider(height: 1),
+        ListTile(title: const OwnerText('Основной склад'),
+          trailing: Text(OwnerL10n.previewQuantity(
+            OwnerScope.of(context).language, '8,0 кг'))),
+        const Divider(height: 1),
+        ListTile(title: const OwnerText('Бар'),
+          trailing: Text(OwnerL10n.previewQuantity(
+            OwnerScope.of(context).language, '4,5 кг'))),
+        const Divider(height: 1),
+        const ListTile(title: OwnerText('Срез на дату'), trailing: Text('13.10.2026')),
       ])),
       const SizedBox(height: 14),
       const OwnerDemoNotice(),
