@@ -32,7 +32,7 @@ jobs:
       - name: Verify real-data pilot API availability
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
         env:
-          SH_PILOT_ORIGIN: https://7d177345.smarthoreca.pages.dev
+          SH_PILOT_ORIGIN: https://feature-owner-mobile-readonl.smarthoreca.pages.dev
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --location --retry 2 --max-time 20 \
@@ -53,7 +53,7 @@ jobs:
       - name: Build Android owner pilot APK
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
         env:
-          SH_PILOT_ORIGIN: https://7d177345.smarthoreca.pages.dev
+          SH_PILOT_ORIGIN: https://feature-owner-mobile-readonl.smarthoreca.pages.dev
         run: |
           set -euo pipefail
           if [[ ! "$SH_PILOT_ORIGIN" =~ ^https://[A-Za-z0-9.-]+/?$ ]]; then
