@@ -42,11 +42,15 @@ jobs:
       # Pilot APK uses public auth configuration, retrieved securely at build time.
       # It never embeds SH Server passwords or Supabase service-role credentials.
       - name: Build Android owner pilot APK
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' && vars.SH_OWNER_PILOT_API_BASE_URL != '' }}
         env:
-          SH_PILOT_ORIGIN: https://2d5970ba.smarthoreca.pages.dev
+          SH_PILOT_ORIGIN: ${{ vars.SH_OWNER_PILOT_API_BASE_URL }}
         run: |
           set -euo pipefail
+          if [[ ! "$SH_PILOT_ORIGIN" =~ ^https://[A-Za-z0-9.-]+/?$ ]]; then
+            echo "::error::Verified Cloudflare Preview HTTPS origin required."
+            exit 1
+          fi
           curl --fail --silent --show-error --location --retry 3 \
             --max-time 20 \
             'https://raw.githubusercontent.com/Anar044/anarsystem/main/auth-config.js' \
@@ -67,7 +71,7 @@ jobs:
           NODE
           flutter build apk --debug --dart-define-from-file=/tmp/sh-owner-pilot-defines.json
       - name: Upload Android owner pilot APK
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' && vars.SH_OWNER_PILOT_API_BASE_URL != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: Smart-Horeca-Owner-Android-Real-Data-Pilot
