@@ -421,7 +421,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Чек ${order['number']}',
+                Text('${OwnerL10n.tr(OwnerScope.of(context).language, 'Чек')} ${order['number']}',
                     style: const TextStyle(fontWeight: FontWeight.w700)),
                 Text('${order['date'] ?? ''} • ${order['table'] ?? ''}',
                     style: TextStyle(color: OwnerPalette.muted(context),
@@ -512,8 +512,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         .where((e) => e['belowMin'] == true ||
           ((e['quantity'] as num?) ?? 0) < 0).toList();
     return Column(children: [
-      const OwnerCard(child: Text('Текущие складские предупреждения. '
-          'Push-уведомления ещё не подключены.')),
+      const OwnerCard(child: OwnerText('Текущие складские предупреждения. Push-уведомления ещё не подключены.')),
       const SizedBox(height: 12),
       if (rows.isEmpty)
         const OwnerCard(child: OwnerText('По текущим остаткам предупреждений нет.')),
@@ -623,9 +622,9 @@ class OwnerLiveOrderScreen extends StatelessWidget {
   const OwnerLiveOrderScreen({super.key,required this.order});
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text('Чек ${order['number']}')),
+    appBar: AppBar(title: Text('${OwnerL10n.tr(OwnerScope.of(context).language, 'Чек')} ${order['number']}')),
     body: OwnerScreenFrame(children: [
-      OwnerHeading('Чек ${order['number']}',
+      OwnerHeading('${OwnerL10n.tr(OwnerScope.of(context).language, 'Чек')} ${order['number']}',
           caption: 'Данные SH OLAP только для просмотра'),
       const SizedBox(height: 12),
       OwnerCard(child: Column(children: [
@@ -644,9 +643,7 @@ class OwnerLiveOrderScreen extends StatelessWidget {
                 : '—')),
       ])),
       const SizedBox(height: 12),
-      const OwnerCard(child: Text('Состав чека и разделение оплат '
-          'пока не предоставлены источником SH OLAP. '
-          'Они не подменяются демонстрационными позициями.')),
+      const OwnerCard(child: OwnerText('Состав чека и разделение оплат пока не предоставлены источником SH OLAP. Они не подменяются демонстрационными позициями.')),
     ]),
   );
 }
