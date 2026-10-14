@@ -193,12 +193,20 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         .whereType<Map<String, dynamic>>().toList();
     final rows = (data?['rows'] as List? ?? [])
         .whereType<Map<String, dynamic>>().where((row) {
-      if (warehouse.isNotEmpty && row['storeId'] != warehouse) return false;
+      if (warehouse.isNotEmpty && row['storeId'] != warehouse) {
+        return false;
+      }
       if (filter == 'Отрицательные' &&
-          ((row['quantity'] as num?) ?? 0) >= 0) return false;
-      if (filter == 'Ниже min' && row['belowMin'] != true) return false;
+          ((row['quantity'] as num?) ?? 0) >= 0) {
+        return false;
+      }
+      if (filter == 'Ниже min' && row['belowMin'] != true) {
+        return false;
+      }
       if (filter == 'В наличии' &&
-          ((row['quantity'] as num?) ?? 0) <= 0) return false;
+          ((row['quantity'] as num?) ?? 0) <= 0) {
+        return false;
+      }
       return [
         row['productName'], row['productCode'], row['storeName']
       ].any((v) => v.toString().toLowerCase().contains(search.toLowerCase()));
