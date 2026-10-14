@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../ui/owner_text.dart';
+import '../ui/owner_text.dart';
 
 import '../core/owner_backend.dart';
 import '../core/owner_state.dart';
@@ -118,7 +119,7 @@ class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
         child: const Row(children: [
           Icon(Icons.receipt_long_outlined),
           SizedBox(width: 10),
-          Expanded(child: Text('Чеки выбранных ресторанов',
+          Expanded(child: OwnerText('Чеки выбранных ресторанов',
               style: TextStyle(fontWeight: FontWeight.w600))),
           Icon(Icons.chevron_right),
         ]),
@@ -165,7 +166,7 @@ class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
           child: Center(child: Column(children: [
             CircularProgressIndicator(),
             SizedBox(height: 12),
-            Text('Получаем кассовые смены…'),
+            OwnerText('Получаем кассовые смены…'),
           ])),
         ))
       else if (error != null)
@@ -367,7 +368,7 @@ class _OwnerLiveShiftDetailState extends State<OwnerLiveShiftDetail> {
               'SH Server не вернул данные об оплатах. '
               'Они не отображаются как нулевые.'))
           else if (ops.isEmpty)
-            const OwnerCard(child: Text('Операций оплаты не найдено.'))
+            const OwnerCard(child: OwnerText('Операций оплаты не найдено.'))
           else
             for (final operation in ops) ...[
               OwnerCard(child: Row(children: [
