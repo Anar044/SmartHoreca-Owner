@@ -241,6 +241,8 @@ class OwnerL10n {
       'Чеки выбранных ресторанов': 'Seçilmiş restoranların çekləri',
       'Доступно после проверки данных SH Server.': 'SH Server məlumatları yoxlandıqdan sonra əlçatan olacaq.',
       'AI вернул только текст. Числовые данные диаграммы не получены.': 'AI yalnız mətn qaytardı. Diaqram üçün rəqəmsal məlumat alınmadı.',
+      'Операционный день по кассовым сменам': 'Kassa növbələrinə görə əməliyyat günü',
+      'открытых смен': 'açıq növbə',
     },
     'English': {
       'Главная': 'Home',
@@ -476,6 +478,8 @@ class OwnerL10n {
       'Чеки выбранных ресторанов': 'Receipts for selected restaurants',
       'Доступно после проверки данных SH Server.': 'Available after SH Server data verification.',
       'AI вернул только текст. Числовые данные диаграммы не получены.': 'AI returned text only. No numeric chart data was received.',
+      'Операционный день по кассовым сменам': 'Operating day by cash shifts',
+      'открытых смен': 'open shifts',
     },
   };
 
