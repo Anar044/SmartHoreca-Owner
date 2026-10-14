@@ -110,13 +110,15 @@ class OwnerState extends ChangeNotifier {
     final data = await OwnerBackend.getJson('/api/mobile/v1/workspaces');
     final items = (data['workspaces'] as List? ?? [])
         .whereType<Map<String, dynamic>>()
-        .where((item) => item['isOwner'] == true &&
+        .where((item) => item['mobileEligible'] == true &&
             item['status'] == 'ACTIVE')
         .toList();
     workspaces = items;
     if (items.isEmpty) {
       throw const OwnerApiException(
-        'OWNER_ONLY', 'Доступ владельца не назначен.', 403);
+        'OWNER_ONLY',
+        'Доступ владельца или SYSADMIN организации не назначен. '
+        'Проверьте права в Smart Horeca.', 403);
     }
     if (items.length == 1) {
       await _chooseWorkspace(items.first['id'].toString());
