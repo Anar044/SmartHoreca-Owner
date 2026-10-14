@@ -41,7 +41,10 @@ class OwnerReportsScreen extends StatelessWidget {
             Navigator.push(context, MaterialPageRoute<void>(
             builder: (_) => report.$1 == 'Остатки на складах'
                 ? const OwnerInventoryScreen()
-                : OwnerReportDetail(title: report.$1),
+                : (report.$1 == 'Продажи и выручка' ||
+                        report.$1 == 'OLAP — продажи по кассам')
+                    ? OwnerReportDetail(title: report.$1)
+                    : OwnerReportPendingScreen(title: report.$1),
           ));
           },
           child: Row(children: [
@@ -62,6 +65,42 @@ class OwnerReportsScreen extends StatelessWidget {
         const SizedBox(height: 9),
       ],
     ]);
+  }
+}
+
+/// Explicitly unavailable report type: never reuse sales numbers as
+/// invented P&L, food cost, discount or warehouse movement figures.
+class OwnerReportPendingScreen extends StatelessWidget {
+  final String title;
+  const OwnerReportPendingScreen({super.key, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    final language = OwnerScope.of(context).language;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(OwnerL10n.tr(language, title),
+          style: const TextStyle(fontSize: 17)),
+      ),
+      body: OwnerScreenFrame(children: [
+        const OwnerRestaurantPicker(),
+        const SizedBox(height: 12),
+        const OwnerPeriodPicker(),
+        const SizedBox(height: 16),
+        OwnerCard(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.query_stats_outlined,
+              color: OwnerPalette.accent(context), size: 32),
+            const SizedBox(height: 12),
+            const OwnerHeading('Отчёт пока не подключён'),
+            const SizedBox(height: 10),
+            const OwnerText(
+              'Для этого раздела ещё нет отдельного мобильного API. Вместо чужих показателей здесь будут настоящие данные после подключения.'),
+          ],
+        )),
+      ]),
+    );
   }
 }
 
@@ -92,7 +131,7 @@ class _OwnerReportDetailState extends State<OwnerReportDetail> {
         actions: [
           IconButton(
             icon: const Icon(Icons.tune_outlined),
-            tooltip: 'Фильтры',
+            tooltip: OwnerL10n.tr(state.language, 'Фильтры'),
             onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const OwnerReportFilters())),
           ),
         ],
