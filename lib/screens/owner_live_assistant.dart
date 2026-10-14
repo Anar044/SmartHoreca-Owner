@@ -12,8 +12,9 @@ class _OwnerAssistantMessage {
   final String text;
   final Map<String, dynamic>? chart;
   final Map<String, dynamic>? report;
+  final bool chartMissing;
   const _OwnerAssistantMessage(this.role, this.text,
-      {this.chart, this.report});
+      {this.chart, this.report, this.chartMissing = false});
 }
 
 class OwnerLiveAssistantScreen extends StatefulWidget {
@@ -196,6 +197,10 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           (result['answer'] ?? 'AI не вернул текст ответа.').toString(),
           chart: OwnerAssistantVisuals.structured(result['chart']),
           report: OwnerAssistantVisuals.structured(result['report']),
+          chartMissing: RegExp(
+            r'график|диаграм|chart|graph|diaqram|qrafik',
+            caseSensitive: false,
+          ).hasMatch(message) && result['chart'] == null,
         ));
       });
     } catch (e) {
@@ -270,6 +275,13 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         if (message.role == 'assistant' &&
             (message.chart != null || message.report != null))
           OwnerAssistantVisuals(chart: message.chart, report: message.report),
+        if (message.chartMissing)
+          OwnerCard(child: Row(children: [
+            const Icon(Icons.info_outline, color: OwnerPalette.warning),
+            const SizedBox(width: 9),
+            Expanded(child: Text(OwnerL10n.tr(state.language,
+              'AI вернул только текст. Числовые данные диаграммы не получены.'))),
+          ])),
         const SizedBox(height: 8),
       ],
       if (sending) const OwnerCard(child: Row(children: [
