@@ -35,6 +35,37 @@ class OwnerHomeScreen extends StatelessWidget {
       const SizedBox(height: 13),
       const OwnerPeriodPicker(),
       const SizedBox(height: 15),
+      if (state.live && data?['mode'] == 'operational' &&
+          data?['operatingDay'] is Map) ...[
+        Builder(builder: (context) {
+          final info = data!['operatingDay'] as Map;
+          final from = (info['from'] ?? '—').toString();
+          final to = (info['to'] ?? '—').toString();
+          final active = (info['activeShiftCount'] ?? '—').toString();
+          return OwnerCard(child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.schedule, size: 22,
+                color: OwnerPalette.green),
+              const SizedBox(width: 10),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(OwnerL10n.tr(state.language,
+                    'Операционный день по кассовым сменам'),
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 4),
+                  Text('$from — $to • $active ' +
+                    OwnerL10n.tr(state.language, 'открытых смен'),
+                    style: TextStyle(fontSize: 12,
+                      color: OwnerPalette.muted(context))),
+                ],
+              )),
+            ],
+          ));
+        }),
+        const SizedBox(height: 12),
+      ],
       if (state.live) ...[
         if (state.dashboardLoading)
           const OwnerCard(child: Center(child: Padding(
