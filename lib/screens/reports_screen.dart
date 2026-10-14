@@ -5,6 +5,7 @@ import '../core/owner_state.dart';
 import '../core/owner_demo_data.dart';
 import '../core/owner_l10n.dart';
 import '../ui/owner_components.dart';
+import 'owner_live_reports.dart';
 
 class OwnerReportsScreen extends StatelessWidget {
   const OwnerReportsScreen({super.key});
@@ -33,9 +34,22 @@ class OwnerReportsScreen extends StatelessWidget {
         OwnerCard(
           onTap: () {
             if (isLive) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text(
-                    'Этот отчёт появится после подключения read-only API.')));
+              final kind = switch (report.$1) {
+                'Продажи и выручка' => 'sales',
+                'Блюда и категории' => 'categories',
+                'Скидки и наценки' => 'discounts',
+                'Себестоимость' => 'foodCost',
+                'P&L' => 'pnl',
+                'OLAP — продажи по кассам' => 'cash',
+                'Остатки на складах' => 'inventory',
+                'Движение товаров' => 'movements',
+                _ => 'sales',
+              };
+              Navigator.push(context, MaterialPageRoute<void>(
+                builder: (_) => OwnerLiveReportScreen(
+                  title: report.$1, kind: kind,
+                ),
+              ));
               return;
             }
             Navigator.push(context, MaterialPageRoute<void>(
