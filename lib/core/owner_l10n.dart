@@ -205,6 +205,11 @@ class OwnerL10n {
       '2 нед.': '2-ci həftə',
       '3 нед.': '3-cü həftə',
       '4 нед.': '4-cü həftə',
+      'В приложении будут показаны данные выбранных подразделений.': 'Tətbiqdə seçdiyiniz bölmələrin məlumatları göstəriləcək.',
+      'Отчёт пока не подключён': 'Hesabat hələ qoşulmayıb',
+      'Для этого раздела ещё нет отдельного мобильного API. Вместо чужих показателей здесь будут настоящие данные после подключения.': 'Bu bölmə üçün ayrıca mobil API hələ yoxdur. Qoşulduqdan sonra burada yalnız uyğun real məlumatlar göstəriləcək.',
+      'Выберите организацию': 'Təşkilat seçin',
+      'Мои организации': 'Təşkilatlarım',
     },
     'English': {
       'Главная': 'Home',
@@ -402,6 +407,13 @@ class OwnerL10n {
       '2 нед.': 'Week 2',
       '3 нед.': 'Week 3',
       '4 нед.': 'Week 4',
+      'Смена': 'Shift',
+      'Чек': 'Receipt',
+      'В приложении будут показаны данные выбранных подразделений.': 'The app will show data for the selected restaurants.',
+      'Отчёт пока не подключён': 'Report not connected yet',
+      'Для этого раздела ещё нет отдельного мобильного API. Вместо чужих показателей здесь будут настоящие данные после подключения.': 'This section does not yet have its own mobile API. It will show actual relevant data once connected.',
+      'Выберите организацию': 'Choose an organization',
+      'Мои организации': 'My organizations',
     },
   };
 
