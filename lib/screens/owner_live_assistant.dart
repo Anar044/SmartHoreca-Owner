@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../ui/owner_text.dart';
 import '../core/owner_backend.dart';
 import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
@@ -138,7 +139,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         SizedBox(width: 18, height: 18,
           child: CircularProgressIndicator(strokeWidth: 2)),
         SizedBox(width: 12),
-        Text('AI анализирует данные Smart Horeca…'),
+        OwnerText('AI анализирует данные Smart Horeca…'),
       ])),
       if (error != null) ...[
         const SizedBox(height: 8),
@@ -164,7 +165,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         onSubmitted: sending ? null : (value) => _send(value),
       ),
       const SizedBox(height: 6),
-      Text('Только аналитика. Изменение документов и настроек через AI запрещено.',
+      OwnerText('Только аналитика. Изменение документов и настроек через AI запрещено.',
         style: TextStyle(fontSize: 11,
           color: OwnerPalette.muted(context))),
       const SizedBox(height: 15),
