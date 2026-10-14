@@ -175,6 +175,20 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
   Widget _olapView(BuildContext context, OwnerState state) {
     final rows = (data?['rows'] as List? ?? [])
         .whereType<Map<String, dynamic>>().toList();
+    final nestedCash = widget.kind == 'cash' &&
+        data?['secondaryField'] != null;
+    final groupTotals = <String, double>{};
+    if (nestedCash) {
+      for (final row in rows) {
+        final group = row['group']?.toString() ?? '—';
+        groupTotals[group] = (groupTotals[group] ?? 0) +
+            ((row['value'] as num?)?.toDouble() ?? 0);
+      }
+    }
+    final chartRows = nestedCash
+        ? groupTotals.entries.map((e) =>
+            <String,dynamic>{'label':e.key,'value':e.value}).toList()
+        : rows;
     return Column(children: [
       Row(children: [
         Expanded(child: OwnerMetric('Позиций', '${data?['count'] ?? rows.length}')),
@@ -205,13 +219,40 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
                 style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 13),
             OwnerBars(
-              values: rows.take(12).map((r) =>
+              values: chartRows.take(12).map((r) =>
                   (r['value'] as num?)?.toDouble() ?? 0).toList(),
-              labels: rows.take(12).map((r) =>
+              labels: chartRows.take(12).map((r) =>
                   r['label'].toString()).toList(),
             ),
           ],
         ))
+      else if (nestedCash)
+        for (final group in groupTotals.entries) ...[
+          OwnerCard(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(group.key,
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                trailing: Text(_money(group.value),
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              for (final row in rows.where(
+                  (row) => row['group']?.toString() == group.key))
+                Padding(
+                  padding: const EdgeInsets.only(left: 22),
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(row['label'].toString()),
+                    trailing: Text(_money(row['value'])),
+                  ),
+                ),
+            ],
+          )),
+          const SizedBox(height: 8),
+        ]
       else
         for (final row in rows) ...[
           OwnerCard(child: ListTile(
