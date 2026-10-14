@@ -47,6 +47,50 @@ class OwnerBackend {
     if (configured) await client.auth.signOut();
   }
 
+  static Future<Map<String, dynamic>> postJson(
+    String path, {
+    required String workspaceId,
+    required Iterable<String> departmentIds,
+    required Map<String, dynamic> payload,
+  }) async {
+    if (!configured) {
+      throw const OwnerApiException('NOT_CONFIGURED',
+          'Не настроено подключение приложения.', 503);
+    }
+    final token = client.auth.currentSession?.accessToken;
+    if (token == null || token.isEmpty) {
+      throw const OwnerApiException('SESSION_MISSING', 'Войдите в аккаунт.', 401);
+    }
+    final uri = Uri.parse('$apiBase$path');
+    if (uri.scheme != 'https') {
+      throw const OwnerApiException(
+          'HTTPS_REQUIRED', 'Требуется защищённое соединение HTTPS.', 400);
+    }
+    final response = await http.post(uri, headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': 'Bearer $token',
+      'X-SH-Workspace-Id': workspaceId,
+      'X-SH-Department-Ids': (departmentIds.toList()..sort()).join(','),
+    }, body: jsonEncode(payload)).timeout(const Duration(seconds: 120));
+    Map<String, dynamic> data;
+    try {
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      data = decoded is Map<String, dynamic> ? decoded : {};
+    } catch (_) {
+      throw const OwnerApiException(
+          'INVALID_JSON', 'Сервер вернул неверный ответ.', 502);
+    }
+    if (response.statusCode >= 400 || data['success'] != true) {
+      throw OwnerApiException(
+        (data['code'] ?? 'HTTP_${response.statusCode}').toString(),
+        (data['message'] ?? 'Ошибка запроса.').toString(),
+        response.statusCode,
+      );
+    }
+    return data;
+  }
+
   static Future<Map<String, dynamic>> getJson(
     String path, {
     String? workspaceId,
