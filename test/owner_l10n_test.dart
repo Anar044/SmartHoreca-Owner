@@ -25,11 +25,13 @@ void main() {
   test('cash, receipts, reports and stock core labels have AZ and EN values', () {
     for (final language in ['Azərbaycan', 'English']) {
       for (final label in [
-        'Обзор', 'Оплаты', 'Смены', 'Чеки',
+        'Обзор', 'Оплаты', 'Смены', 'Чеки', 'Смена', 'Чек',
         'История смен', 'Способы оплаты', 'Состав чека',
         'Продажи и выручка', 'Блюда и категории',
         'Остатки на складах', 'График', 'Таблица', 'Итого',
         'В наличии', 'Ниже минимума', 'Популярные вопросы',
+        'В приложении будут показаны данные выбранных подразделений.',
+        'Отчёт пока не подключён',
       ]) {
         expect(OwnerL10n.hasTranslation(language, label), isTrue,
           reason: 'Missing $language: $label');
@@ -39,6 +41,10 @@ void main() {
 
   test('demo prefix and split tenders translate without changing amounts', () {
     expect(OwnerL10n.previewLabel('English', 'Касса 2'), 'Register 2');
+    expect(OwnerL10n.previewLabel('English', 'Смена №12548'),
+        'Shift №12548');
+    expect(OwnerL10n.previewLabel('English', 'Чек №25680'),
+        'Receipt №25680');
     expect(OwnerL10n.previewLabel('Azərbaycan', 'Чек №25680'),
         'Çek №25680');
     expect(OwnerL10n.previewTender('English', 'Карта + Наличные'),
