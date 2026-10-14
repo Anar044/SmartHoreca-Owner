@@ -196,8 +196,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         Expanded(child: OwnerMetric('Позиций', '${data?['count'] ?? rows.length}')),
         const SizedBox(width: 10),
         Expanded(child: OwnerMetric('Всего',
-          _money(rows.fold<double>(0, (v, e) =>
-              v + ((e['value'] as num?)?.toDouble() ?? 0))))),
+          _money(data?['totalValue']))),
       ]),
       const SizedBox(height: 12),
       SegmentedButton<bool>(
