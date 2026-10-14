@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../ui/owner_text.dart';
 
 import '../core/owner_backend.dart';
 import '../core/owner_state.dart';
@@ -201,9 +202,9 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
       const SizedBox(height: 12),
       SegmentedButton<bool>(
         segments: const [
-          ButtonSegment(value: false, label: Text('График'),
+          ButtonSegment(value: false, label: OwnerText('График'),
               icon: Icon(Icons.bar_chart)),
-          ButtonSegment(value: true, label: Text('Таблица'),
+          ButtonSegment(value: true, label: OwnerText('Таблица'),
               icon: Icon(Icons.table_chart_outlined)),
         ],
         selected: {table},
@@ -211,7 +212,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
       ),
       const SizedBox(height: 12),
       if (rows.isEmpty)
-        const OwnerCard(child: Text('Нет данных для выбранного периода.'))
+        const OwnerCard(child: OwnerText('Нет данных для выбранного периода.'))
       else if (!table)
         OwnerCard(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,7 +266,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
           const SizedBox(height: 8),
         ],
       if (data?['truncated'] == true)
-        const Text('Показана часть строк. Для полного отчёта используйте веб-систему.'),
+        const OwnerText('Показана часть строк. Для полного отчёта используйте веб-систему.'),
       _source(context),
     ]);
   }
@@ -315,7 +316,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         initialValue: warehouse,
         decoration: const InputDecoration(labelText: 'Склад'),
         items: [
-          const DropdownMenuItem(value: '', child: Text('Все склады')),
+          const DropdownMenuItem(value: '', child: OwnerText('Все склады')),
           ...stores.map((s) => DropdownMenuItem(
             value: s['id'].toString(),
             child: Text(s['name'].toString()),
@@ -348,7 +349,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
       ),
       const SizedBox(height: 12),
       if (rows.isEmpty)
-        const OwnerCard(child: Text('Нет складских позиций по фильтрам.'))
+        const OwnerCard(child: OwnerText('Нет складских позиций по фильтрам.'))
       else for (final row in rows) ...[
         OwnerCard(
           onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
@@ -390,7 +391,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
                 ? const SizedBox(width: 16, height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.expand_more),
-            label: const Text('Загрузить ещё товары'),
+            label: const OwnerText('Загрузить ещё товары'),
           ),
         ),
       _source(context),
@@ -408,7 +409,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
       ]),
       const SizedBox(height: 12),
       if (orders.isEmpty)
-        const OwnerCard(child: Text('Нет чеков за выбранный период.')),
+        const OwnerCard(child: OwnerText('Нет чеков за выбранный период.')),
       for (final order in orders) ...[
         OwnerCard(
           onTap: () => Navigator.push(context, MaterialPageRoute<void>(
@@ -435,7 +436,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         const SizedBox(height: 9),
       ],
       if (data?['truncated'] == true)
-        const Text('В приложении показаны первые 500 чеков.'),
+        const OwnerText('В приложении показаны первые 500 чеков.'),
       _source(context),
     ]);
   }
@@ -445,11 +446,11 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         .whereType<Map<String,dynamic>>().toList();
     return Column(children: [
       OwnerCard(child: ListTile(
-        title: const Text('Движение товаров'),
+        title: const OwnerText('Движение товаров'),
         trailing: Text('${data?['count'] ?? rows.length}'),
       )),
       const SizedBox(height: 10),
-      if (rows.isEmpty) const OwnerCard(child: Text('Движений за период нет.')),
+      if (rows.isEmpty) const OwnerCard(child: OwnerText('Движений за период нет.')),
       for (final row in rows) ...[
         OwnerCard(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -515,7 +516,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
           'Push-уведомления ещё не подключены.')),
       const SizedBox(height: 12),
       if (rows.isEmpty)
-        const OwnerCard(child: Text('По текущим остаткам предупреждений нет.')),
+        const OwnerCard(child: OwnerText('По текущим остаткам предупреждений нет.')),
       for (final row in rows) ...[
         OwnerCard(child: ListTile(
           leading: const Icon(Icons.warning_amber_outlined,
@@ -564,7 +565,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
             Text(error!, textAlign: TextAlign.center),
             const SizedBox(height: 10),
             FilledButton.icon(onPressed: _load,
-                icon: const Icon(Icons.refresh), label: const Text('Повторить')),
+                icon: const Icon(Icons.refresh), label: const OwnerText('Повторить')),
           ]))
         else if (data != null)
           if (widget.kind == 'inventory') _inventoryView(context)
@@ -603,13 +604,13 @@ class OwnerLiveProductScreen extends StatelessWidget {
         ]),
         const SizedBox(height: 12),
         OwnerCard(child: Column(children: [
-          ListTile(title: const Text('Склад'),
+          ListTile(title: const OwnerText('Склад'),
               trailing: Text(row['storeName'].toString())),
           const Divider(height: 1),
-          ListTile(title: const Text('Себестоимость'),
+          ListTile(title: const OwnerText('Себестоимость'),
               trailing: Text(money(row['unitCost']))),
           const Divider(height: 1),
-          ListTile(title: const Text('Срез на дату'),
+          ListTile(title: const OwnerText('Срез на дату'),
               trailing: Text(asOf)),
         ])),
       ]),
@@ -628,16 +629,16 @@ class OwnerLiveOrderScreen extends StatelessWidget {
           caption: 'Данные SH OLAP только для просмотра'),
       const SizedBox(height: 12),
       OwnerCard(child: Column(children: [
-        ListTile(title: const Text('Дата'),
+        ListTile(title: const OwnerText('Дата'),
             trailing: Text('${order['date'] ?? '—'}')),
         const Divider(height: 1),
-        ListTile(title: const Text('Стол'),
+        ListTile(title: const OwnerText('Стол'),
             trailing: Text('${order['table'] ?? '—'}')),
         const Divider(height: 1),
-        ListTile(title: const Text('Официант'),
+        ListTile(title: const OwnerText('Официант'),
             trailing: Text('${order['waiter'] ?? '—'}')),
         const Divider(height: 1),
-        ListTile(title: const Text('Сумма'),
+        ListTile(title: const OwnerText('Сумма'),
             trailing: Text(order['amount'] is num
                 ? '${(order['amount'] as num).toStringAsFixed(2)} AZN'
                 : '—')),
