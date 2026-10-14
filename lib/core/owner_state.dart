@@ -68,7 +68,11 @@ class OwnerState extends ChangeNotifier {
     period = value;
     unawaited(_prefs.setString('sh_owner_period', value));
     notifyListeners();
-    if (live) loadSummary();
+    // Reports refresh themselves for the selected CHAIN/period. Do not
+    // duplicate their request with a hidden dashboard OLAP request.
+    if (live && tabIndex == 0 && stage == OwnerStage.shell) {
+      unawaited(loadSummary());
+    }
   }
 
   Future<void> restoreSession() async {
@@ -271,8 +275,13 @@ class OwnerState extends ChangeNotifier {
   }
 
   void setTab(int value) {
+    final changed = tabIndex != value;
     tabIndex = value;
     notifyListeners();
+    // Refresh dashboard once when returning from a report's date selection.
+    if (changed && value == 0 && live && stage == OwnerStage.shell) {
+      unawaited(loadSummary());
+    }
   }
 
   Future<void> signOut() async {
