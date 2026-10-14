@@ -278,7 +278,10 @@ class OwnerState extends ChangeNotifier {
         '/api/mobile/v1/summary',
         workspaceId: workspaceId!,
         departmentIds: selectedRestaurantIds,
-        query: {'from': fmt(from), 'to': fmt(to)},
+        // Only the default "Сегодня" dashboard uses active cash sessions.
+        // Explicit earlier date ranges keep their original calendar meaning.
+        query: {'from': fmt(from), 'to': fmt(to),
+          'mode': period == 'Сегодня' ? 'operational' : 'calendar'},
       );
       if (generation == _summaryGeneration && live && stage == OwnerStage.shell) {
         summary = result;
