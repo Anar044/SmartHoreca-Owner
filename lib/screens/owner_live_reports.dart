@@ -87,7 +87,8 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         _ => dates,
       };
       final endpoint = switch (widget.kind) {
-        'inventory' || 'notifications' => '/api/mobile/v1/inventory',
+        'inventory' => '/api/mobile/v1/inventory',
+        'notifications' => '/api/mobile/v1/alerts',
         'orders' => '/api/mobile/v1/orders',
         'movements' => '/api/mobile/v1/movements',
         'pnl' => '/api/mobile/v1/pnl',
