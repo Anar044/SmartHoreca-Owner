@@ -3,7 +3,7 @@ import '../ui/owner_text.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
 import '../ui/owner_components.dart';
-import 'live_cash_shifts.dart';
+import 'owner_live_cash.dart';
 import '../core/owner_demo_data.dart';
 import '../core/owner_demo_receipts.dart';
 import '../core/owner_l10n.dart';
@@ -16,7 +16,7 @@ class OwnerCashScreen extends StatelessWidget {
     if (OwnerScope.of(context).live) {
       // IndexedStack builds offstage tabs; do not prefetch shifts offscreen.
       if (OwnerScope.of(context).tabIndex != 1) return const SizedBox.shrink();
-      return const OwnerLiveCashShifts();
+      return const OwnerLiveCashScreen();
     }
     final owner = OwnerScope.of(context);
     final selected = owner.selectedRestaurants;
