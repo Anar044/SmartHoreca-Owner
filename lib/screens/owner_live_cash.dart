@@ -100,7 +100,7 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
         ))
       else if (error != null)
         OwnerCard(child: Column(children: [
-          Icon(Icons.cloud_off_outlined, size: 30,
+          const Icon(Icons.cloud_off_outlined, size: 30,
             color: OwnerPalette.error),
           const SizedBox(height: 12),
           Text(error!, textAlign: TextAlign.center),
@@ -153,7 +153,7 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
                   Text(restaurants[register['departmentId']?.toString()] ?? '—',
                     style: TextStyle(fontSize: 12,
                       color: OwnerPalette.muted(context))),
-                  Text('● Онлайн',
+                  const Text('● Онлайн',
                     style: const TextStyle(fontSize: 11,
                       color: OwnerPalette.green)),
                 ],
