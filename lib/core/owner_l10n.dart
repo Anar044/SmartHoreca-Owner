@@ -432,6 +432,24 @@ class OwnerL10n {
     return tr(language, original);
   }
 
+  /// Only for explicitly labeled offline preview quantities. A live
+  /// restaurant's item name and server-provided measurement data are untouched.
+  static String previewQuantity(String language, String amount) {
+    final unit = switch (language) {
+      'English' => 'kg',
+      'Azərbaycan' => 'kq',
+      _ => 'кг',
+    };
+    return amount.replaceFirst(RegExp(r'\\sкг
+      original.split(' + ').map((part) => tr(language, part)).join(' + ');
+
+  static bool hasTranslation(String language, String sourceRussian) =>
+      language == 'Русский' ||
+      (_translations[language]?.containsKey(sourceRussian) ?? false);
+}
+), ' $unit');
+  }
+
   static String previewTender(String language, String original) =>
       original.split(' + ').map((part) => tr(language, part)).join(' + ');
 
