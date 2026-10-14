@@ -24,6 +24,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
   int _generation = 0;
   bool loading = true;
   bool table = false;
+  bool loadingNext = false;
   String? error;
   Map<String, dynamic>? data;
   String warehouse = '';
@@ -115,6 +116,46 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         error = e is OwnerApiException ? e.message
             : 'Не удалось загрузить данные Smart Horeca.';
       });
+    }
+  }
+
+  Future<void> _loadNext() async {
+    if (loadingNext || widget.kind != 'inventory') return;
+    final next = data?['nextOffset'];
+    if (next is! int) return;
+    final owner = OwnerScope.of(context);
+    final workspace = owner.workspaceId;
+    if (workspace == null) return;
+    final current = _generation;
+    final date = _dates(owner)['to'];
+    if (date == null) return;
+    setState(() => loadingNext = true);
+    try {
+      final chunk = await OwnerBackend.getJson(
+        '/api/mobile/v1/inventory',
+        workspaceId: workspace,
+        departmentIds: owner.selectedRestaurantIds,
+        query: {'date': date, 'offset': '$next'},
+      );
+      if (!mounted || _generation != current) return;
+      final oldRows = (data?['rows'] as List? ?? []);
+      final newRows = (chunk['rows'] as List? ?? []);
+      setState(() {
+        data = {
+          ...data!,
+          'rows': [...oldRows, ...newRows],
+          'nextOffset': chunk['nextOffset'],
+        };
+      });
+    } catch (e) {
+      if (mounted && _generation == current) {
+        setState(() => error = e is OwnerApiException
+            ? e.message : 'Не удалось загрузить следующие товары.');
+      }
+    } finally {
+      if (mounted && _generation == current) {
+        setState(() => loadingNext = false);
+      }
     }
   }
 
@@ -299,8 +340,17 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         const SizedBox(height: 8),
       ],
       if (data?['nextOffset'] != null)
-        const OwnerCard(child: Text('Есть дополнительные строки остатков. '
-            'Полный список доступен на сайте Smart Horeca.')),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.tonalIcon(
+            onPressed: loadingNext ? null : _loadNext,
+            icon: loadingNext
+                ? const SizedBox(width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.expand_more),
+            label: const Text('Загрузить ещё товары'),
+          ),
+        ),
       _source(context),
     ]);
   }
