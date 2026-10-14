@@ -53,6 +53,23 @@ void main() {
         'Kart + Nağd');
   });
 
+  test('warehouse unit abbreviations are localized only in the demo', () {
+    expect(OwnerL10n.previewQuantity('English', '12,5 кг'), '12,5 kg');
+    expect(OwnerL10n.previewQuantity('Azərbaycan', '8,0 кг'), '8,0 kq');
+    expect(OwnerL10n.previewQuantity('Русский', '-1,0 кг'), '-1,0 кг');
+    expect(OwnerL10n.previewQuantity('English', 'Tomato'), 'Tomato');
+  });
+
+  test('warehouse hints exist in both translations', () {
+    for (final language in ['English', 'Azərbaycan']) {
+      for (final key in [
+        'Поиск товара, кода...', 'Требуют проверки', 'Порог настроен'
+      ]) {
+        expect(OwnerL10n.hasTranslation(language, key), isTrue);
+      }
+    }
+  });
+
   test('untranslated business terms are not replaced with fake translations', () {
     expect(OwnerL10n.tr('English', 'Новый отчёт iiko'), 'Новый отчёт iiko');
   });
