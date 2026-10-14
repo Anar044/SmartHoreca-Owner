@@ -240,6 +240,7 @@ class OwnerL10n {
       'Только аналитика. Изменение документов и настроек через AI запрещено.': 'Yalnız analitika. AI vasitəsilə sənəd və ayarları dəyişmək qadağandır.',
       'Чеки выбранных ресторанов': 'Seçilmiş restoranların çekləri',
       'Доступно после проверки данных SH Server.': 'SH Server məlumatları yoxlandıqdan sonra əlçatan olacaq.',
+      'AI вернул только текст. Числовые данные диаграммы не получены.': 'AI yalnız mətn qaytardı. Diaqram üçün rəqəmsal məlumat alınmadı.',
     },
     'English': {
       'Главная': 'Home',
@@ -474,6 +475,7 @@ class OwnerL10n {
       'Только аналитика. Изменение документов и настроек через AI запрещено.': 'Analytics only. AI cannot change documents or settings.',
       'Чеки выбранных ресторанов': 'Receipts for selected restaurants',
       'Доступно после проверки данных SH Server.': 'Available after SH Server data verification.',
+      'AI вернул только текст. Числовые данные диаграммы не получены.': 'AI returned text only. No numeric chart data was received.',
     },
   };
 
