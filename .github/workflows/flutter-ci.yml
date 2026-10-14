@@ -39,34 +39,28 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      # Live-data APK is deliberately opt-in. On feature branches only, and
-      # only when the repository is explicitly configured for a pilot preview.
-      - name: Build Android authenticated pilot APK
-        if: ${{ github.event_name == 'push' && vars.SH_OWNER_PILOT_API_BASE_URL != '' }}
+      # Pilot uses existing PUBLIC Supabase client config from the site's
+      # public auth-config.js (no service-role key and no upstream passwords).
+      # Deploys no backend and does not touch anarsystem/main.
+      # Scoped to this feature branch; production releases need a fresh review.
+      - name: Build Android owner pilot APK
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
         env:
-          PILOT_URL: ${{ vars.SH_OWNER_PILOT_API_BASE_URL }}
-          PUBLIC_SUPABASE_URL: ${{ secrets.SH_OWNER_SUPABASE_URL }}
-          PUBLIC_SUPABASE_KEY: ${{ secrets.SH_OWNER_SUPABASE_PUBLISHABLE_KEY }}
+          PILOT_URL: https://1f6ac687.smarthoreca.pages.dev
+          PUBLIC_SUPABASE_URL: https://izytdfkdpbhmyuizuuut.supabase.co
+          PUBLIC_SUPABASE_KEY: sb_publishable_OODMzFTaHq6DIoorXb85nQ_2FfwBXAS
         run: |
           set -euo pipefail
-          if [[ ! "$PILOT_URL" =~ ^https://[a-zA-Z0-9.-]+/?$ ]]; then
-            echo "::error::Pilot API base URL must be an HTTPS origin without paths or query."
-            exit 1
-          fi
-          if [[ -z "$PUBLIC_SUPABASE_URL" || -z "$PUBLIC_SUPABASE_KEY" ]]; then
-            echo "::error::Missing public Supabase client settings for the pilot."
-            exit 1
-          fi
           flutter build apk --debug \
             --dart-define=SH_ENABLE_DEMO=false \
-            --dart-define="SH_API_BASE_URL=${PILOT_URL%/}" \
+            --dart-define="SH_API_BASE_URL=$PILOT_URL" \
             --dart-define="SH_SUPABASE_URL=$PUBLIC_SUPABASE_URL" \
             --dart-define="SH_SUPABASE_PUBLISHABLE_KEY=$PUBLIC_SUPABASE_KEY"
-      - name: Upload authenticated pilot APK
-        if: ${{ github.event_name == 'push' && vars.SH_OWNER_PILOT_API_BASE_URL != '' }}
+      - name: Upload Android owner pilot APK
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
         uses: actions/upload-artifact@v4
         with:
-          name: Smart-Horeca-Owner-Android-Pilot
+          name: Smart-Horeca-Owner-Android-Real-Data-Pilot
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 7
