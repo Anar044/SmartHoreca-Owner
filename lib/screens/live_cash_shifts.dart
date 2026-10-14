@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../ui/owner_text.dart';
-import '../ui/owner_text.dart';
 
 import '../core/owner_backend.dart';
 import '../core/owner_state.dart';
