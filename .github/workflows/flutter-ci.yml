@@ -39,23 +39,33 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      # Pilot uses existing PUBLIC Supabase client config from the site's
-      # public auth-config.js (no service-role key and no upstream passwords).
-      # Deploys no backend and does not touch anarsystem/main.
-      # Scoped to this feature branch; production releases need a fresh review.
+      # Pilot APK uses public auth configuration, retrieved securely at build time.
+      # It never embeds SH Server passwords or Supabase service-role credentials.
       - name: Build Android owner pilot APK
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
         env:
-          PILOT_URL: https://1f6ac687.smarthoreca.pages.dev
-          PUBLIC_SUPABASE_URL: https://izytdfkdpbhmyuizuuut.supabase.co
-          PUBLIC_SUPABASE_KEY: sb_publishable_OODMzFTaHq6DIoorXb85nQ_2FfwBXAS
+          SH_PILOT_ORIGIN: https://2d5970ba.smarthoreca.pages.dev
         run: |
           set -euo pipefail
-          flutter build apk --debug \
-            --dart-define=SH_ENABLE_DEMO=false \
-            --dart-define="SH_API_BASE_URL=$PILOT_URL" \
-            --dart-define="SH_SUPABASE_URL=$PUBLIC_SUPABASE_URL" \
-            --dart-define="SH_SUPABASE_PUBLISHABLE_KEY=$PUBLIC_SUPABASE_KEY"
+          curl --fail --silent --show-error --location --retry 3 \
+            --max-time 20 \
+            'https://raw.githubusercontent.com/Anar044/anarsystem/main/auth-config.js' \
+            -o /tmp/sh-owner-public-auth-config.js
+          node - <<'NODE'
+          const fs = require('fs');
+          const publicConfig = fs.readFileSync('/tmp/sh-owner-public-auth-config.js', 'utf8');
+          const url = publicConfig.match(/url:\s*["'](https:\/\/[^"']+)["']/)?.[1];
+          const key = publicConfig.match(/publishableKey:\s*["'](sb_publishable_[^"']+)["']/)?.[1];
+          if (!url || !key) throw new Error('Public Supabase auth config missing');
+          const defs = {
+            SH_ENABLE_DEMO: 'false',
+            SH_API_BASE_URL: process.env.SH_PILOT_ORIGIN,
+            SH_SUPABASE_URL: url,
+            SH_SUPABASE_PUBLISHABLE_KEY: key,
+          };
+          fs.writeFileSync('/tmp/sh-owner-pilot-defines.json', JSON.stringify(defs));
+          NODE
+          flutter build apk --debug --dart-define-from-file=/tmp/sh-owner-pilot-defines.json
       - name: Upload Android owner pilot APK
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
         uses: actions/upload-artifact@v4
