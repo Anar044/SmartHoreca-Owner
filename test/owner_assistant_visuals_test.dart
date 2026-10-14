@@ -5,7 +5,7 @@ import 'package:smart_horeca_owner/screens/owner_assistant_visuals.dart';
 void main() {
   testWidgets('shows server-provided chart points and no invented data',
       (tester) async {
-    await tester.pumpWidget(MaterialApp(
+    await tester.pumpWidget(const MaterialApp(
       home: Scaffold(
         body: SingleChildScrollView(
           child: OwnerAssistantVisuals(chart: {
@@ -33,7 +33,7 @@ void main() {
 
   testWidgets('renders structured AI report with actual cells',
       (tester) async {
-    await tester.pumpWidget(MaterialApp(
+    await tester.pumpWidget(const MaterialApp(
       home: Scaffold(body: SingleChildScrollView(
         child: OwnerAssistantVisuals(report: {
           'title': 'Отчёт по ресторанам',
