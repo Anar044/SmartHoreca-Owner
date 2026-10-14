@@ -5,6 +5,7 @@ import '../core/owner_backend.dart';
 import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
 import '../ui/owner_components.dart';
+import 'owner_live_reports.dart';
 
 /// Live owner-only cash shift list. Financial values are displayed only when
 /// explicitly returned by the authenticated and CHAIN-scoped server API.
@@ -107,6 +108,21 @@ class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
       const OwnerHeading('Кассы', caption: 'Просмотр кассовых смен'),
       const SizedBox(height: 12),
       const OwnerRestaurantPicker(),
+      const SizedBox(height: 12),
+      OwnerCard(
+        onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+          builder: (_) => const OwnerLiveReportScreen(
+            title: 'Чеки', kind: 'orders',
+          ),
+        )),
+        child: const Row(children: [
+          Icon(Icons.receipt_long_outlined),
+          SizedBox(width: 10),
+          Expanded(child: Text('Чеки выбранных ресторанов',
+              style: TextStyle(fontWeight: FontWeight.w600))),
+          Icon(Icons.chevron_right),
+        ]),
+      ),
       const SizedBox(height: 12),
       Wrap(spacing: 7, runSpacing: 7, children: [
         for (final option in ['Сегодня', 'Вчера', '7 дней'])
