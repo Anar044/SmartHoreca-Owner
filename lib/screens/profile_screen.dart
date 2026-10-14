@@ -3,6 +3,8 @@ import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_l10n.dart';
 import '../ui/owner_components.dart';
+import '../core/owner_backend.dart';
+import 'owner_live_reports.dart';
 
 class OwnerProfileScreen extends StatelessWidget {
   const OwnerProfileScreen({super.key});
@@ -22,9 +24,11 @@ class OwnerProfileScreen extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(tr('Владелец ресторана'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            Text(state.live ? (OwnerBackend.client.auth.currentUser?.email ?? state.workspaceName) : tr('Владелец ресторана'),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(tr('Настройки владельца'), style: const TextStyle(fontSize: 11)),
+            Text(state.live ? state.workspaceName : tr('Настройки владельца'),
+              style: const TextStyle(fontSize: 11)),
           ])),
         ])),
         const SizedBox(height: 12),
@@ -130,7 +134,9 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     if (OwnerScope.of(context).live) {
-      return Scaffold(
+      return const OwnerLiveReportScreen(title: 'Уведомления', kind: 'notifications');
+    }
+    return Scaffold(
         appBar: AppBar(title: const Text('Уведомления')),
         body: const OwnerScreenFrame(children: [
           OwnerHeading('Уведомления', caption: 'События ресторанов'),
