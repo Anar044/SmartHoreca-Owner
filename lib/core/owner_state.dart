@@ -190,7 +190,13 @@ class OwnerState extends ChangeNotifier {
     live = true;
     summary = null;
     dashboardError = null;
-    stage = OwnerStage.restaurants;
+    // The owner should not have to reconfirm restaurants on every login.
+    // First sign-in defaults to all authorized restaurants; an explicit
+    // saved selection is restored by immutable department IDs above.
+    stage = availableRestaurants.isEmpty
+        ? OwnerStage.restaurants
+        : OwnerStage.shell;
+    if (stage == OwnerStage.shell) unawaited(loadSummary());
   }
 
   void showRestaurants() {
@@ -225,13 +231,29 @@ class OwnerState extends ChangeNotifier {
     } else {
       selectedRestaurants.remove(value);
     }
+    if (live && workspaceId != null && selectedRestaurantIds.isNotEmpty) {
+      unawaited(_prefs.setStringList(
+          'sh_owner_depts_$workspaceId', selectedRestaurantIds.toList()));
+    }
     notifyListeners();
+    if (live && stage == OwnerStage.shell && tabIndex == 0 &&
+        selectedRestaurantIds.isNotEmpty) {
+      unawaited(loadSummary());
+    }
   }
 
   void selectAllRestaurants(bool selected) {
     selectedRestaurants.clear();
     if (selected) selectedRestaurants.addAll(availableRestaurants);
+    if (live && workspaceId != null && selectedRestaurantIds.isNotEmpty) {
+      unawaited(_prefs.setStringList(
+          'sh_owner_depts_$workspaceId', selectedRestaurantIds.toList()));
+    }
     notifyListeners();
+    if (live && stage == OwnerStage.shell && tabIndex == 0 &&
+        selectedRestaurantIds.isNotEmpty) {
+      unawaited(loadSummary());
+    }
   }
 
   Future<void> loadSummary() async {
