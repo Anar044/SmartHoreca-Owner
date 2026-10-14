@@ -210,6 +210,7 @@ class OwnerL10n {
       'Для этого раздела ещё нет отдельного мобильного API. Вместо чужих показателей здесь будут настоящие данные после подключения.': 'Bu bölmə üçün ayrıca mobil API hələ yoxdur. Qoşulduqdan sonra burada yalnız uyğun real məlumatlar göstəriləcək.',
       'Выберите организацию': 'Təşkilat seçin',
       'Мои организации': 'Təşkilatlarım',
+      'Валовая прибыль совпадает с выручкой. Проверьте учёт себестоимости в SH OLAP перед принятием решений.': 'Ümumi mənfəət satış gəliri ilə eynidir. Qərar verməzdən əvvəl SH OLAP-da maya dəyərinin uçotunu yoxlayın.',
     },
     'English': {
       'Главная': 'Home',
@@ -414,6 +415,7 @@ class OwnerL10n {
       'Для этого раздела ещё нет отдельного мобильного API. Вместо чужих показателей здесь будут настоящие данные после подключения.': 'This section does not yet have its own mobile API. It will show actual relevant data once connected.',
       'Выберите организацию': 'Choose an organization',
       'Мои организации': 'My organizations',
+      'Валовая прибыль совпадает с выручкой. Проверьте учёт себестоимости в SH OLAP перед принятием решений.': 'Gross profit equals revenue. Check cost accounting in SH OLAP before making decisions.',
     },
   };
 
