@@ -55,8 +55,7 @@ class OwnerHomeScreen extends StatelessWidget {
                     'Операционный день по кассовым сменам'),
                     style: const TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 4),
-                  Text('$from — $to • $active ' +
-                    OwnerL10n.tr(state.language, 'открытых смен'),
+                  Text('$from — $to • $active ${OwnerL10n.tr(state.language, 'открытых смен')}',
                     style: TextStyle(fontSize: 12,
                       color: OwnerPalette.muted(context))),
                 ],
