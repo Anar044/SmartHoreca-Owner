@@ -4,6 +4,7 @@ import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
 import '../core/owner_demo_data.dart';
 import '../core/owner_l10n.dart';
+import '../core/owner_finance_validation.dart';
 
 class OwnerHomeScreen extends StatelessWidget {
   const OwnerHomeScreen({super.key});
@@ -65,6 +66,23 @@ class OwnerHomeScreen extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(child: OwnerMetric('Валовая прибыль', _money(metrics['grossProfit']))),
           ]),
+          if (OwnerFinanceValidation.grossProfitMatchesRevenue(metrics)) ...[
+            const SizedBox(height: 10),
+            OwnerCard(child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline_rounded,
+                    size: 20, color: OwnerPalette.warning),
+                const SizedBox(width: 10),
+                Expanded(child: Text(
+                  OwnerL10n.tr(state.language,
+                    'Валовая прибыль совпадает с выручкой. '
+                    'Проверьте учёт себестоимости в SH OLAP перед принятием решений.'),
+                  style: const TextStyle(fontSize: 12),
+                )),
+              ],
+            )),
+          ],
           const SizedBox(height: 14),
           OwnerCard(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
