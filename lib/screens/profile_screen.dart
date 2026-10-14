@@ -137,27 +137,6 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
       return const OwnerLiveReportScreen(title: 'Уведомления', kind: 'notifications');
     }
     return Scaffold(
-        appBar: AppBar(title: const Text('Уведомления')),
-        body: const OwnerScreenFrame(children: [
-          OwnerHeading('Уведомления', caption: 'События ресторанов'),
-          SizedBox(height: 14),
-          OwnerCard(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.notifications_off_outlined, size: 30),
-              SizedBox(height: 10),
-              Text('Уведомления пока не подключены',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 8),
-              Text('Push и подписки подключим после настройки '
-                  'защищённого серверного сервиса. '
-                  'Демонстрационные события не показываются как настоящие.'),
-            ],
-          )),
-        ]),
-      );
-    }
-    return Scaffold(
       appBar: AppBar(title: const Text('Уведомления'), actions: [
         IconButton(
           tooltip: 'Настройки',
