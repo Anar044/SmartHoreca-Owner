@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
+import 'owner_assistant_visuals.dart';
 import '../ui/owner_text.dart';
 import '../core/owner_backend.dart';
 import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_l10n.dart';
 import '../ui/owner_components.dart';
+
+class _OwnerAssistantMessage {
+  final String role;
+  final String text;
+  final Map<String, dynamic>? chart;
+  final Map<String, dynamic>? report;
+  const _OwnerAssistantMessage(this.role, this.text,
+      {this.chart, this.report});
+}
 
 class OwnerLiveAssistantScreen extends StatefulWidget {
   const OwnerLiveAssistantScreen({super.key});
@@ -15,7 +25,7 @@ class OwnerLiveAssistantScreen extends StatefulWidget {
 
 class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   final controller = TextEditingController();
-  final List<(String, String)> conversation = [];
+  final List<_OwnerAssistantMessage> conversation = [];
   bool sending = false;
   String? error;
   String? conversationId;
@@ -116,8 +126,14 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       final messages = (result['messages'] as List? ?? [])
           .whereType<Map<String,dynamic>>()
           .where((m) => m['role'] == 'user' || m['role'] == 'assistant')
-          .map((m) => (m['role'].toString(),
-              (m['content'] ?? '').toString())).toList();
+          .map((m) {
+            final meta = OwnerAssistantVisuals.structured(m['meta']);
+            return _OwnerAssistantMessage(
+              m['role'].toString(), (m['content'] ?? '').toString(),
+              chart: OwnerAssistantVisuals.structured(meta?['chart']),
+              report: OwnerAssistantVisuals.structured(meta?['report']),
+            );
+          }).toList();
       setState(() {
         conversationId = id;
         conversation
@@ -156,7 +172,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     final workspaceId = owner.workspaceId!;
     final restaurantIds = owner.selectedRestaurantIds.toList();
     setState(() {
-      conversation.add(('user', message));
+      conversation.add(_OwnerAssistantMessage('user', message));
       controller.clear();
       error = null;
       sending = true;
@@ -175,9 +191,11 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       if (!mounted || current != _generation) return;
       setState(() {
         conversationId = result['conversationId']?.toString();
-        conversation.add((
+        conversation.add(_OwnerAssistantMessage(
           'assistant',
           (result['answer'] ?? 'AI не вернул текст ответа.').toString(),
+          chart: OwnerAssistantVisuals.structured(result['chart']),
+          report: OwnerAssistantVisuals.structured(result['report']),
         ));
       });
     } catch (e) {
@@ -242,13 +260,16 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       ],
       for (final message in conversation) ...[
         Align(
-          alignment: message.$1 == 'user'
+          alignment: message.role == 'user'
               ? Alignment.centerRight : Alignment.centerLeft,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 500),
-            child: OwnerCard(child: Text(message.$2)),
+            child: OwnerCard(child: Text(message.text)),
           ),
         ),
+        if (message.role == 'assistant' &&
+            (message.chart != null || message.report != null))
+          OwnerAssistantVisuals(chart: message.chart, report: message.report),
         const SizedBox(height: 8),
       ],
       if (sending) const OwnerCard(child: Row(children: [
