@@ -150,7 +150,9 @@ class _LinePainter extends CustomPainter {
     }
     canvas.drawPath(line, p);
     final dot = Paint()..color = color;
-    for (final pt in coords) canvas.drawCircle(pt, 3.8, dot);
+    for (final pt in coords) {
+      canvas.drawCircle(pt, 3.8, dot);
+    }
   }
   @override
   bool shouldRepaint(covariant _LinePainter old) =>
