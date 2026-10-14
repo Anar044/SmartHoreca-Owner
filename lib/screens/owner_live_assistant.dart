@@ -40,6 +40,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       conversation.clear();
       conversationId = null;
       error = null;
+      sending = false;
     }
   }
 
