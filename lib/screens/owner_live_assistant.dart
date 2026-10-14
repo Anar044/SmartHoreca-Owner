@@ -44,6 +44,105 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     }
   }
 
+  Future<void> _showHistory() async {
+    final owner = OwnerScope.of(context);
+    final workspace = owner.workspaceId;
+    if (workspace == null) return;
+    final generation = _generation;
+    try {
+      final data = await OwnerBackend.getJson(
+        '/api/mobile/v1/assistant',
+        workspaceId: workspace,
+        departmentIds: owner.selectedRestaurantIds,
+        query: {'action': 'conversations'},
+      );
+      if (!mounted || generation != _generation) return;
+      final chats = (data['conversations'] as List? ?? [])
+          .whereType<Map<String, dynamic>>().toList();
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (sheetContext) => SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.75,
+            ),
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.all(18),
+              children: [
+                const OwnerHeading('История диалогов'),
+                const SizedBox(height: 12),
+                if (chats.isEmpty)
+                  const Text('Пока нет сохранённых разговоров.'),
+                for (final chat in chats)
+                  ListTile(
+                    leading: const Icon(Icons.chat_outlined),
+                    title: Text((chat['title'] ?? 'Новый чат').toString()),
+                    subtitle: Text((chat['updated_at'] ?? '').toString()),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _openChat((chat['id'] ?? '').toString());
+                    },
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted && generation == _generation) {
+        setState(() => error = e is OwnerApiException
+            ? e.message : 'Не удалось получить историю разговоров.');
+      }
+    }
+  }
+
+  Future<void> _openChat(String id) async {
+    if (id.isEmpty) return;
+    final owner = OwnerScope.of(context);
+    if (owner.workspaceId == null) return;
+    final generation = _generation;
+    try {
+      final result = await OwnerBackend.getJson(
+        '/api/mobile/v1/assistant',
+        workspaceId: owner.workspaceId,
+        departmentIds: owner.selectedRestaurantIds,
+        query: {'action':'messages','conversationId':id},
+      );
+      if (!mounted || generation != _generation) return;
+      final messages = (result['messages'] as List? ?? [])
+          .whereType<Map<String,dynamic>>()
+          .where((m) => m['role'] == 'user' || m['role'] == 'assistant')
+          .map((m) => (m['role'].toString(),
+              (m['content'] ?? '').toString())).toList();
+      setState(() {
+        conversationId = id;
+        conversation
+          ..clear()
+          ..addAll(messages);
+        error = null;
+      });
+    } catch (e) {
+      if (mounted && generation == _generation) {
+        setState(() => error = e is OwnerApiException
+            ? e.message : 'Не удалось открыть разговор.');
+      }
+    }
+  }
+
+  void _newConversation() {
+    ++_generation;
+    setState(() {
+      conversationId = null;
+      conversation.clear();
+      error = null;
+      sending = false;
+    });
+  }
+
   Future<void> _send([String? preset]) async {
     if (sending) return;
     final owner = OwnerScope.of(context);
@@ -99,6 +198,22 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       const OwnerRestaurantPicker(),
       const SizedBox(height: 12),
       const OwnerHeading('AI Smart Horeca Assistant'),
+      const SizedBox(height: 10),
+      Row(children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: _showHistory,
+            icon: const Icon(Icons.history, size: 18),
+            label: Text(OwnerL10n.tr(state.language, 'История диалогов')),
+          ),
+        ),
+        const SizedBox(width: 10),
+        IconButton.filledTonal(
+          tooltip: OwnerL10n.tr(state.language, 'Новый чат'),
+          onPressed: _newConversation,
+          icon: const Icon(Icons.add_comment_outlined),
+        ),
+      ]),
       const SizedBox(height: 12),
       if (conversation.isEmpty) ...[
         OwnerCard(child: Column(
