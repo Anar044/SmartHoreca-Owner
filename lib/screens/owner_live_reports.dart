@@ -99,7 +99,10 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
           widget.kind == 'notifications' || widget.kind == 'movements' ||
           widget.kind == 'pnl'
           ? query
-          : {...query, 'kind': widget.kind};
+          : {...query, 'kind': widget.kind,
+              // "Today" sales match the dashboard cash-shift operating day.
+              // Historical periods and accounting P&L remain calendar based.
+              if (owner.period == 'Сегодня') 'mode': 'operational'};
       final result = await OwnerBackend.getJson(
         endpoint,
         workspaceId: workspaceId,
@@ -191,7 +194,21 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         ? groupTotals.entries.map((e) =>
             <String,dynamic>{'label':e.key,'value':e.value}).toList()
         : rows;
+    final operating = data?['mode'] == 'operational'
+        ? data?['operatingDay'] as Map? : null;
     return Column(children: [
+      if (operating != null) ...[
+        OwnerCard(child: Row(children: [
+          const Icon(Icons.schedule, size: 20),
+          const SizedBox(width: 10),
+          Expanded(child: Text(
+            'Операционный день: ${operating['from']} — ${operating['to']} · '
+            '${operating['activeShiftCount']} открытых смен',
+            style: const TextStyle(fontSize: 12),
+          )),
+        ])),
+        const SizedBox(height: 12),
+      ],
       Row(children: [
         Expanded(child: OwnerMetric('Позиций', '${data?['count'] ?? rows.length}')),
         const SizedBox(width: 10),
@@ -443,7 +460,32 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
   Widget _movementsView(BuildContext context) {
     final rows = (data?['rows'] as List? ?? [])
         .whereType<Map<String,dynamic>>().toList();
+    final missing = (data?['missingSources'] as List? ?? [])
+        .map((v) => v.toString()).toList();
+    const sourceNames = <String, String>{
+      'incoming': 'приход',
+      'outgoing': 'расход',
+      'writeoff': 'списание',
+      'transfer': 'перемещение',
+      'inventory': 'инвентаризация',
+    };
+    final names = missing.map((v) => sourceNames[v] ?? v).join(', ');
     return Column(children: [
+      if (data?['partial'] == true) ...[
+        OwnerCard(child: Row(children: [
+          const Icon(Icons.warning_amber_rounded,
+            color: OwnerPalette.warning),
+          const SizedBox(width: 10),
+          Expanded(child: Text(
+            'Данные неполные. Не удалось проверить некоторые источники'
+            '${names.isNotEmpty ? ': $names' : ''}. '
+            'Показаны только подтверждённые движения; '
+            'итоги периода могут быть неполными.',
+            style: const TextStyle(fontSize: 12),
+          )),
+        ])),
+        const SizedBox(height: 10),
+      ],
       OwnerCard(child: ListTile(
         title: const OwnerText('Движение товаров'),
         trailing: Text('${data?['count'] ?? rows.length}'),
