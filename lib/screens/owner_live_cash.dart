@@ -109,6 +109,19 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
             icon: const Icon(Icons.refresh), label: const OwnerText('Повторить')),
         ]))
       else ...[
+        if (data?['partial'] == true) ...[
+          OwnerCard(child: Row(children: [
+            const Icon(Icons.warning_amber_rounded,
+              color: OwnerPalette.warning),
+            const SizedBox(width: 10),
+            Expanded(child: Text(
+              'Не все кассы ответили. Доступные кассы показаны ниже, '
+              'но итоговые суммы сети временно недоступны.',
+              style: const TextStyle(fontSize: 12),
+            )),
+          ])),
+          const SizedBox(height: 12),
+        ],
         Row(children: [
           Expanded(child: OwnerMetric('Закрытые заказы',
             money(totals['closedSum']))),
@@ -168,6 +181,25 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
               const Icon(Icons.chevron_right),
             ]),
           ),
+          const SizedBox(height: 9),
+        ],
+        for (final item in (data?['unavailableRegisters'] as List? ?? [])
+            .whereType<Map<String, dynamic>>()) ...[
+          OwnerCard(child: Row(children: [
+            const Icon(Icons.warning_amber_outlined,
+              color: OwnerPalette.warning),
+            const SizedBox(width: 10),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text((item['name'] ?? 'Касса').toString(),
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text('Нет ответа от кассы · ' +
+                  (restaurants[item['departmentId']?.toString()] ?? 'Ресторан'),
+                  style: const TextStyle(fontSize: 12)),
+              ],
+            )),
+          ])),
           const SizedBox(height: 9),
         ],
         Text('Источник: ${data?['source'] ?? 'SH POS Plugin'}',
