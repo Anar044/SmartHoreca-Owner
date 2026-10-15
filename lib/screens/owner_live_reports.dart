@@ -85,6 +85,8 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
     try {
       final query = switch (widget.kind) {
         'inventory' || 'notifications' => {'date': dates['to']!},
+        'orders' => {...dates,
+          if (owner.period == 'Сегодня') 'mode': 'operational'},
         _ => dates,
       };
       final endpoint = switch (widget.kind) {
@@ -659,33 +661,130 @@ class OwnerLiveProductScreen extends StatelessWidget {
   }
 }
 
-class OwnerLiveOrderScreen extends StatelessWidget {
+class OwnerLiveOrderScreen extends StatefulWidget {
   final Map<String,dynamic> order;
   const OwnerLiveOrderScreen({super.key,required this.order});
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text('${OwnerL10n.tr(OwnerScope.of(context).language, 'Чек')} ${order['number']}')),
-    body: OwnerScreenFrame(children: [
-      OwnerHeading('${OwnerL10n.tr(OwnerScope.of(context).language, 'Чек')} ${order['number']}',
-          caption: 'Данные SH OLAP только для просмотра'),
-      const SizedBox(height: 12),
-      OwnerCard(child: Column(children: [
-        ListTile(title: const OwnerText('Дата'),
-            trailing: Text('${order['date'] ?? '—'}')),
-        const Divider(height: 1),
-        ListTile(title: const OwnerText('Стол'),
-            trailing: Text('${order['table'] ?? '—'}')),
-        const Divider(height: 1),
-        ListTile(title: const OwnerText('Официант'),
-            trailing: Text('${order['waiter'] ?? '—'}')),
-        const Divider(height: 1),
-        ListTile(title: const OwnerText('Сумма'),
-            trailing: Text(order['amount'] is num
-                ? '${(order['amount'] as num).toStringAsFixed(2)} AZN'
-                : '—')),
-      ])),
-      const SizedBox(height: 12),
-      const OwnerCard(child: OwnerText('Состав чека и разделение оплат пока не предоставлены источником SH OLAP. Они не подменяются демонстрационными позициями.')),
-    ]),
-  );
+  State<OwnerLiveOrderScreen> createState() => _OwnerLiveOrderScreenState();
+}
+
+class _OwnerLiveOrderScreenState extends State<OwnerLiveOrderScreen> {
+  Map<String,dynamic>? details;
+  String? error;
+  bool loading = false;
+
+  @override
+  void initState(){
+    super.initState();
+    if(widget.order['detailsAvailable'] == true){
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if(mounted) _load();
+      });
+    }
+  }
+
+  Future<void> _load() async {
+    final owner=OwnerScope.of(context);
+    setState((){loading=true;error=null;details=null;});
+    try{
+      final result=await OwnerBackend.getJson('/api/mobile/v1/receipt',
+        workspaceId:owner.workspaceId,
+        departmentIds:owner.selectedRestaurantIds,
+        query:{
+          'number':widget.order['number'].toString(),
+          'date':widget.order['date'].toString(),
+          'departmentId':widget.order['departmentId'].toString(),
+          if((widget.order['shiftId'] ?? '').toString().isNotEmpty)
+            'shiftId':widget.order['shiftId'].toString(),
+          if((widget.order['orderId'] ?? '').toString().isNotEmpty)
+            'orderId':widget.order['orderId'].toString(),
+        });
+      if(!mounted)return;
+      setState((){loading=false;details=result;});
+    }catch(e){
+      if(!mounted)return;
+      setState((){loading=false;error=e is OwnerApiException
+        ? '${e.message} (${e.code})' : 'Не удалось получить состав чека.';});
+    }
+  }
+
+  String money(dynamic value)=>value is num
+      ? '${value.toStringAsFixed(2)} AZN' : '—';
+
+  @override
+  Widget build(BuildContext context){
+    final order=widget.order;
+    final lineItems=(details?['positions'] as List? ?? [])
+      .whereType<Map<String,dynamic>>().toList();
+    return Scaffold(
+      appBar: AppBar(title: Text('${OwnerL10n.tr(OwnerScope.of(context).language, 'Чек')} ${order['number']}')),
+      body: OwnerScreenFrame(children: [
+        OwnerHeading('${OwnerL10n.tr(OwnerScope.of(context).language, 'Чек')} ${order['number']}',
+          caption:'Данные SH OLAP только для просмотра'),
+        const SizedBox(height:12),
+        OwnerCard(child:Column(children:[
+          ListTile(title:const OwnerText('Дата'),
+            trailing:Text('${order['date'] ?? '—'}')),
+          const Divider(height:1),
+          ListTile(title:const OwnerText('Стол'),
+            trailing:Text('${order['table'] ?? '—'}')),
+          const Divider(height:1),
+          ListTile(title:const OwnerText('Официант'),
+            trailing:Text('${order['waiter'] ?? '—'}')),
+          const Divider(height:1),
+          ListTile(title:const OwnerText('Сумма'),
+            trailing:Text(money(order['amount']))),
+        ])),
+        const SizedBox(height:12),
+        if(order['detailsAvailable'] != true)
+          const OwnerCard(child:OwnerText(
+            'SH OLAP не предоставил уникальный идентификатор чека '
+            'или кассовой смены. Состав заказа нельзя показать достоверно.'))
+        else if(loading)
+          const OwnerCard(child:Padding(
+            padding:EdgeInsets.all(24),
+            child:Center(child:CircularProgressIndicator())))
+        else if(error != null)
+          OwnerCard(child:Column(children:[
+            Text(error!,textAlign:TextAlign.center),
+            const SizedBox(height:10),
+            FilledButton.tonalIcon(onPressed:_load,
+              icon:const Icon(Icons.refresh),
+              label:const OwnerText('Повторить')),
+          ]))
+        else if(details != null) ...[
+          const OwnerHeading('Состав чека',
+            caption:'Фактические блюда из SH OLAP'),
+          const SizedBox(height:10),
+          for(final item in lineItems)
+            Padding(
+              padding:const EdgeInsets.only(bottom:8),
+              child:OwnerCard(child:Row(children:[
+                Expanded(child:Column(
+                  crossAxisAlignment:CrossAxisAlignment.start,
+                  children:[
+                    Text((item['name'] ?? '—').toString(),
+                      style:const TextStyle(fontWeight:FontWeight.w600)),
+                    if(item['quantity'] is num)
+                      Text('${item['quantity']} шт.',
+                        style:TextStyle(fontSize:12,
+                          color:OwnerPalette.muted(context))),
+                  ],
+                )),
+                const SizedBox(width:8),
+                Text(money(item['amount']),
+                  style:const TextStyle(fontWeight:FontWeight.w600)),
+              ])),
+            ),
+          OwnerCard(child:ListTile(
+            title:const OwnerText('Сумма позиций'),
+            trailing:Text(money(details?['itemsTotal'])))),
+          const SizedBox(height:12),
+          OwnerCard(child:Text(
+            (details?['paymentNote'] ??
+              'Детализация оплат не подтверждена SH Server.').toString())),
+        ],
+      ]),
+    );
+  }
 }
