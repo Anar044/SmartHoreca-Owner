@@ -110,7 +110,7 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
         ]))
       else ...[
         if (data?['partial'] == true) ...[
-          OwnerCard(child: Row(children: [
+          const OwnerCard(child: Row(children: [
             const Icon(Icons.warning_amber_rounded,
               color: OwnerPalette.warning),
             const SizedBox(width: 10),
@@ -194,8 +194,7 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
               children: [
                 Text((item['name'] ?? 'Касса').toString(),
                   style: const TextStyle(fontWeight: FontWeight.w700)),
-                Text('Нет ответа от кассы · ' +
-                  (restaurants[item['departmentId']?.toString()] ?? 'Ресторан'),
+                Text('Нет ответа от кассы · ${restaurants[item['departmentId']?.toString()] ?? 'Ресторан'}',
                   style: const TextStyle(fontSize: 12)),
               ],
             )),
