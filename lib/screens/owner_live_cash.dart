@@ -111,13 +111,13 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
       else ...[
         if (data?['partial'] == true) ...[
           const OwnerCard(child: Row(children: [
-            const Icon(Icons.warning_amber_rounded,
+            Icon(Icons.warning_amber_rounded,
               color: OwnerPalette.warning),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(child: Text(
               'Не все кассы ответили. Доступные кассы показаны ниже, '
               'но итоговые суммы сети временно недоступны.',
-              style: const TextStyle(fontSize: 12),
+              style: TextStyle(fontSize: 12),
             )),
           ])),
           const SizedBox(height: 12),
