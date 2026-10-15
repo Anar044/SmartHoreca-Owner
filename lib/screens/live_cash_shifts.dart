@@ -42,8 +42,13 @@ class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
     final end = period == 'Вчера'
         ? now.subtract(const Duration(days: 1)) : now;
     final start = period == '7 дней'
-        ? end.subtract(const Duration(days: 6)) : end;
-    return {'from': _date(start), 'to': _date(end)};
+        ? end.subtract(const Duration(days: 6))
+        : period == 'Сегодня'
+            ? end.subtract(const Duration(days: 3)) : end;
+    return {
+      'from': _date(start), 'to': _date(end),
+      if (period == 'Сегодня') 'mode': 'operational',
+    };
   }
 
   Future<void> _load() async {
@@ -197,6 +202,8 @@ class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
                 Navigator.of(context).push(MaterialPageRoute<void>(
                   builder: (_) => OwnerLiveShiftDetail(
                     shiftId: shift['id'].toString(),
+                    departmentId: shift['departmentId'].toString(),
+                    openedDate: (shift['date'] ?? '').toString(),
                   ),
                 ));
               },
@@ -264,8 +271,13 @@ class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
 
 class OwnerLiveShiftDetail extends StatefulWidget {
   final String shiftId;
+  final String departmentId;
+  final String openedDate;
 
-  const OwnerLiveShiftDetail({super.key, required this.shiftId});
+  const OwnerLiveShiftDetail({
+    super.key, required this.shiftId,
+    required this.departmentId, required this.openedDate,
+  });
 
   @override
   State<OwnerLiveShiftDetail> createState() => _OwnerLiveShiftDetailState();
@@ -295,7 +307,8 @@ class _OwnerLiveShiftDetailState extends State<OwnerLiveShiftDetail> {
       final response = await OwnerBackend.getJson('/api/mobile/v1/shift',
         workspaceId: state.workspaceId,
         departmentIds: state.selectedRestaurantIds,
-        query: {'id': widget.shiftId},
+        query: {'id': widget.shiftId,
+          'departmentId': widget.departmentId, 'date': widget.openedDate},
       );
       if (!mounted) return;
       setState(() {
