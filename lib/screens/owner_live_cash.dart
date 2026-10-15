@@ -110,14 +110,17 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
         ]))
       else ...[
         if (data?['partial'] == true) ...[
-          const OwnerCard(child: Row(children: [
-            Icon(Icons.warning_amber_rounded,
+          OwnerCard(child: Row(children: [
+            const Icon(Icons.warning_amber_rounded,
               color: OwnerPalette.warning),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Expanded(child: Text(
-              'Не все кассы ответили. Доступные кассы показаны ниже, '
-              'но итоговые суммы сети временно недоступны.',
-              style: TextStyle(fontSize: 12),
+              'Это не сводный отчёт по всей сети: '
+              '${(data?['missingDepartmentIds'] as List? ?? []).isNotEmpty ? 'у некоторых выбранных ресторанов нет подключённой POS-кассы. ' : ''}'
+              '${(data?['unavailableRegisters'] as List? ?? []).isNotEmpty ? 'Некоторые кассы не ответили. ' : ''}'
+              'Ниже показаны только доступные кассы. '
+              'Продажи всей сети смотрите на главной (SH OLAP).',
+              style: const TextStyle(fontSize: 12),
             )),
           ])),
           const SizedBox(height: 12),
