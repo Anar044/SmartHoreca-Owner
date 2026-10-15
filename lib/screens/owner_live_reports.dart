@@ -194,8 +194,9 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         ? groupTotals.entries.map((e) =>
             <String,dynamic>{'label':e.key,'value':e.value}).toList()
         : rows;
-    final operating = data?['mode'] == 'operational'
-        ? data?['operatingDay'] as Map? : null;
+    final opValue = data?['operatingDay'];
+    final operating = data?['mode'] == 'operational' && opValue is Map
+        ? opValue : null;
     return Column(children: [
       if (operating != null) ...[
         OwnerCard(child: Row(children: [
