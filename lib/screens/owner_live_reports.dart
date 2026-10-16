@@ -1056,12 +1056,16 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
   Map<String,dynamic>? details;
   String? error;
   bool loading = true;
+  bool historyLoading = true;
+  String? historyError;
+  String? historyNote;
+  List<Map<String,dynamic>> auditEvents = [];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _load();
+      if (mounted) _refreshAll();
     });
   }
 
@@ -1082,6 +1086,127 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
 
   String _money(dynamic value) =>
     value is num ? '${value.toStringAsFixed(2)} AZN' : '—';
+
+  Future<void> _refreshAll() async {
+    await Future.wait([_load(), _loadHistory()]);
+  }
+
+  Future<void> _loadHistory() async {
+    final owner=OwnerScope.of(context);
+    final workspace=owner.workspaceId;
+    if(workspace==null||widget.pluginId.isEmpty||widget.departmentId.isEmpty){
+      setState((){
+        historyLoading=false;
+        historyError='Не удалось определить кассу для истории.';
+      });
+      return;
+    }
+    setState((){
+      historyLoading=true;
+      historyError=null;
+      historyNote=null;
+    });
+    try {
+      final result=await OwnerBackend.getJson(
+        '/api/mobile/v1/cash-order-history',
+        workspaceId:workspace,
+        departmentIds:owner.selectedRestaurantIds,
+        query:{
+          'pluginId':widget.pluginId,
+          'orderNum':_raw(widget.order['number']),
+          'departmentId':widget.departmentId,
+        },
+        retryTransient:false,
+      );
+      if(!mounted)return;
+      setState((){
+        auditEvents=(result['events'] as List? ?? [])
+            .whereType<Map<String,dynamic>>().toList()
+          ..sort((a,b)=>(a['occurredAt']??'').toString()
+            .compareTo((b['occurredAt']??'').toString()));
+        historyNote=(result['message']??'').toString();
+        historyLoading=false;
+      });
+    }catch(e){
+      if(!mounted)return;
+      setState((){
+        historyLoading=false;
+        historyError=e is OwnerApiException
+          ?'${e.message} (${e.code})'
+          :'Не удалось получить историю событий POS.';
+      });
+    }
+  }
+
+  Widget _historyView(BuildContext context) {
+    return Column(
+      crossAxisAlignment:CrossAxisAlignment.start,
+      children:[
+        const SizedBox(height:15),
+        const OwnerHeading('История заказа',
+          caption:'Подтверждённые события кассового плагина'),
+        const SizedBox(height:9),
+        if(historyLoading)
+          const OwnerCard(child:Row(children:[
+            SizedBox(height:17,width:17,
+              child:CircularProgressIndicator(strokeWidth:2)),
+            SizedBox(width:10),
+            Expanded(child:Text('Получаем историю действий с кассы…')),
+          ]))
+        else if(historyError!=null)
+          OwnerCard(child:Column(
+            crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Text(historyError!),
+              const SizedBox(height:7),
+              TextButton.icon(onPressed:_loadHistory,
+                icon:const Icon(Icons.refresh),
+                label:const Text('Повторить загрузку истории')),
+            ],
+          ))
+        else if(auditEvents.isEmpty)
+          OwnerCard(child:Text(historyNote?.isNotEmpty==true
+            ?historyNote!
+            :'Плагин кассы не передал подтверждённых событий заказа.'))
+        else ...[
+          for(final entry in auditEvents) ...[
+            OwnerCard(child:Row(
+              crossAxisAlignment:CrossAxisAlignment.start,
+              children:[
+                Icon(Icons.history_toggle_off,
+                  color:OwnerPalette.accent(context),size:20),
+                const SizedBox(width:10),
+                Expanded(child:Column(
+                  crossAxisAlignment:CrossAxisAlignment.start,
+                  children:[
+                    Text((entry['label']??'Событие заказа').toString(),
+                      style:const TextStyle(fontWeight:FontWeight.w700)),
+                    const SizedBox(height:4),
+                    Text(_time(entry['occurredAt']),
+                      style:TextStyle(fontSize:12,
+                        color:OwnerPalette.muted(context))),
+                    if((entry['itemName']??'').toString().isNotEmpty)
+                      Text('Блюдо: ${entry['itemName']}'),
+                    if(entry['quantity'] is num)
+                      Text('Количество: ${entry['quantity']}'),
+                    if(entry['amount'] is num)
+                      Text('Сумма: ${_money(entry['amount'])}'),
+                    if((entry['paymentType']??'').toString().isNotEmpty)
+                      Text('Оплата: ${entry['paymentType']}'),
+                    if((entry['employee']??'').toString().isNotEmpty)
+                      Text('Сотрудник: ${entry['employee']}'),
+                  ],
+                )),
+              ],
+            )),
+            const SizedBox(height:7),
+          ],
+          if(historyNote?.isNotEmpty==true)
+            Text(historyNote!,style:TextStyle(fontSize:11,
+              color:OwnerPalette.muted(context))),
+        ],
+      ],
+    );
+  }
 
   Future<void> _load() async {
     final owner=OwnerScope.of(context);
@@ -1162,7 +1287,7 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
     final title='Заказ №${widget.order['number']}';
     return Scaffold(
       appBar:AppBar(title:Text(title,style:const TextStyle(fontSize:17))),
-      body:OwnerScreenFrame(onRefresh:_load,children:[
+      body:OwnerScreenFrame(onRefresh:_refreshAll,children:[
         OwnerHeading(title,caption:'${widget.restaurant} • ${widget.registerName}'),
         const SizedBox(height:12),
         if(loading)
@@ -1243,6 +1368,7 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
             ],
           ],
         ],
+        _historyView(context),
       ]),
     );
   }
