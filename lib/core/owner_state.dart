@@ -60,8 +60,10 @@ class OwnerState extends ChangeNotifier {
     Duration maxAge = const Duration(seconds: 35),
   }) {
     final updated=_responseCachedAt[key];
-    if(updated==null ||
-        DateTime.now().difference(updated) > maxAge) return null;
+    if (updated == null ||
+        DateTime.now().difference(updated) > maxAge) {
+      return null;
+    }
     return _responseCache[key];
   }
 
