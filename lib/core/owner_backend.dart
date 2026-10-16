@@ -136,6 +136,7 @@ class OwnerBackend {
     String? workspaceId,
     Iterable<String>? departmentIds,
     Map<String, String>? query,
+    bool retryTransient = true,
   }) async {
     if (!configured) {
       throw const OwnerApiException('NOT_CONFIGURED',
@@ -164,24 +165,25 @@ class OwnerBackend {
     }
     // Retry only safe, idempotent reads. 401/403 must never be treated
     // as temporary failures or bypassed; POST requests are never retried.
-    for (var attempt = 0; attempt < 3; attempt++) {
+    final maxAttempts = retryTransient ? 3 : 1;
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         final result = await http.get(uri, headers: headers)
             .timeout(const Duration(seconds: 50));
-        if (_transient(result.statusCode) && attempt < 2) {
+        if (_transient(result.statusCode) && attempt < maxAttempts - 1) {
           await Future<void>.delayed(
             Duration(milliseconds: attempt == 0 ? 500 : 1400));
           continue;
         }
         return _decodeResponse(result);
       } on TimeoutException {
-        if (attempt == 2) {
+        if (attempt == maxAttempts - 1) {
           throw const OwnerApiException('API_TIMEOUT',
             'Превышено время ожидания Smart Horeca. '
             'Сервер или соединение временно недоступны.', 504);
         }
       } on http.ClientException {
-        if (attempt == 2) {
+        if (attempt == maxAttempts - 1) {
           throw const OwnerApiException('NETWORK_UNAVAILABLE',
             'Не удалось связаться с Smart Horeca. Проверьте сеть.', 503);
         }

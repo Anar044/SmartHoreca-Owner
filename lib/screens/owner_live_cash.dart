@@ -54,7 +54,8 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
     setState(() { loading = true; error = null; });
     try {
       final payload = await OwnerBackend.getJson('/api/mobile/v1/cash',
-        workspaceId: workspace, departmentIds: ids);
+        workspaceId: workspace, departmentIds: ids,
+        retryTransient: false); // fail promptly instead of tripling POS load
       if (!mounted || seq != generation) return;
       setState(() { loading = false; data = payload; });
     } catch (e) {

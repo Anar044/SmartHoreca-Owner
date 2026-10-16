@@ -321,6 +321,7 @@ class OwnerState extends ChangeNotifier {
         // Explicit earlier date ranges keep their original calendar meaning.
         query: {'from': formatDate(from), 'to': formatDate(to),
           'mode': period == 'Сегодня' ? 'operational' : 'calendar'},
+        retryTransient: false, // avoid repeated full-network OLAP runs
       );
       if (generation == _summaryGeneration && live && stage == OwnerStage.shell) {
         summary = result;

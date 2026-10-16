@@ -1046,6 +1046,7 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
         workspaceId:workspace,
         departmentIds:owner.selectedRestaurantIds,
         query:query,
+        retryTransient:false, // do not requery a slow POS order automatically
       );
       if(!mounted)return;
       setState(() {loading=false;details=result;});
