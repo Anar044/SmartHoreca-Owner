@@ -75,7 +75,7 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
       for (final entry in state.restaurantIdsByName.entries)
         entry.value: entry.key
     };
-    return OwnerScreenFrame(children: [
+    return OwnerScreenFrame(onRefresh: _load, children: [
       const OwnerHeading('Кассы', caption: 'Оперативные заказы подключённых касс'),
       const SizedBox(height: 12),
       const OwnerRestaurantPicker(),
