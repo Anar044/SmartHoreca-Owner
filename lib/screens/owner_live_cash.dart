@@ -116,9 +116,9 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
           const SizedBox(height: 12),
         ],
         if (error != null) ...[
-          OwnerCard(child: Text('Не удалось обновить данные. '
+          const OwnerCard(child: Text('Не удалось обновить данные. '
             'Ниже оставлены результаты последнего успешного запроса.',
-            style: const TextStyle(color: OwnerPalette.warning))),
+            style: TextStyle(color: OwnerPalette.warning))),
           const SizedBox(height: 12),
         ],
         if (data?['partial'] == true) ...[
