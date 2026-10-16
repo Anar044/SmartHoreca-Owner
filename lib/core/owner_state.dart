@@ -43,6 +43,7 @@ class OwnerState extends ChangeNotifier {
   String? error;
   String? dashboardError;
   bool dashboardLoading = false;
+  double? lastDashboardLoadSeconds;
 
   String? workspaceId;
   String workspaceName = '';
@@ -332,6 +333,7 @@ class OwnerState extends ChangeNotifier {
   Future<void> loadSummary() async {
     if (!live || workspaceId == null || selectedRestaurantIds.isEmpty) return;
     final generation = ++_summaryGeneration;
+    final watch = Stopwatch()..start();
     dashboardLoading = true;
     dashboardError = null;
     summary = null; // Never show stale or demonstration finance data as live.
@@ -370,6 +372,7 @@ class OwnerState extends ChangeNotifier {
     } finally {
       if (generation == _summaryGeneration) {
         dashboardLoading = false;
+        lastDashboardLoadSeconds = watch.elapsedMilliseconds / 1000;
         notifyListeners();
       }
     }

@@ -24,6 +24,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
   String _scopeKey = '';
   int _generation = 0;
   bool loading = true;
+  double? lastLoadSeconds;
   bool table = false;
   bool loadingNext = false;
   String? error;
@@ -101,6 +102,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
       return;
     }
     final seq = ++_generation;
+    final watch=Stopwatch()..start();
     setState(() {
       loading = true;
       error = null;
@@ -141,11 +143,13 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
       setState(() {
         data = result;
         loading = false;
+        lastLoadSeconds=watch.elapsedMilliseconds / 1000;
       });
     } catch (e) {
       if (!mounted || seq != _generation) return;
       setState(() {
         loading = false;
+        lastLoadSeconds=watch.elapsedMilliseconds / 1000;
         error = e is OwnerApiException ? e.message
             : 'Не удалось загрузить данные Smart Horeca.';
       });
@@ -200,7 +204,8 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
   Widget _source(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 14),
     child: Text(
-      'Источник: ${data?['source'] ?? 'Smart Horeca'}',
+      'Источник: ${data?['source'] ?? 'Smart Horeca'}'
+      '${lastLoadSeconds == null ? '' : ' • Загрузка: ${lastLoadSeconds!.toStringAsFixed(1)} с'}',
       style: TextStyle(color: OwnerPalette.muted(context), fontSize: 11),
     ),
   );

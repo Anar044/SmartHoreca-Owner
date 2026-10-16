@@ -214,7 +214,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       });
     } catch (e) {
       if (!mounted || current != _generation) return;
-      setState(() => error = e is OwnerApiException ? e.message
+      setState(() => error = e is OwnerApiException
+          ? '${e.message} (${e.code})'
           : 'Не удалось получить ответ AI Smart Horeca Assistant.');
     } finally {
       if (mounted && current == _generation) {

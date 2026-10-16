@@ -18,6 +18,7 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
   String scope = '';
   int generation = 0;
   bool loading = true;
+  double? lastLoadSeconds;
   String? error;
   Map<String, dynamic>? data;
   String filter = 'Все';
@@ -54,6 +55,7 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
       return;
     }
     final seq = ++generation;
+    final watch=Stopwatch()..start();
     // Retain the last verified snapshot during a manual refresh. It is only
     // retained for the same selected restaurant scope.
     setState(() { loading = true; error = null; });
@@ -63,10 +65,15 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
         retryTransient: false); // fail promptly instead of tripling POS load
       if (!mounted || seq != generation) return;
       owner.rememberResponse('cash:$scope', payload);
-      setState(() { loading = false; data = payload; });
+      setState(() {
+        loading = false;
+        lastLoadSeconds = watch.elapsedMilliseconds / 1000;
+        data = payload;
+      });
     } catch (e) {
       if (!mounted || seq != generation) return;
       setState(() { loading = false;
+        lastLoadSeconds = watch.elapsedMilliseconds / 1000;
         error = e is OwnerApiException
           ? '${e.message} (${e.code})'
           : 'Не удалось загрузить кассы.';
@@ -244,7 +251,8 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
           ])),
           const SizedBox(height: 9),
         ],
-        Text('Источник: ${data?['source'] ?? 'SH POS Plugin'}',
+        Text('Источник: ${data?['source'] ?? 'SH POS Plugin'}'
+            '${lastLoadSeconds == null ? '' : ' • Загрузка: ${lastLoadSeconds!.toStringAsFixed(1)} с'}',
           style: TextStyle(fontSize: 11, color: OwnerPalette.muted(context))),
       ],
     ]);
