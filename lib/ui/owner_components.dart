@@ -264,26 +264,30 @@ class OwnerRevenueDiagram extends StatelessWidget {
   final List<double> values;
   final List<String> labels;
   final List<String> valueLabels;
+  final double labelWidth;
   const OwnerRevenueDiagram({
     super.key, required this.values, required this.labels,
-    required this.valueLabels,
+    required this.valueLabels, this.labelWidth = 45,
   });
 
   @override
   Widget build(BuildContext context) {
     final maxValue = values.fold<double>(0, (max, value) =>
-      value > max ? value : max);
+      value.abs() > max ? value.abs() : max);
     if (values.isEmpty) return const Text('Нет данных для диаграммы.');
     return Column(
       children: List.generate(values.length, (i) {
         final value = values[i];
-        final fraction = maxValue > 0 ? (value / maxValue).clamp(0.0, 1.0).toDouble() : 0.0;
+        final fraction = maxValue > 0
+            ? (value.abs() / maxValue).clamp(0.0, 1.0).toDouble() : 0.0;
         return Padding(
           padding: const EdgeInsets.only(bottom: 11),
           child: Row(children: [
             SizedBox(
-              width: 45,
+              width: labelWidth,
               child: Text(i < labels.length ? labels[i] : '',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 11,
                   color: OwnerPalette.muted(context))),
             ),
@@ -299,7 +303,8 @@ class OwnerRevenueDiagram extends StatelessWidget {
                 widthFactor: fraction,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: OwnerPalette.accent(context),
+                    color: value < 0 ? OwnerPalette.error
+                        : OwnerPalette.accent(context),
                     borderRadius: BorderRadius.circular(5),
                   ),
                 ),
@@ -307,7 +312,7 @@ class OwnerRevenueDiagram extends StatelessWidget {
             )),
             const SizedBox(width: 8),
             SizedBox(
-              width: 82,
+              width: 92,
               child: Text(i < valueLabels.length ? valueLabels[i] : '—',
                 textAlign: TextAlign.end,
                 maxLines: 1,

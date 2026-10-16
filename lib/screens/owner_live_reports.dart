@@ -257,12 +257,22 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
             Text(OwnerL10n.tr(state.language, widget.title),
                 style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 13),
-            OwnerBars(
-              values: chartRows.take(12).map((r) =>
+            OwnerRevenueDiagram(
+              labelWidth: 112,
+              values: chartRows.take(16).map((r) =>
                   (r['value'] as num?)?.toDouble() ?? 0).toList(),
-              labels: chartRows.take(12).map((r) =>
-                  r['label'].toString()).toList(),
+              labels: chartRows.take(16).map((r) =>
+                  (r['label'] ?? '—').toString()).toList(),
+              valueLabels: chartRows.take(16).map((r) =>
+                  (r['value'] as num?)?.toStringAsFixed(2) ?? '—').toList(),
             ),
+            if (chartRows.length > 16) ...[
+              const SizedBox(height: 8),
+              Text('Показаны первые 16 позиций из ${chartRows.length}. '
+                'Полный список доступен во вкладке «Таблица».',
+                style: TextStyle(color: OwnerPalette.muted(context),
+                  fontSize: 11)),
+            ],
           ],
         ))
       else if (nestedCash) ...[
