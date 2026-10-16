@@ -102,6 +102,12 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
     final registers = (data?['registers'] as List? ?? [])
       .whereType<Map<String, dynamic>>().toList();
     final partial = data?['partial'] == true;
+    final lastFetched=DateTime.tryParse((data?['updatedAt']??'').toString());
+    // An unrefreshed result is a historical observation, not proof that POS
+    // remains online. Do not mislabel a stale cached status as live.
+    final statusIsStale=lastFetched==null ||
+        DateTime.now().toUtc().difference(lastFetched.toUtc()) >
+        const Duration(seconds:90);
     final totals = (data?['totals'] as Map?) ??
         (data?['availableTotals'] as Map?) ?? {};
     final coverageSuffix = partial ? ' (доступные кассы)' : '';
@@ -113,7 +119,13 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
       const OwnerHeading('Кассы', caption: 'Оперативные заказы подключённых касс'),
       const SizedBox(height: 12),
       const OwnerRestaurantPicker(),
-      const SizedBox(height: 12),
+      const SizedBox(height: 9),
+      if (data != null) ...[
+        Text('Данные на: ${lastSeen(data?['updatedAt'])} · '
+          'Потяните вниз, чтобы обновить',
+          style:TextStyle(fontSize:11,color:OwnerPalette.muted(context))),
+        const SizedBox(height:9),
+      ],
       if (loading && data == null)
         const OwnerCard(child: Padding(
           padding: EdgeInsets.all(24),
@@ -214,8 +226,13 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
                         Text('Последняя связь: $lastSeenTime',
                           style:TextStyle(fontSize:11,color:OwnerPalette.muted(context))),
                       ] else
-                        const Text('● Онлайн',
-                          style:TextStyle(fontSize:11,color:OwnerPalette.green)),
+                        Text(statusIsStale
+                          ?'● Был онлайн при последней загрузке'
+                          :'● Онлайн (последняя проверка)',
+                          style:TextStyle(fontSize:11,
+                            color:statusIsStale
+                              ?OwnerPalette.muted(context)
+                              :OwnerPalette.green)),
                     ],
                   )),
                   Column(crossAxisAlignment:CrossAxisAlignment.end,children:[

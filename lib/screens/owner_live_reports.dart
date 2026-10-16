@@ -206,7 +206,8 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
     padding: const EdgeInsets.only(top: 14),
     child: Text(
       'Источник: ${data?['source'] ?? 'Smart Horeca'}'
-      '${lastLoadSeconds == null ? '' : ' • Загрузка: ${lastLoadSeconds!.toStringAsFixed(1)} с'}',
+      '${lastLoadSeconds == null ? '' : ' • Загрузка: ${lastLoadSeconds!.toStringAsFixed(1)} с'}'
+      ' • Обновление: потянуть вниз',
       style: TextStyle(color: OwnerPalette.muted(context), fontSize: 11),
     ),
   );
