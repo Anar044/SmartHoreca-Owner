@@ -86,6 +86,14 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
                 if (state.error != null) ...[
                   const SizedBox(height: 12),
                   Text(state.error!, style: const TextStyle(color: OwnerPalette.error)),
+                  if (OwnerBackend.hasSession) ...[
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: state.busy ? null : state.loadWorkspaces,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Повторить загрузку организаций'),
+                    ),
+                  ],
                 ],
                 const SizedBox(height: 26),
                 SizedBox(

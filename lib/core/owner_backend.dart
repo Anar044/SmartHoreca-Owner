@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -47,6 +48,49 @@ class OwnerBackend {
     if (configured) await client.auth.signOut();
   }
 
+  static bool _transient(int status) =>
+      status == 502 || status == 503 || status == 504;
+
+  // Both mobile and Cloudflare Functions can return a non-JSON 503 page.
+  // Display the actual HTTP status without revealing HTML or private headers.
+  static Map<String, dynamic> _decodeResponse(http.Response response) {
+    Map<String, dynamic>? data;
+    try {
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      if (decoded is Map<String, dynamic>) data = decoded;
+    } catch (_) {
+      // Avoid passing an upstream HTML error page into the UI.
+    }
+    final status = response.statusCode;
+    if (data == null) {
+      throw OwnerApiException(
+        'HTTP_$status',
+        status >= 500
+            ? 'Сервер Smart Horeca временно недоступен (HTTP $status). '
+              'Повторите запрос позже.'
+            : 'Сервер Smart Horeca вернул неверный ответ (HTTP $status).',
+        status,
+      );
+    }
+    if (status >= 400 || data['success'] != true) {
+      final serverMessage = (data['message'] ?? '').toString().trim();
+      final fallback = _transient(status)
+          ? 'Smart Horeca API временно недоступен (HTTP $status). '
+            'Попробуйте обновить данные.'
+          : status == 401
+            ? 'Сессия истекла. Войдите в аккаунт заново.'
+            : status == 403
+              ? 'Нет доступа к выбранной организации или операции.'
+              : 'Ошибка запроса Smart Horeca (HTTP $status).';
+      throw OwnerApiException(
+        (data['code'] ?? 'HTTP_$status').toString(),
+        serverMessage.isNotEmpty ? serverMessage : fallback,
+        status,
+      );
+    }
+    return data;
+  }
+
   static Future<Map<String, dynamic>> postJson(
     String path, {
     required String workspaceId,
@@ -66,29 +110,25 @@ class OwnerBackend {
       throw const OwnerApiException(
           'HTTPS_REQUIRED', 'Требуется защищённое соединение HTTPS.', 400);
     }
-    final response = await http.post(uri, headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': 'Bearer $token',
-      'X-SH-Workspace-Id': workspaceId,
-      'X-SH-Department-Ids': (departmentIds.toList()..sort()).join(','),
-    }, body: jsonEncode(payload)).timeout(const Duration(seconds: 120));
-    Map<String, dynamic> data;
     try {
-      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-      data = decoded is Map<String, dynamic> ? decoded : {};
-    } catch (_) {
-      throw const OwnerApiException(
-          'INVALID_JSON', 'Сервер вернул неверный ответ.', 502);
+      final result = await http.post(uri, headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+        'X-SH-Workspace-Id': workspaceId,
+        'X-SH-Department-Ids': (departmentIds.toList()..sort()).join(','),
+      }, body: jsonEncode(payload)).timeout(const Duration(seconds: 120));
+      // AI POST is not retried automatically: resending could create duplicate
+      // messages if the server processed the first request.
+      return _decodeResponse(result);
+    } on TimeoutException {
+      throw const OwnerApiException('API_TIMEOUT',
+        'Сервер Smart Horeca не ответил вовремя. '
+        'Проверьте историю диалога перед повторной отправкой.', 504);
+    } on http.ClientException {
+      throw const OwnerApiException('NETWORK_UNAVAILABLE',
+        'Не удалось подключиться к Smart Horeca. Проверьте сеть.', 503);
     }
-    if (response.statusCode >= 400 || data['success'] != true) {
-      throw OwnerApiException(
-        (data['code'] ?? 'HTTP_${response.statusCode}').toString(),
-        (data['message'] ?? 'Ошибка запроса.').toString(),
-        response.statusCode,
-      );
-    }
-    return data;
   }
 
   static Future<Map<String, dynamic>> getJson(
@@ -122,24 +162,34 @@ class OwnerBackend {
       final ids = departmentIds.where((x) => x.isNotEmpty).toList()..sort();
       if (ids.isNotEmpty) headers['X-SH-Department-Ids'] = ids.join(',');
     }
-    final response = await http.get(uri, headers: headers).timeout(
-          const Duration(seconds: 50),
-        );
-    Map<String, dynamic> data;
-    try {
-      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-      data = decoded is Map<String, dynamic> ? decoded : {};
-    } catch (_) {
-      throw const OwnerApiException(
-          'INVALID_JSON', 'Сервер вернул неверный ответ.', 502);
+    // Retry only safe, idempotent reads. 401/403 must never be treated
+    // as temporary failures or bypassed; POST requests are never retried.
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        final result = await http.get(uri, headers: headers)
+            .timeout(const Duration(seconds: 50));
+        if (_transient(result.statusCode) && attempt < 2) {
+          await Future<void>.delayed(
+            Duration(milliseconds: attempt == 0 ? 500 : 1400));
+          continue;
+        }
+        return _decodeResponse(result);
+      } on TimeoutException {
+        if (attempt == 2) {
+          throw const OwnerApiException('API_TIMEOUT',
+            'Превышено время ожидания Smart Horeca. '
+            'Сервер или соединение временно недоступны.', 504);
+        }
+      } on http.ClientException {
+        if (attempt == 2) {
+          throw const OwnerApiException('NETWORK_UNAVAILABLE',
+            'Не удалось связаться с Smart Horeca. Проверьте сеть.', 503);
+        }
+      }
+      await Future<void>.delayed(
+        Duration(milliseconds: attempt == 0 ? 500 : 1400));
     }
-    if (response.statusCode >= 400 || data['success'] != true) {
-      throw OwnerApiException(
-        (data['code'] ?? 'HTTP_${response.statusCode}').toString(),
-        (data['message'] ?? 'Ошибка загрузки данных.').toString(),
-        response.statusCode,
-      );
-    }
-    return data;
+    throw const OwnerApiException('RETRY_EXHAUSTED',
+      'Не удалось получить данные Smart Horeca.', 503);
   }
 }
