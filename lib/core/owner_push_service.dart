@@ -110,8 +110,12 @@ class OwnerPushService {
         'Неизвестный тип уведомления.',400);
     }
     if (next.isEmpty) {
-      throw const OwnerApiException('NO_ALERT_TYPES',
-        'Выберите хотя бы одно событие или отключите Push целиком.',400);
+      // Unchecking the last kind automatically disables push and revokes
+      // the device token. Empty preferences cannot leave an active server
+      // subscription unintentionally delivering notifications.
+      if (await isEnabled()) await disable();
+      await SharedPreferencesAsync().setStringList(_kindsKey(workspace),[]);
+      return;
     }
     // Server must accept the new selection before the UI considers it saved.
     if (await isEnabled()) {

@@ -197,9 +197,12 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
       if(!mounted)return;
       setState((){
         selectedKinds=next;
-        pushStatus=pushEnabled
-          ?'Настройки уведомлений сохранены на сервере.'
-          :'Выбор сохранён. Push пока выключен.';
+        if(next.isEmpty)pushEnabled=false;
+        pushStatus=next.isEmpty
+          ?'Все уведомления отключены на этом телефоне.'
+          :pushEnabled
+            ?'Настройки уведомлений сохранены на сервере.'
+            :'Выбор сохранён. Push пока выключен.';
       });
     }catch(e){
       if(!mounted)return;
