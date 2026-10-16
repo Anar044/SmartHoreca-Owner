@@ -18,6 +18,13 @@ class OwnerState extends ChangeNotifier {
       };
       language = await _prefs.getString('sh_owner_language') ?? 'Русский';
       period = await _prefs.getString('sh_owner_period') ?? 'Сегодня';
+      final savedFrom = await _prefs.getString('sh_owner_custom_from');
+      final savedTo = await _prefs.getString('sh_owner_custom_to');
+      customFrom = savedFrom == null ? null : DateTime.tryParse(savedFrom);
+      customTo = savedTo == null ? null : DateTime.tryParse(savedTo);
+      if (period == 'Период' && (customFrom == null || customTo == null)) {
+        period = 'Сегодня';
+      }
       notifyListeners();
     } catch (_) {
       // Preferences failure cannot block sign-in or app access.
@@ -29,6 +36,8 @@ class OwnerState extends ChangeNotifier {
   int tabIndex = 0;
   String language = 'Русский';
   String period = 'Сегодня';
+  DateTime? customFrom;
+  DateTime? customTo;
   bool busy = false;
   bool live = false;
   String? error;
@@ -64,12 +73,40 @@ class OwnerState extends ChangeNotifier {
     unawaited(_prefs.setString('sh_owner_language', value));
     notifyListeners();
   }
+  static String formatDate(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
+
   void setPeriod(String value) {
+    if (value == 'Период') return;
     period = value;
+    customFrom = null;
+    customTo = null;
     unawaited(_prefs.setString('sh_owner_period', value));
+    unawaited(_prefs.remove('sh_owner_custom_from'));
+    unawaited(_prefs.remove('sh_owner_custom_to'));
     notifyListeners();
-    // Reports refresh themselves for the selected CHAIN/period. Do not
-    // duplicate their request with a hidden dashboard OLAP request.
+    if (live && tabIndex == 0 && stage == OwnerStage.shell) {
+      unawaited(loadSummary());
+    }
+  }
+
+  void setCustomPeriod(DateTime from, DateTime to) {
+    var start = DateTime(from.year, from.month, from.day);
+    var end = DateTime(to.year, to.month, to.day);
+    if (start.isAfter(end)) {
+      final swap = start;
+      start = end;
+      end = swap;
+    }
+    customFrom = start;
+    customTo = end;
+    period = 'Период';
+    unawaited(_prefs.setString('sh_owner_period', period));
+    unawaited(_prefs.setString('sh_owner_custom_from', formatDate(start)));
+    unawaited(_prefs.setString('sh_owner_custom_to', formatDate(end)));
+    notifyListeners();
     if (live && tabIndex == 0 && stage == OwnerStage.shell) {
       unawaited(loadSummary());
     }
@@ -264,15 +301,17 @@ class OwnerState extends ChangeNotifier {
     summary = null; // Never show stale or demonstration finance data as live.
     notifyListeners();
     final now = DateTime.now();
-    String fmt(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
-        '${d.month.toString().padLeft(2, '0')}-'
-        '${d.day.toString().padLeft(2, '0')}';
-    final to = period == 'Вчера' ? now.subtract(const Duration(days: 1)) : now;
-    final from = switch (period) {
-      '7 дней' => to.subtract(const Duration(days: 6)),
-      'Месяц' => to.subtract(const Duration(days: 29)),
-      _ => to,
-    };
+    final today = DateTime(now.year, now.month, now.day);
+    final to = period == 'Период'
+        ? (customTo ?? today)
+        : period == 'Вчера' ? today.subtract(const Duration(days: 1)) : today;
+    final from = period == 'Период'
+        ? (customFrom ?? to)
+        : switch (period) {
+            '7 дней' => to.subtract(const Duration(days: 6)),
+            'Месяц' => to.subtract(const Duration(days: 29)),
+            _ => to,
+          };
     try {
       final result = await OwnerBackend.getJson(
         '/api/mobile/v1/summary',
@@ -280,7 +319,7 @@ class OwnerState extends ChangeNotifier {
         departmentIds: selectedRestaurantIds,
         // Only the default "Сегодня" dashboard uses active cash sessions.
         // Explicit earlier date ranges keep their original calendar meaning.
-        query: {'from': fmt(from), 'to': fmt(to),
+        query: {'from': formatDate(from), 'to': formatDate(to),
           'mode': period == 'Сегодня' ? 'operational' : 'calendar'},
       );
       if (generation == _summaryGeneration && live && stage == OwnerStage.shell) {

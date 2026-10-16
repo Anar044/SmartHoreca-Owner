@@ -144,22 +144,72 @@ class OwnerRestaurantPicker extends StatelessWidget {
 class OwnerPeriodPicker extends StatelessWidget {
   const OwnerPeriodPicker({super.key});
 
+  String _shortDate(DateTime? date) {
+    if (date == null) return '';
+    return '${date.day.toString().padLeft(2, '0')}.'
+        '${date.month.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _chooseCustomPeriod(
+      BuildContext context, OwnerState state) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final initialStart = state.customFrom ?? today.subtract(const Duration(days: 29));
+    final initialEnd = state.customTo ?? today;
+    final start = initialStart.isAfter(today) ? today : initialStart;
+    final end = initialEnd.isAfter(today) ? today : initialEnd;
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 5, 1, 1),
+      lastDate: today,
+      initialDateRange: DateTimeRange(
+        start: start.isAfter(end) ? end : start,
+        end: end.isBefore(start) ? start : end,
+      ),
+      helpText: 'Выберите период отчёта',
+      saveText: 'Применить',
+    );
+    if (range == null || !context.mounted) return;
+    if (range.end.difference(range.start).inDays > 31) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(
+          'Период ограничен 32 календарными днями. Выберите более короткий диапазон.')),
+      );
+      return;
+    }
+    state.setCustomPeriod(range.start, range.end);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = OwnerScope.of(context);
+    final customLabel = state.period == 'Период' &&
+        state.customFrom != null && state.customTo != null
+      ? '${_shortDate(state.customFrom)}–${_shortDate(state.customTo)}'
+      : 'Выбрать даты';
     return Wrap(
       spacing: 7,
       runSpacing: 7,
-      children: ['Сегодня', 'Вчера', '7 дней', 'Месяц'].map((item) {
-        return ChoiceChip(
-          label: Text(OwnerL10n.tr(state.language, item),
-            style: const TextStyle(fontSize: 12)),
-          selected: state.period == item,
-          onSelected: (_) => state.setPeriod(item),
+      children: [
+        ...['Сегодня', 'Вчера', '7 дней', 'Месяц'].map((item) {
+          return ChoiceChip(
+            label: Text(OwnerL10n.tr(state.language, item),
+              style: const TextStyle(fontSize: 12)),
+            selected: state.period == item,
+            onSelected: (_) => state.setPeriod(item),
+            showCheckmark: false,
+            visualDensity: VisualDensity.compact,
+          );
+        }),
+        ChoiceChip(
+          avatar: const Icon(Icons.calendar_month_outlined, size: 16),
+          label: Text(customLabel, style: const TextStyle(fontSize: 12)),
+          selected: state.period == 'Период',
+          onSelected: (_) { _chooseCustomPeriod(context, state); },
           showCheckmark: false,
           visualDensity: VisualDensity.compact,
-        );
-      }).toList(),
+        ),
+      ],
     );
   }
 }

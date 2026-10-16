@@ -27,7 +27,11 @@ class OwnerHomeScreen extends StatelessWidget {
     final data = state.summary;
     final metrics = data?['metrics'] is Map ? data!['metrics'] as Map : const {};
     final daily = (data?['daily'] is List ? data!['daily'] as List : const [])
-        .whereType<Map<String, dynamic>>().where((e) => e['revenue'] is num).toList();
+        .whereType<Map<String, dynamic>>()
+        .where((e) => e['revenue'] is num)
+        .toList()
+      ..sort((a, b) => (b['date'] ?? '').toString()
+          .compareTo((a['date'] ?? '').toString()));
 
     return OwnerScreenFrame(onRefresh: state.live ? state.loadSummary : null, children: [
       const OwnerHeading('Главная', caption: 'Обзор бизнеса'),

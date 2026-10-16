@@ -81,32 +81,6 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
       const SizedBox(height: 12),
       const OwnerRestaurantPicker(),
       const SizedBox(height: 12),
-      OwnerCard(
-        onTap: () => Navigator.push(context, MaterialPageRoute<void>(
-          builder: (_) => const Scaffold(
-            appBar: _ShiftAppBar(), body: OwnerLiveCashShifts(),
-          ),
-        )),
-        child: const Row(children: [
-          Icon(Icons.history), SizedBox(width: 12),
-          Expanded(child: OwnerText('История кассовых смен')),
-          Icon(Icons.chevron_right),
-        ]),
-      ),
-      const SizedBox(height: 9),
-      OwnerCard(
-        onTap: () => Navigator.push(context, MaterialPageRoute<void>(
-          builder: (_) => const OwnerLiveReportScreen(
-            title: 'Чеки', kind: 'orders',
-          ),
-        )),
-        child: const Row(children: [
-          Icon(Icons.receipt_long_outlined), SizedBox(width: 12),
-          Expanded(child: OwnerText('Чеки и состав заказов')),
-          Icon(Icons.chevron_right),
-        ]),
-      ),
-      const SizedBox(height: 12),
       if (loading)
         const OwnerCard(child: Padding(
           padding: EdgeInsets.all(24),
@@ -225,14 +199,6 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
   }
 }
 
-class _ShiftAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _ShiftAppBar();
-  @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
-  @override
-  Widget build(BuildContext context) => AppBar(title: const OwnerText('Кассовые смены'));
-}
-
 class _RegisterDetail extends StatefulWidget {
   final Map<String, dynamic> register;
   final String restaurant;
@@ -245,6 +211,18 @@ class _RegisterDetailState extends State<_RegisterDetail> {
   String filter = 'Все';
   String search = '';
 
+  String _time(dynamic value) {
+    final raw = (value ?? '').toString().trim();
+    if (raw.isEmpty) return '—';
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return raw;
+    final date = parsed.toLocal();
+    return '${date.day.toString().padLeft(2, '0')}.'
+        '${date.month.toString().padLeft(2, '0')} '
+        '${date.hour.toString().padLeft(2, '0')}:'
+        '${date.minute.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final name = (widget.register['name'] ?? 'Касса').toString();
@@ -253,14 +231,19 @@ class _RegisterDetailState extends State<_RegisterDetail> {
         if (filter != 'Все' && row['status'] != filter) return false;
         if (search.isEmpty) return true;
         return [
-          row['number'], row['waiter'], row['table'], row['floor']
+          row['number'], row['waiter'], row['cashier'], row['table'],
+          row['floor'], row['openedAt'], row['closedAt']
         ].any((v) => v.toString().toLowerCase().contains(search.toLowerCase()));
-      }).toList();
+      }).toList()
+      ..sort((a,b) => (b['openedAt'] ?? '').toString()
+          .compareTo((a['openedAt'] ?? '').toString()));
     final totals = widget.register['totals'] as Map? ?? {};
+    final pluginId = (widget.register['id'] ?? '').toString();
+    final departmentId = (widget.register['departmentId'] ?? '').toString();
     return Scaffold(
       appBar: AppBar(title: Text(name)),
       body: OwnerScreenFrame(children: [
-        OwnerHeading(widget.restaurant, caption: 'Просмотр заказов кассы'),
+        OwnerHeading(widget.restaurant, caption: 'Заказы кассы • открытые и закрытые'),
         const SizedBox(height: 12),
         Row(children: [
           Expanded(child: OwnerMetric('Закрытые заказы',
@@ -272,7 +255,7 @@ class _RegisterDetailState extends State<_RegisterDetail> {
         const SizedBox(height: 10),
         TextField(
           decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.search), hintText: 'Поиск заказа...'),
+            prefixIcon: Icon(Icons.search), hintText: 'Поиск заказа, стола или зала...'),
           onChanged: (v) => setState(() => search = v.trim()),
         ),
         const SizedBox(height: 9),
@@ -287,16 +270,44 @@ class _RegisterDetailState extends State<_RegisterDetail> {
         if (orders.isEmpty) const OwnerCard(child: Text('Заказы не найдены.')),
         for (final order in orders)
           Padding(padding: const EdgeInsets.only(bottom: 8),
-            child: OwnerCard(child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text('Заказ №${order['number']}'),
-              subtitle: Text('${order['status']} · ${order['openedAt'] ?? ''}'),
-              trailing: Text(_OwnerLiveCashScreenState.money(order['amount']),
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-            )),
+            child: OwnerCard(
+              onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+                builder: (_) => OwnerLivePosOrderScreen(
+                  order: order,
+                  pluginId: pluginId,
+                  departmentId: departmentId,
+                  restaurant: widget.restaurant,
+                  registerName: name,
+                ),
+              )),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Заказ №${order['number']}',
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${order['status'] == 'OPEN' ? 'Открыт' : order['status'] == 'CLOSED' ? 'Закрыт' : order['status'] ?? 'Статус не указан'}'
+                      '${(order['floor'] ?? '').toString().trim().isNotEmpty ? ' · Зал: ${order['floor']}' : ''}'
+                      '${(order['table'] ?? '').toString().trim().isNotEmpty ? ' · Стол: ${order['table']}' : ''}'),
+                    Text('Открыт: ${_time(order['openedAt'])} · Закрыт: ${_time(order['closedAt'])}',
+                      style: TextStyle(fontSize: 11,
+                        color: OwnerPalette.muted(context))),
+                  ],
+                ),
+                trailing: SizedBox(
+                  width: 95,
+                  child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                    Flexible(child: Text(
+                      _OwnerLiveCashScreenState.money(order['amount']),
+                      textAlign: TextAlign.end,
+                      style: const TextStyle(fontWeight: FontWeight.bold))),
+                    const Icon(Icons.chevron_right, size: 18),
+                  ]),
+                ),
+              ),
+            ),
           ),
-        const SizedBox(height: 13),
-        const OwnerText('Для просмотра состава и оплат потребуется отдельный защищённый запрос деталей заказа.'),
       ]),
     );
   }

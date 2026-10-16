@@ -20,7 +20,6 @@ class OwnerReportsScreen extends StatelessWidget {
       ('P&L', Icons.account_balance_wallet_outlined),
       ('Касса и способы оплаты', Icons.account_tree_outlined),
       ('Остатки на складах', Icons.warehouse_outlined),
-      ('Движение товаров', Icons.swap_horiz),
     ];
     return OwnerScreenFrame(children: [
       const OwnerHeading('Отчёты', caption: 'Аналитика и остатки на складах'),
@@ -40,7 +39,6 @@ class OwnerReportsScreen extends StatelessWidget {
                 'P&L' => 'pnl',
                 'Касса и способы оплаты' => 'cash',
                 'Остатки на складах' => 'inventory',
-                'Движение товаров' => 'movements',
                 _ => 'sales',
               };
               Navigator.push(context, MaterialPageRoute<void>(

@@ -47,8 +47,16 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
 
   Map<String, String> _dates(OwnerState state) {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (state.period == 'Период' &&
+        state.customFrom != null && state.customTo != null) {
+      return {
+        'from': _fmt(state.customFrom!),
+        'to': _fmt(state.customTo!),
+      };
+    }
     final end = state.period == 'Вчера'
-        ? now.subtract(const Duration(days: 1)) : now;
+        ? today.subtract(const Duration(days: 1)) : today;
     final start = switch (state.period) {
       '7 дней' => end.subtract(const Duration(days: 6)),
       'Месяц' => end.subtract(const Duration(days: 29)),
@@ -62,7 +70,9 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
     super.didChangeDependencies();
     final state = OwnerScope.of(context);
     final ids = state.selectedRestaurantIds.toList()..sort();
-    final key = '${state.workspaceId}|${ids.join(',')}|${state.period}|${widget.kind}';
+    final key = '${state.workspaceId}|${ids.join(',')}|${state.period}|'
+        '${state.customFrom?.toIso8601String() ?? ''}|'
+        '${state.customTo?.toIso8601String() ?? ''}|${widget.kind}';
     if (key != _scopeKey) {
       _scopeKey = key;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -583,15 +593,25 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
 
   Widget _discountsView(BuildContext context) {
     final discounts=(data?['discounts'] as List? ?? [])
-      .whereType<Map<String,dynamic>>().toList();
+      .whereType<Map<String,dynamic>>()
+      .where((row)=>row['value'] is num && row['value'] != 0).toList();
     final surcharges=(data?['surcharges'] as List? ?? [])
-      .whereType<Map<String,dynamic>>().toList();
+      .whereType<Map<String,dynamic>>()
+      .where((row)=>row['value'] is num && row['value'] != 0).toList();
+    final discountTotal=data?['discountTotal'];
+    final surchargeTotal=data?['surchargeTotal'];
+    final showDiscountTotal=discountTotal is num && discountTotal != 0;
+    final showSurchargeTotal=surchargeTotal is num && surchargeTotal != 0;
+
     Widget section(String title,List<Map<String,dynamic>> rows,
-        bool available,String? reason,bool byRestaurant) {
-      return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        OwnerHeading(title,caption:byRestaurant
+        bool available,String? reason,bool byRestaurant,bool byRegister) {
+      final caption=byRegister
+        ?'Разбивка по кассам'
+        :byRestaurant
           ?'Разбивка по ресторанам: тип не передан SH OLAP'
-          :'Разбивка по типам из SH OLAP'),
+          :'Разбивка по типам из SH OLAP';
+      return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        OwnerHeading(title,caption:caption),
         const SizedBox(height:8),
         if(!available)
           OwnerCard(child:Text(reason ?? 'Источник не предоставил этот показатель.'))
@@ -600,7 +620,12 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         else for(final row in rows) ...[
           OwnerCard(child:ListTile(
             contentPadding:EdgeInsets.zero,
-            title:Text((row['label'] ?? '—').toString()),
+            title:Text((row['registerName'] ?? row['label'] ?? '—').toString()),
+            subtitle:row['registerName'] != null &&
+                (row['group'] ?? '').toString().isNotEmpty &&
+                row['group'].toString() != row['registerName'].toString()
+              ?Text(row['group'].toString())
+              :null,
             trailing:Text(_money(row['value']),
               style:const TextStyle(fontWeight:FontWeight.w700)),
           )),
@@ -610,16 +635,20 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
       ]);
     }
     return Column(children:[
-      Row(children:[
-        Expanded(child:OwnerMetric('Сумма скидок',
-          data?['discountTotal'] is num
-            ?_money(data?['discountTotal']):'—')),
-        const SizedBox(width:10),
-        Expanded(child:OwnerMetric('Сумма надбавок',
-          data?['surchargeTotal'] is num
-            ?_money(data?['surchargeTotal']):'—')),
-      ]),
-      const SizedBox(height:15),
+      if(showDiscountTotal && showSurchargeTotal) ...[
+        Row(children:[
+          Expanded(child:OwnerMetric('Сумма скидок',_money(discountTotal))),
+          const SizedBox(width:10),
+          Expanded(child:OwnerMetric('Сумма надбавок',_money(surchargeTotal))),
+        ]),
+        const SizedBox(height:15),
+      ] else if(showDiscountTotal) ...[
+        OwnerMetric('Сумма скидок',_money(discountTotal)),
+        const SizedBox(height:15),
+      ] else if(showSurchargeTotal) ...[
+        OwnerMetric('Сумма надбавок',_money(surchargeTotal)),
+        const SizedBox(height:15),
+      ],
       if(data?['partial']==true) ...[
         const OwnerCard(child:Row(children:[
           Icon(Icons.info_outline,color:OwnerPalette.warning),
@@ -633,11 +662,13 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
       section('Скидки гостям',discounts,
         data?['discountAvailable']==true,
         data?['discountUnavailableReason']?.toString(),
-        data?['discountByRestaurant']==true),
+        data?['discountByRestaurant']==true,
+        data?['discountByRegister']==true),
       section('Надбавки',surcharges,
         data?['surchargeAvailable']==true,
         data?['surchargeUnavailableReason']?.toString(),
-        data?['surchargeByRestaurant']==true),
+        data?['surchargeByRestaurant']==true,
+        data?['surchargeByRegister']==true),
       _source(context),
     ]);
   }
@@ -928,6 +959,214 @@ class _OwnerLiveOrderScreenState extends State<OwnerLiveOrderScreen> {
           else
             OwnerCard(child:Text((details?['paymentNote'] ??
               'Способы оплаты не подтверждены SH Server.').toString())),
+        ],
+      ]),
+    );
+  }
+}
+
+/// Detailed order opened directly from the selected live POS register.
+class OwnerLivePosOrderScreen extends StatefulWidget {
+  final Map<String,dynamic> order;
+  final String pluginId;
+  final String departmentId;
+  final String restaurant;
+  final String registerName;
+  const OwnerLivePosOrderScreen({
+    super.key, required this.order, required this.pluginId,
+    required this.departmentId, required this.restaurant,
+    required this.registerName,
+  });
+
+  @override
+  State<OwnerLivePosOrderScreen> createState() => _OwnerLivePosOrderScreenState();
+}
+
+class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
+  Map<String,dynamic>? details;
+  String? error;
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
+  }
+
+  String _raw(dynamic value) => (value ?? '').toString().trim();
+
+  String _time(dynamic value) {
+    final raw = _raw(value);
+    if (raw.isEmpty) return '';
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return raw;
+    final date = parsed.toLocal();
+    return '${date.day.toString().padLeft(2, '0')}.'
+      '${date.month.toString().padLeft(2, '0')}.'
+      '${date.year} '
+      '${date.hour.toString().padLeft(2, '0')}:'
+      '${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _money(dynamic value) =>
+    value is num ? '${value.toStringAsFixed(2)} AZN' : '—';
+
+  Future<void> _load() async {
+    final owner=OwnerScope.of(context);
+    final workspace=owner.workspaceId;
+    if (workspace == null || widget.pluginId.isEmpty ||
+        widget.departmentId.isEmpty) {
+      setState(() {
+        loading=false;
+        error='Не удалось подтвердить кассу и ресторан выбранного заказа.';
+      });
+      return;
+    }
+    setState(() {loading=true;error=null;details=null;});
+    final order=widget.order;
+    final query=<String,String>{
+      'pluginId':widget.pluginId,
+      'orderNum':_raw(order['number']),
+      'departmentId':widget.departmentId,
+      'registerName':widget.registerName,
+      for (final key in ['status','table','floor','waiter','cashier','openedAt',
+          'billAt','closedAt'])
+        if (_raw(order[key]).isNotEmpty) key:_raw(order[key]),
+      if (order['amount'] is num) 'amount':order['amount'].toString(),
+      if (order['discountAmount'] is num)
+        'discountAmount':order['discountAmount'].toString(),
+      if (order['surchargeAmount'] is num)
+        'surchargeAmount':order['surchargeAmount'].toString(),
+    };
+    try {
+      final result=await OwnerBackend.getJson(
+        '/api/mobile/v1/cash-order',
+        workspaceId:workspace,
+        departmentIds:owner.selectedRestaurantIds,
+        query:query,
+      );
+      if(!mounted)return;
+      setState(() {loading=false;details=result;});
+    } catch(e) {
+      if(!mounted)return;
+      setState(() {
+        loading=false;
+        error=e is OwnerApiException
+          ?'${e.message} (${e.code})'
+          :'Не удалось загрузить информацию о заказе.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final order=details ?? widget.order;
+    final items=(details?['items'] as List? ?? [])
+      .whereType<Map<String,dynamic>>().toList();
+    final payments=(details?['payments'] as List? ?? [])
+      .whereType<Map<String,dynamic>>().toList();
+    final info=<MapEntry<String,String>>[
+      MapEntry('Статус',_raw(order['status'])),
+      MapEntry('Ресторан',widget.restaurant),
+      MapEntry('Касса',widget.registerName),
+      MapEntry('Зал',_raw(order['floor'])),
+      MapEntry('Стол',_raw(order['table'])),
+      MapEntry('Официант',_raw(order['waiter'])),
+      MapEntry('Кассир',_raw(order['cashier'])),
+      MapEntry('Открыт',_time(order['openedAt'])),
+      MapEntry('Выставлен счёт',_time(order['billAt'])),
+      MapEntry('Закрыт',_time(order['closedAt'])),
+      if(order['discountAmount'] is num && order['discountAmount'] != 0)
+        MapEntry('Скидка',_money(order['discountAmount'])),
+      if(order['surchargeAmount'] is num && order['surchargeAmount'] != 0)
+        MapEntry('Надбавка',_money(order['surchargeAmount'])),
+      if(order['amount'] is num) MapEntry('Итого',_money(order['amount'])),
+    ].where((entry)=>entry.value.trim().isNotEmpty).toList();
+    final title='Заказ №${widget.order['number']}';
+    return Scaffold(
+      appBar:AppBar(title:Text(title,style:const TextStyle(fontSize:17))),
+      body:OwnerScreenFrame(onRefresh:_load,children:[
+        OwnerHeading(title,caption:'${widget.restaurant} • ${widget.registerName}'),
+        const SizedBox(height:12),
+        if(loading)
+          const OwnerCard(child:Padding(
+            padding:EdgeInsets.all(24),
+            child:Center(child:CircularProgressIndicator()))),
+        if(error!=null)
+          OwnerCard(child:Column(children:[
+            Text(error!,textAlign:TextAlign.center),
+            const SizedBox(height:10),
+            FilledButton.tonalIcon(onPressed:_load,
+              icon:const Icon(Icons.refresh),
+              label:const OwnerText('Повторить')),
+          ])),
+        if(!loading && error==null && details!=null) ...[
+          OwnerCard(child:Column(children:[
+            for(var i=0;i<info.length;i++) ...[
+              ListTile(
+                dense:true,
+                contentPadding:EdgeInsets.zero,
+                title:OwnerText(info[i].key),
+                trailing:SizedBox(
+                  width:190,
+                  child:Text(info[i].value,textAlign:TextAlign.end,
+                    style:const TextStyle(fontWeight:FontWeight.w600)),
+                ),
+              ),
+              if(i<info.length-1) const Divider(height:1),
+            ],
+          ])),
+          const SizedBox(height:14),
+          const OwnerHeading('Состав заказа'),
+          const SizedBox(height:9),
+          if(items.isEmpty)
+            const OwnerCard(child:OwnerText(
+              'Касса не предоставила позиции этого заказа. Обновите экран или проверьте доступность детализации в POS.')),
+          for(final item in items) ...[
+            OwnerCard(child:Column(
+              crossAxisAlignment:CrossAxisAlignment.start,
+              children:[
+                Text((item['name']??'Без названия').toString(),
+                  style:const TextStyle(fontWeight:FontWeight.w700)),
+                const SizedBox(height:6),
+                Row(children:[
+                  Expanded(child:Text(
+                    'Кол-во: ${item['quantity'] ?? '—'}'
+                    '${item['price'] is num ? ' · Цена: ${_money(item['price'])}' : ''}',
+                    style:TextStyle(color:OwnerPalette.muted(context),fontSize:12))),
+                  Text(_money(item['amount']),
+                    style:const TextStyle(fontWeight:FontWeight.w700)),
+                ]),
+                if((item['status']??'').toString().isNotEmpty)
+                  Text('Статус позиции: ${item['status']}',
+                    style:TextStyle(color:OwnerPalette.muted(context),fontSize:11)),
+                for(final modifier in (item['modifiers'] as List? ?? [])
+                    .whereType<Map<String,dynamic>>())
+                  Padding(
+                    padding:const EdgeInsets.only(top:4,left:8),
+                    child:Text('+ ${modifier['name']} × ${modifier['quantity'] ?? 1}',
+                      style:TextStyle(color:OwnerPalette.muted(context),fontSize:12)),
+                  ),
+              ],
+            )),
+            const SizedBox(height:8),
+          ],
+          if(payments.isNotEmpty) ...[
+            const SizedBox(height:6),
+            const OwnerHeading('Способы оплаты'),
+            const SizedBox(height:8),
+            for(final payment in payments) ...[
+              OwnerCard(child:ListTile(
+                contentPadding:EdgeInsets.zero,
+                title:Text((payment['name']??'—').toString()),
+                trailing:Text(_money(payment['amount']),
+                  style:const TextStyle(fontWeight:FontWeight.w700)),
+              )),
+              const SizedBox(height:7),
+            ],
+          ],
         ],
       ]),
     );
