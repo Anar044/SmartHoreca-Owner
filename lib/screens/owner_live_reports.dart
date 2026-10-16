@@ -1042,10 +1042,11 @@ class OwnerLivePosOrderScreen extends StatefulWidget {
   final String departmentId;
   final String restaurant;
   final String registerName;
+  final bool offlineSnapshot;
   const OwnerLivePosOrderScreen({
     super.key, required this.order, required this.pluginId,
     required this.departmentId, required this.restaurant,
-    required this.registerName,
+    required this.registerName, this.offlineSnapshot = false,
   });
 
   @override
@@ -1065,7 +1066,13 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _refreshAll();
+      if (!mounted) return;
+      if (widget.offlineSnapshot) {
+        setState(() => loading=false);
+        _loadHistory();
+      } else {
+        _refreshAll();
+      }
     });
   }
 
@@ -1088,7 +1095,11 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
     value is num ? '${value.toStringAsFixed(2)} AZN' : '—';
 
   Future<void> _refreshAll() async {
-    await Future.wait([_load(), _loadHistory()]);
+    if (widget.offlineSnapshot) {
+      await _loadHistory();
+    } else {
+      await Future.wait([_load(), _loadHistory()]);
+    }
   }
 
   Future<void> _loadHistory() async {
@@ -1290,6 +1301,30 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
       body:OwnerScreenFrame(onRefresh:_refreshAll,children:[
         OwnerHeading(title,caption:'${widget.restaurant} • ${widget.registerName}'),
         const SizedBox(height:12),
+        if(widget.offlineSnapshot) ...[
+          OwnerCard(child:Column(
+            crossAxisAlignment:CrossAxisAlignment.start,
+            children:[
+              const Text('Офлайн • последнее сохранённое состояние',
+                style:TextStyle(fontWeight:FontWeight.w700)),
+              const SizedBox(height:8),
+              for(final item in info) ...[
+                Row(
+                  mainAxisAlignment:MainAxisAlignment.spaceBetween,
+                  children:[
+                    Text(item.key),
+                    Flexible(child:Text(item.value,
+                      textAlign:TextAlign.end)),
+                  ],
+                ),
+                const SizedBox(height:5),
+              ],
+              const SizedBox(height:6),
+              const Text('Состав и новые операции кассы сейчас недоступны. '
+                'История ниже загружается отдельно из журнала POS.'),
+            ],
+          )),
+        ],
         if(loading)
           const OwnerCard(child:Padding(
             padding:EdgeInsets.all(24),

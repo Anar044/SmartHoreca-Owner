@@ -353,16 +353,17 @@ class _RegisterDetailState extends State<_RegisterDetail> {
         for (final order in orders)
           Padding(padding: const EdgeInsets.only(bottom: 8),
             child: OwnerCard(
-              // Offline list is historical. Never invoke a live POS detail
-              // endpoint or pretend the last-seen header contains the full
-              // receipt when the register is disconnected.
-              onTap: offline ? null : () => Navigator.push(context, MaterialPageRoute<void>(
+              // Audit history is stored by VPS independently of POS status.
+              // An offline order opens in historical read-only mode: no live
+              // detail fetch or guessed receipt positions.
+              onTap: () => Navigator.push(context, MaterialPageRoute<void>(
                 builder: (_) => OwnerLivePosOrderScreen(
                   order: order,
                   pluginId: pluginId,
                   departmentId: departmentId,
                   restaurant: widget.restaurant,
                   registerName: name,
+                  offlineSnapshot: offline,
                 ),
               )),
               child: ListTile(
@@ -390,7 +391,7 @@ class _RegisterDetailState extends State<_RegisterDetail> {
                       _OwnerLiveCashScreenState.money(order['amount']),
                       textAlign: TextAlign.end,
                       style: const TextStyle(fontWeight: FontWeight.bold))),
-                    if (!offline) const Icon(Icons.chevron_right, size: 18),
+                    const Icon(Icons.chevron_right, size: 18),
                   ]),
                 ),
               ),
