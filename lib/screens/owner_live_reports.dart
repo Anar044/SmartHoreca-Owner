@@ -255,7 +255,10 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
             ),
           ],
         ))
-      else if (nestedCash)
+      else if (nestedCash) ...[
+        OwnerHeading(widget.kind == 'cash'
+          ? 'Касса → Способ оплаты' : 'Касса → Блюдо'),
+        const SizedBox(height:8),
         for (final group in groupTotals.entries) ...[
           OwnerCard(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,7 +284,8 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
             ],
           )),
           const SizedBox(height: 8),
-        ]
+        ],
+      ]
       else
         for (final row in rows) ...[
           OwnerCard(child: ListTile(
