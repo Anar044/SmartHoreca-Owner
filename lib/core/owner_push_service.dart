@@ -71,13 +71,64 @@ class OwnerPushService {
     return await prefs.getBool(_optInKey)??false;
   }
 
+  static String _kindsKey(String workspace) {
+    final userId=OwnerBackend.hasSession
+      ?OwnerBackend.client.auth.currentUser?.id??'' : '';
+    return 'sh_owner_push_kinds_${userId}_$workspace';
+  }
+
+  static Future<Set<String>> selectedKinds(String workspace) async {
+    if (!OwnerBackend.hasSession) return kinds.toSet();
+    final saved=await SharedPreferencesAsync().getStringList(
+      _kindsKey(workspace));
+    if (saved == null) return kinds.toSet();
+    return saved.where(kinds.contains).toSet();
+  }
+
   static Future<void> _registerToken(
-      String token,String workspace,Iterable<String> restaurants) async {
+      String token,String workspace,Iterable<String> restaurants,
+      {Set<String>? onlyKinds}) async {
+    final chosen=onlyKinds??await selectedKinds(workspace);
+    if (chosen.isEmpty) {
+      throw const OwnerApiException('NO_ALERT_TYPES',
+        'Отметьте хотя бы одно событие или отключите Push целиком.',400);
+    }
     await OwnerBackend.postJson('/api/mobile/v1/push-subscriptions',
       workspaceId:workspace,
       departmentIds:restaurants,
-      payload:{'action':'register','token':token,'kinds':kinds},
+      payload:{
+        'action':'register','token':token,
+        'kinds':kinds.where(chosen.contains).toList()
+      },
     );
+  }
+
+  static Future<void> updateKinds(String workspace,
+      Iterable<String> restaurants,Set<String> next) async {
+    if (next.any((kind)=>!kinds.contains(kind))) {
+      throw const OwnerApiException('UNKNOWN_ALERT_TYPE',
+        'Неизвестный тип уведомления.',400);
+    }
+    if (next.isEmpty) {
+      throw const OwnerApiException('NO_ALERT_TYPES',
+        'Выберите хотя бы одно событие или отключите Push целиком.',400);
+    }
+    // Server must accept the new selection before the UI considers it saved.
+    if (await isEnabled()) {
+      await initialize();
+      if (!_initialized) {
+        throw const OwnerApiException('FIREBASE_UNAVAILABLE',
+          'Firebase сейчас недоступен. Попробуйте позже.',503);
+      }
+      final token=await FirebaseMessaging.instance.getToken();
+      if (token == null || token.isEmpty) {
+        throw const OwnerApiException('FCM_TOKEN_UNAVAILABLE',
+          'Не удалось получить токен для обновления подписки.',503);
+      }
+      await _registerToken(token,workspace,restaurants,onlyKinds:next);
+    }
+    await SharedPreferencesAsync().setStringList(
+      _kindsKey(workspace),kinds.where(next.contains).toList());
   }
 
   static Future<void> syncScope(
@@ -120,7 +171,8 @@ class OwnerPushService {
       throw const OwnerApiException('FCM_TOKEN_UNAVAILABLE',
         'Не удалось получить токен уведомлений. Повторите позднее.',503);
     }
-    await _registerToken(token,workspace,restaurants);
+    final chosen=await selectedKinds(workspace);
+    await _registerToken(token,workspace,restaurants,onlyKinds:chosen);
     _workspace=workspace;
     _departments=restaurants.toSet();
     _enabled=true;

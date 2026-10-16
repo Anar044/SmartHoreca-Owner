@@ -134,13 +134,21 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
   bool pushEnabled=false;
   bool pushBusy=false;
   String? pushStatus;
+  Set<String> selectedKinds=OwnerPushService.kinds.toSet();
 
   @override
   void initState(){
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final enabled=await OwnerPushService.isEnabled();
-      if(mounted)setState(()=>pushEnabled=enabled);
+      final workspace=OwnerScope.of(context).workspaceId;
+      final kinds=workspace==null
+        ?OwnerPushService.kinds.toSet()
+        :await OwnerPushService.selectedKinds(workspace);
+      if(mounted)setState((){
+        pushEnabled=enabled;
+        selectedKinds=kinds;
+      });
     });
   }
 
@@ -168,6 +176,34 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
         pushStatus=e is OwnerApiException
           ?e.message
           :'Не удалось изменить настройки уведомлений.';
+      });
+    }finally{
+      if(mounted)setState(()=>pushBusy=false);
+    }
+  }
+
+  Future<void> _toggleKind(String kind,bool checked) async {
+    final state=OwnerScope.of(context);
+    final workspace=state.workspaceId;
+    if(workspace==null)return;
+    final next={...selectedKinds};
+    if(checked){next.add(kind);}else{next.remove(kind);}
+    setState((){pushBusy=true;pushStatus=null;});
+    try{
+      await OwnerPushService.updateKinds(
+        workspace,state.selectedRestaurantIds,next);
+      if(!mounted)return;
+      setState((){
+        selectedKinds=next;
+        pushStatus=pushEnabled
+          ?'Настройки уведомлений сохранены на сервере.'
+          :'Выбор сохранён. Push пока выключен.';
+      });
+    }catch(e){
+      if(!mounted)return;
+      setState((){
+        pushStatus=e is OwnerApiException
+          ?e.message:'Не удалось сохранить выбранные события.';
       });
     }finally{
       if(mounted)setState(()=>pushBusy=false);
@@ -209,18 +245,24 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
                 style:TextStyle(fontWeight:FontWeight.bold)),
               const SizedBox(height:8),
               for(final event in const [
-                'Применена скидка',
-                'Удалена скидка',
-                'Отменён пречек',
-                'Удалено блюдо',
-                'Сторнирован чек'
+                ('DISCOUNT_APPLIED','Применена скидка'),
+                ('DISCOUNT_REMOVED','Удалена скидка'),
+                ('PRECHECK_CANCELLED','Отменён пречек'),
+                ('ITEM_REMOVED','Удалено блюдо'),
+                ('RECEIPT_STORNO','Сторнирован чек'),
               ])
-                Padding(padding:const EdgeInsets.only(bottom:7),
-                  child:Row(children:[
-                    const Icon(Icons.notifications_active_outlined,size:18),
-                    const SizedBox(width:10),
-                    Expanded(child:Text(event)),
-                  ])),
+                CheckboxListTile(
+                  dense:true,
+                  contentPadding:EdgeInsets.zero,
+                  controlAffinity:ListTileControlAffinity.leading,
+                  title:Text(event.$2),
+                  subtitle:Text(selectedKinds.contains(event.$1)
+                    ?'Получать уведомления'
+                    :'Не уведомлять'),
+                  value:selectedKinds.contains(event.$1),
+                  onChanged:pushBusy?null:(value)=>
+                    _toggleKind(event.$1,value==true),
+                ),
               const SizedBox(height:8),
               Text('События должны поступать из кассового плагина. '
                 'Приложение не создаёт уведомления по догадкам.',
