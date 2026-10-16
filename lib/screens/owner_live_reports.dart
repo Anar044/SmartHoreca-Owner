@@ -74,10 +74,17 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         '${state.customFrom?.toIso8601String() ?? ''}|'
         '${state.customTo?.toIso8601String() ?? ''}|${widget.kind}';
     if (key != _scopeKey) {
+      ++_generation;
       _scopeKey = key;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _load();
-      });
+      final cache=state.cachedResponse('report:$key');
+      data=cache;
+      loading=cache==null;
+      error=null;
+      if(cache==null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if(mounted) _load();
+        });
+      }
     }
   }
 
@@ -130,6 +137,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         query: args,
       );
       if (!mounted || seq != _generation) return;
+      owner.rememberResponse('report:$_scopeKey',result);
       setState(() {
         data = result;
         loading = false;

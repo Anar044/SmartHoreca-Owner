@@ -31,12 +31,17 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
     final key = '${owner.workspaceId}:${ids.join(',')}';
     if (key != scope) {
       scope = key;
-      // Never show figures from a different organization or restaurant
-      // selection while the next scoped request is loading.
-      data = null;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _load();
-      });
+      // Use a same-tenant, same-department recent snapshot when revisiting
+      // Cash. Never flash previous organization data during a scope change.
+      ++generation;
+      data = owner.cachedResponse('cash:$key');
+      error = null;
+      loading = data == null;
+      if (data == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _load();
+        });
+      }
     }
   }
 
@@ -57,6 +62,7 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
         workspaceId: workspace, departmentIds: ids,
         retryTransient: false); // fail promptly instead of tripling POS load
       if (!mounted || seq != generation) return;
+      owner.rememberResponse('cash:$scope', payload);
       setState(() { loading = false; data = payload; });
     } catch (e) {
       if (!mounted || seq != generation) return;

@@ -50,6 +50,38 @@ class OwnerState extends ChangeNotifier {
   Map<String, dynamic>? summary;
   int _summaryGeneration = 0;
 
+  // Short-lived RAM cache for read-only mobile reports. Scoped by the
+  // verified workspace, restaurant IDs and period supplied by each caller.
+  // Never persist tenant financial data in phone preferences or across login.
+  final Map<String, Map<String,dynamic>> _responseCache = {};
+  final Map<String, DateTime> _responseCachedAt = {};
+
+  Map<String,dynamic>? cachedResponse(String key, {
+    Duration maxAge = const Duration(seconds: 35),
+  }) {
+    final updated=_responseCachedAt[key];
+    if(updated==null ||
+        DateTime.now().difference(updated) > maxAge) return null;
+    return _responseCache[key];
+  }
+
+  void rememberResponse(String key,Map<String,dynamic> value) {
+    // Small bounded cache: only active pages and the recently viewed reports.
+    if(_responseCache.length>=8 && !_responseCache.containsKey(key)) {
+      final oldest=_responseCachedAt.entries.reduce((a,b)=>
+        a.value.isBefore(b.value)?a:b).key;
+      _responseCache.remove(oldest);
+      _responseCachedAt.remove(oldest);
+    }
+    _responseCache[key]=value;
+    _responseCachedAt[key]=DateTime.now();
+  }
+
+  void clearResponseCache() {
+    _responseCache.clear();
+    _responseCachedAt.clear();
+  }
+
   List<String> availableRestaurants = [
     'Ресторан Баку', 'Jelly Park', 'Jelly Metropark'
   ];
@@ -118,6 +150,7 @@ class OwnerState extends ChangeNotifier {
   }
 
   Future<void> signIn(String email, String password) async {
+    clearResponseCache();
     busy = true;
     error = null;
     notifyListeners();
@@ -221,6 +254,7 @@ class OwnerState extends ChangeNotifier {
     if (selectedRestaurants.isEmpty) {
       selectedRestaurants = {...availableRestaurants};
     }
+    if(workspaceId!=id) clearResponseCache();
     workspaceId = id;
     workspaceName =
         (data['workspace']?['name'] ?? 'Smart Horeca').toString();
@@ -358,6 +392,7 @@ class OwnerState extends ChangeNotifier {
   }
 
   void logOutPreview() {
+    clearResponseCache();
     ++_summaryGeneration;
     live = false;
     stage = OwnerStage.signIn;
