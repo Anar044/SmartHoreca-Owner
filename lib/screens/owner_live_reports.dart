@@ -339,7 +339,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         for (final group in (groupTotals.entries.toList()
           ..sort((a,b)=>amountDescending
             ? b.value.compareTo(a.value)
-            : a.value.compareTo(b.value))) ...[
+            : a.value.compareTo(b.value)))) ...[
           OwnerCard(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
