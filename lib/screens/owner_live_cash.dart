@@ -71,6 +71,18 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
   static String money(dynamic value) =>
       value is num ? '${value.toStringAsFixed(2)} AZN' : '—';
 
+  static String lastSeen(dynamic value) {
+    final raw=(value??'').toString().trim();
+    if(raw.isEmpty)return 'Время связи неизвестно';
+    final date=DateTime.tryParse(raw)?.toLocal();
+    if(date==null)return raw;
+    return '${date.day.toString().padLeft(2, '0')}.'
+        '${date.month.toString().padLeft(2, '0')}.'
+        '${date.year} '
+        '${date.hour.toString().padLeft(2, '0')}:'
+        '${date.minute.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = OwnerScope.of(context);
@@ -122,22 +134,6 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
             style: TextStyle(color: OwnerPalette.warning))),
           const SizedBox(height: 12),
         ],
-        if (data?['partial'] == true) ...[
-          OwnerCard(child: Row(children: [
-            const Icon(Icons.warning_amber_rounded,
-              color: OwnerPalette.warning),
-            const SizedBox(width: 10),
-            Expanded(child: Text(
-              'Это не сводный отчёт по всей сети: '
-              '${(data?['missingDepartmentIds'] as List? ?? []).isNotEmpty ? 'у некоторых выбранных ресторанов нет подключённой POS-кассы. ' : ''}'
-              '${(data?['unavailableRegisters'] as List? ?? []).isNotEmpty ? 'Некоторые кассы не ответили. ' : ''}'
-              'Ниже показаны только доступные кассы. '
-              'Продажи всей сети смотрите на главной (SH OLAP).',
-              style: const TextStyle(fontSize: 12),
-            )),
-          ])),
-          const SizedBox(height: 12),
-        ],
         Row(children: [
           Expanded(child: OwnerMetric('Закрытые$coverageSuffix',
             money(totals['closedSum']))),
@@ -153,51 +149,76 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
           Expanded(child: OwnerMetric('Всего заказов$coverageSuffix',
             (totals['totalOrders'] ?? '—').toString())),
         ]),
+        const SizedBox(height: 9),
+        Text(partial
+          ? 'Итоги выше — только по кассам онлайн. '
+            'Офлайн-снимки в них не включены.'
+          : 'Текущие показатели касс онлайн.',
+          style: TextStyle(fontSize: 11,
+            color: OwnerPalette.muted(context))),
         const SizedBox(height: 13),
         Row(children: [
-          Expanded(child: Text('${registers.length} касс онлайн',
+          Expanded(child: Text(
+            '${data?['onlineCount'] ?? registers.where((r)=>r['online']!=false).length}'
+            ' онлайн · ${data?['offlineCount'] ?? registers.where((r)=>r['online']==false).length} офлайн',
             style: const TextStyle(fontWeight: FontWeight.bold))),
           TextButton.icon(onPressed: _load,
             icon: const Icon(Icons.refresh), label: const OwnerText('Обновить')),
         ]),
         const SizedBox(height: 9),
         for (final register in registers) ...[
-          OwnerCard(
-            onTap: () => Navigator.push(context, MaterialPageRoute<void>(
-              builder: (_) => _RegisterDetail(
-                register: register,
-                restaurant: restaurants[register['departmentId']?.toString()]
-                  ?? 'Ресторан',
-              ))),
-            child: Row(children: [
-              Icon(Icons.point_of_sale_outlined,
-                color: OwnerPalette.accent(context)),
-              const SizedBox(width: 12),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text((register['name'] ?? 'Касса').toString(),
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 3),
-                  Text(restaurants[register['departmentId']?.toString()] ?? '—',
-                    style: TextStyle(fontSize: 12,
-                      color: OwnerPalette.muted(context))),
-                  const Text('● Онлайн',
-                    style: TextStyle(fontSize: 11,
-                      color: OwnerPalette.green)),
-                ],
-              )),
-              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text(money((register['totals'] as Map?)?['expectedSum']),
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text('${(register['totals'] as Map?)?['totalOrders'] ?? 0} заказов',
-                  style: TextStyle(fontSize: 11,
-                    color: OwnerPalette.muted(context))),
-              ]),
-              const Icon(Icons.chevron_right),
-            ]),
-          ),
-          const SizedBox(height: 9),
+          Builder(builder: (context) {
+            final offline=register['online']==false;
+            final lastSeenTime=lastSeen(register['lastSeenAt']);
+            return Padding(
+              padding:const EdgeInsets.only(bottom:9),
+              child:OwnerCard(
+                onTap:()=>Navigator.push(context,MaterialPageRoute<void>(
+                  builder:(_)=>_RegisterDetail(
+                    register:register,
+                    restaurant:restaurants[register['departmentId']?.toString()]
+                      ?? 'Ресторан',
+                  ))),
+                child:Row(children:[
+                  Icon(offline
+                    ? Icons.point_of_sale_outlined
+                    : Icons.point_of_sale_outlined,
+                    color:offline
+                      ? OwnerPalette.warning
+                      : OwnerPalette.accent(context)),
+                  const SizedBox(width:12),
+                  Expanded(child:Column(
+                    crossAxisAlignment:CrossAxisAlignment.start,
+                    children:[
+                      Text((register['name']??'Касса').toString(),
+                        style:const TextStyle(fontWeight:FontWeight.w700)),
+                      const SizedBox(height:3),
+                      Text(restaurants[register['departmentId']?.toString()] ?? '—',
+                        style:TextStyle(fontSize:12,color:OwnerPalette.muted(context))),
+                      if(offline) ...[
+                        const Text('● Офлайн · сохранённые показатели',
+                          style:TextStyle(fontSize:11,color:OwnerPalette.warning)),
+                        Text('Последняя связь: $lastSeenTime',
+                          style:TextStyle(fontSize:11,color:OwnerPalette.muted(context))),
+                      ] else
+                        const Text('● Онлайн',
+                          style:TextStyle(fontSize:11,color:OwnerPalette.green)),
+                    ],
+                  )),
+                  Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
+                    Text(money((register['totals'] as Map?)?['expectedSum']),
+                      style:const TextStyle(fontWeight:FontWeight.bold)),
+                    Text(
+                      '${(register['totals'] as Map?)?['totalOrders'] ?? '—'} заказов'
+                      '${offline ? ' (снимок)' : ''}',
+                      style:TextStyle(fontSize:11,
+                        color:OwnerPalette.muted(context))),
+                  ]),
+                  const Icon(Icons.chevron_right),
+                ]),
+              ),
+            );
+          }),
         ],
         for (final item in (data?['unavailableRegisters'] as List? ?? [])
             .whereType<Map<String, dynamic>>()) ...[
@@ -251,6 +272,7 @@ class _RegisterDetailState extends State<_RegisterDetail> {
   @override
   Widget build(BuildContext context) {
     final name = (widget.register['name'] ?? 'Касса').toString();
+    final offline = widget.register['online'] == false;
     final orders = (widget.register['orders'] as List? ?? [])
       .whereType<Map<String, dynamic>>().where((row) {
         if (filter != 'Все' && row['status'] != filter) return false;
@@ -268,13 +290,34 @@ class _RegisterDetailState extends State<_RegisterDetail> {
     return Scaffold(
       appBar: AppBar(title: Text(name)),
       body: OwnerScreenFrame(children: [
-        OwnerHeading(widget.restaurant, caption: 'Заказы кассы • открытые и закрытые'),
-        const SizedBox(height: 12),
+        OwnerHeading(widget.restaurant,caption:offline
+          ?'Офлайн • сохранённое состояние на момент последней связи'
+          :'Заказы кассы • открытые и закрытые'),
+        const SizedBox(height:12),
+        if(offline) ...[
+          OwnerCard(child:Column(
+            crossAxisAlignment:CrossAxisAlignment.start,
+            children:[
+              Text('Последняя связь: ${_OwnerLiveCashScreenState.lastSeen(widget.register['lastSeenAt'])}',
+                style:const TextStyle(fontWeight:FontWeight.w700)),
+              const SizedBox(height:6),
+              const Text('Значения и заказы сохранены с последнего '
+                'успешного ответа кассы. Новые операции не учитываются.'),
+              if(widget.register['ordersTruncated']==true)
+                Text('Показаны последние ${orders.length} сохранённых записей '
+                  'из ${widget.register['savedOrderCount'] ?? '—'} заказов.',
+                  style:TextStyle(color:OwnerPalette.muted(context),fontSize:11)),
+            ],
+          )),
+          const SizedBox(height:12),
+        ],
         Row(children: [
-          Expanded(child: OwnerMetric('Закрытые заказы',
+          Expanded(child: OwnerMetric(
+            offline?'Закрытые (снимок)':'Закрытые заказы',
             _OwnerLiveCashScreenState.money(totals['closedSum']))),
           const SizedBox(width: 10),
-          Expanded(child: OwnerMetric('Открытые заказы',
+          Expanded(child: OwnerMetric(
+            offline?'Открытые (снимок)':'Открытые заказы',
             _OwnerLiveCashScreenState.money(totals['openSum']))),
         ]),
         const SizedBox(height: 10),
@@ -296,7 +339,10 @@ class _RegisterDetailState extends State<_RegisterDetail> {
         for (final order in orders)
           Padding(padding: const EdgeInsets.only(bottom: 8),
             child: OwnerCard(
-              onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+              // Offline list is historical. Never invoke a live POS detail
+              // endpoint or pretend the last-seen header contains the full
+              // receipt when the register is disconnected.
+              onTap: offline ? null : () => Navigator.push(context, MaterialPageRoute<void>(
                 builder: (_) => OwnerLivePosOrderScreen(
                   order: order,
                   pluginId: pluginId,
@@ -330,7 +376,7 @@ class _RegisterDetailState extends State<_RegisterDetail> {
                       _OwnerLiveCashScreenState.money(order['amount']),
                       textAlign: TextAlign.end,
                       style: const TextStyle(fontWeight: FontWeight.bold))),
-                    const Icon(Icons.chevron_right, size: 18),
+                    if (!offline) const Icon(Icons.chevron_right, size: 18),
                   ]),
                 ),
               ),
