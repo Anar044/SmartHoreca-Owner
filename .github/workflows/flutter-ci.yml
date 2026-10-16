@@ -54,6 +54,10 @@ jobs:
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
         env:
           SH_PILOT_ORIGIN: https://feature-owner-mobile-readonl.smarthoreca.pages.dev
+          SH_FIREBASE_ANDROID_API_KEY: ${{ vars.SH_FIREBASE_ANDROID_API_KEY }}
+          SH_FIREBASE_ANDROID_APP_ID: ${{ vars.SH_FIREBASE_ANDROID_APP_ID }}
+          SH_FIREBASE_SENDER_ID: ${{ vars.SH_FIREBASE_SENDER_ID }}
+          SH_FIREBASE_PROJECT_ID: ${{ vars.SH_FIREBASE_PROJECT_ID }}
         run: |
           set -euo pipefail
           if [[ ! "$SH_PILOT_ORIGIN" =~ ^https://[A-Za-z0-9.-]+/?$ ]]; then
@@ -75,6 +79,10 @@ jobs:
             SH_API_BASE_URL: process.env.SH_PILOT_ORIGIN,
             SH_SUPABASE_URL: url,
             SH_SUPABASE_PUBLISHABLE_KEY: key,
+            SH_FIREBASE_ANDROID_API_KEY: process.env.SH_FIREBASE_ANDROID_API_KEY || '',
+            SH_FIREBASE_ANDROID_APP_ID: process.env.SH_FIREBASE_ANDROID_APP_ID || '',
+            SH_FIREBASE_SENDER_ID: process.env.SH_FIREBASE_SENDER_ID || '',
+            SH_FIREBASE_PROJECT_ID: process.env.SH_FIREBASE_PROJECT_ID || '',
           };
           fs.writeFileSync('/tmp/sh-owner-pilot-defines.json', JSON.stringify(defs));
           NODE
