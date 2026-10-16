@@ -1,0 +1,109 @@
+name: Flutter UI Checks
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+  pull_request:
+
+concurrency:
+  group: owner-flutter-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze_and_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate platform runners for design branch
+        run: flutter create . --platforms=android,ios
+      - name: Fetch dependencies
+        run: flutter pub get
+      - name: Static analysis
+        run: flutter analyze
+      - name: Widget tests
+        run: flutter test
+      # PR checks build the design-preview APK. A direct branch push
+      # additionally verifies the live Preview API and packages Real-Data-Pilot.
+      # This avoids silently confusing PR success with a deployable pilot.
+      - name: Verify real-data pilot API availability
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
+        env:
+          SH_PILOT_ORIGIN: https://feature-owner-mobile-readonl.smarthoreca.pages.dev
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 2 --max-time 20 \
+            "$SH_PILOT_ORIGIN/api/mobile/v1/health" -o /tmp/sh-owner-pilot-health.json
+          node -e "const h=require('/tmp/sh-owner-pilot-health.json'); if(h.success!==true || h.service!=='Smart Horeca Owner Mobile API' || h.status!=='preview') process.exit(1)"
+      - name: Build Android design preview APK
+        run: flutter build apk --debug --dart-define=SH_ENABLE_DEMO=true
+      - name: Upload Android preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: Smart-Horeca-Owner-Android-Preview
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      # Pilot APK uses public auth configuration, retrieved securely at build time.
+      # It never embeds SH Server passwords or Supabase service-role credentials.
+      - name: Build Android owner pilot APK
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
+        env:
+          SH_PILOT_ORIGIN: https://feature-owner-mobile-readonl.smarthoreca.pages.dev
+          SH_FIREBASE_ANDROID_API_KEY: ${{ vars.SH_FIREBASE_ANDROID_API_KEY }}
+          SH_FIREBASE_ANDROID_APP_ID: ${{ vars.SH_FIREBASE_ANDROID_APP_ID }}
+          SH_FIREBASE_SENDER_ID: ${{ vars.SH_FIREBASE_SENDER_ID }}
+          SH_FIREBASE_PROJECT_ID: ${{ vars.SH_FIREBASE_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          # A successful pilot APK must not silently ship with push disabled.
+          # These Firebase Android values are public client configuration,
+          # not the server-side FCM service account.
+          for name in SH_FIREBASE_ANDROID_API_KEY SH_FIREBASE_ANDROID_APP_ID SH_FIREBASE_SENDER_ID SH_FIREBASE_PROJECT_ID; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing GitHub Actions variable: $name. Real-Data-Pilot push would not work."
+              exit 1
+            fi
+          done
+          if [[ ! "$SH_PILOT_ORIGIN" =~ ^https://[A-Za-z0-9.-]+/?$ ]]; then
+            echo "::error::Verified Cloudflare Preview HTTPS origin required."
+            exit 1
+          fi
+          curl --fail --silent --show-error --location --retry 3 \
+            --max-time 20 \
+            'https://raw.githubusercontent.com/Anar044/anarsystem/main/auth-config.js' \
+            -o /tmp/sh-owner-public-auth-config.js
+          node - <<'NODE'
+          const fs = require('fs');
+          const publicConfig = fs.readFileSync('/tmp/sh-owner-public-auth-config.js', 'utf8');
+          const url = publicConfig.match(/url:\s*["'](https:\/\/[^"']+)["']/)?.[1];
+          const key = publicConfig.match(/publishableKey:\s*["'](sb_publishable_[^"']+)["']/)?.[1];
+          if (!url || !key) throw new Error('Public Supabase auth config missing');
+          const defs = {
+            SH_ENABLE_DEMO: 'false',
+            SH_API_BASE_URL: process.env.SH_PILOT_ORIGIN,
+            SH_SUPABASE_URL: url,
+            SH_SUPABASE_PUBLISHABLE_KEY: key,
+            SH_FIREBASE_ANDROID_API_KEY: process.env.SH_FIREBASE_ANDROID_API_KEY || '',
+            SH_FIREBASE_ANDROID_APP_ID: process.env.SH_FIREBASE_ANDROID_APP_ID || '',
+            SH_FIREBASE_SENDER_ID: process.env.SH_FIREBASE_SENDER_ID || '',
+            SH_FIREBASE_PROJECT_ID: process.env.SH_FIREBASE_PROJECT_ID || '',
+          };
+          fs.writeFileSync('/tmp/sh-owner-pilot-defines.json', JSON.stringify(defs));
+          NODE
+          flutter build apk --debug --dart-define-from-file=/tmp/sh-owner-pilot-defines.json
+      - name: Upload Android owner pilot APK
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Smart-Horeca-Owner-Android-Real-Data-Pilot
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
