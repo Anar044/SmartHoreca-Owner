@@ -14,12 +14,11 @@ class OwnerReportsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLive = OwnerScope.of(context).live;
     const reports = [
-      ('Продажи и выручка', Icons.bar_chart),
       ('Блюда и категории', Icons.restaurant_menu),
       ('Скидки и наценки', Icons.percent),
       ('Себестоимость', Icons.calculate_outlined),
       ('P&L', Icons.account_balance_wallet_outlined),
-      ('OLAP — продажи по кассам', Icons.account_tree_outlined),
+      ('Касса и способы оплаты', Icons.account_tree_outlined),
       ('Остатки на складах', Icons.warehouse_outlined),
       ('Движение товаров', Icons.swap_horiz),
     ];
@@ -35,12 +34,11 @@ class OwnerReportsScreen extends StatelessWidget {
           onTap: () {
             if (isLive) {
               final kind = switch (report.$1) {
-                'Продажи и выручка' => 'sales',
                 'Блюда и категории' => 'categories',
                 'Скидки и наценки' => 'discounts',
                 'Себестоимость' => 'foodCost',
                 'P&L' => 'pnl',
-                'OLAP — продажи по кассам' => 'cash',
+                'Касса и способы оплаты' => 'cash',
                 'Остатки на складах' => 'inventory',
                 'Движение товаров' => 'movements',
                 _ => 'sales',
@@ -55,8 +53,7 @@ class OwnerReportsScreen extends StatelessWidget {
             Navigator.push(context, MaterialPageRoute<void>(
             builder: (_) => report.$1 == 'Остатки на складах'
                 ? const OwnerInventoryScreen()
-                : (report.$1 == 'Продажи и выручка' ||
-                        report.$1 == 'OLAP — продажи по кассам')
+                : (report.$1 == 'Касса и способы оплаты')
                     ? OwnerReportDetail(title: report.$1)
                     : OwnerReportPendingScreen(title: report.$1),
           ));
