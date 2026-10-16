@@ -184,6 +184,27 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
     }
   }
 
+  Future<void> _checkPushConnection() async {
+    final state = OwnerScope.of(context);
+    final workspace = state.workspaceId;
+    if (workspace == null) return;
+    setState(() { pushBusy = true; pushStatus = null; });
+    try {
+      final message = await OwnerPushService.checkConnection(
+        workspace, state.selectedRestaurantIds,
+      );
+      if (mounted) setState(() => pushStatus = message);
+    } catch (e) {
+      if (mounted) {
+        setState(() => pushStatus = e is OwnerApiException
+          ? e.message
+          : 'Проверка push не удалась. Проверьте соединение с сервером.');
+      }
+    } finally {
+      if (mounted) setState(() => pushBusy = false);
+    }
+  }
+
   Future<void> _toggleKind(String kind,bool checked) async {
     final state=OwnerScope.of(context);
     final workspace=state.workspaceId;
@@ -237,6 +258,11 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
                 value:pushEnabled,
                 onChanged:pushBusy||!OwnerPushService.configured
                   ?null:_togglePush,
+              ),
+              OutlinedButton.icon(
+                onPressed: pushBusy ? null : _checkPushConnection,
+                icon: const Icon(Icons.verified_outlined, size: 18),
+                label: const Text('Проверить подключение push'),
               ),
               if(pushBusy)const LinearProgressIndicator(),
               if(pushStatus!=null)...[
