@@ -537,7 +537,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
                   const SizedBox(width:7),
                   Expanded(child:Text('${sourceNames[entry.key.toString()] ?? entry.key}')),
                   Text(entry.value is Map
-                    ?'${entry.value['count'] ?? 0} док.'
+                    ?'${entry.value['count'] ?? 0} движ.'
                     :'—'),
                 ]),
               ),
