@@ -279,6 +279,7 @@ class OwnerScreenFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final state = OwnerScope.of(context);
     return RefreshIndicator(
       onRefresh: () async {
         if (onRefresh != null) {
