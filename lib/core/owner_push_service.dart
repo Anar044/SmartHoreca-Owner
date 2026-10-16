@@ -27,8 +27,6 @@ class OwnerPushService {
   static String? _workspace;
   static Set<String> _departments={};
   static void Function(String,String)? onForegroundAlert;
-  static StreamSubscription<String>? _tokenRefresh;
-  static StreamSubscription<RemoteMessage>? _messages;
 
   static const kinds=<String>[
     'DISCOUNT_APPLIED','DISCOUNT_REMOVED','PRECHECK_CANCELLED',
@@ -43,13 +41,13 @@ class OwnerPushService {
         messagingSenderId:_senderId,projectId:_projectId,
       ));
       FirebaseMessaging.onBackgroundMessage(ownerPushBackgroundHandler);
-      _messages=FirebaseMessaging.onMessage.listen((message){
+      FirebaseMessaging.onMessage.listen((message){
         final n=message.notification;
         final title=n?.title ?? 'Smart Horeca Owner';
         final body=n?.body ?? 'Новое событие кассы';
         onForegroundAlert?.call(title,body);
       });
-      _tokenRefresh=FirebaseMessaging.instance.onTokenRefresh.listen((token){
+      FirebaseMessaging.instance.onTokenRefresh.listen((token){
         if(_enabled && _workspace!=null && _departments.isNotEmpty){
           unawaited(_registerToken(token,_workspace!,_departments));
         }
@@ -92,7 +90,9 @@ class OwnerPushService {
     _enabled=await isEnabled();
     if(!_enabled||_departments.isEmpty||!OwnerBackend.hasSession)return;
     final token=await FirebaseMessaging.instance.getToken();
-    if(token!=null)await _registerToken(token,workspace,_departments);
+    if(token!=null){
+      await _registerToken(token,workspace,_departments);
+    }
   }
 
   static Future<void> enable(
@@ -132,7 +132,9 @@ class OwnerPushService {
   }
 
   static Future<void> _unregisterAndDelete() async {
-    if(!_initialized)return;
+    if(!_initialized){
+      return;
+    }
     final workspace=_workspace;
     final token=await FirebaseMessaging.instance.getToken();
     if(workspace!=null&&token!=null&&OwnerBackend.hasSession){
