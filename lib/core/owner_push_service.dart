@@ -135,6 +135,59 @@ class OwnerPushService {
       _kindsKey(workspace),kinds.where(next.contains).toList());
   }
 
+  // Read-only server-side check; never expose or log the FCM device token.
+  // Local push preferences alone do not prove an active server subscription.
+  static Future<String> checkConnection(
+      String workspace, Iterable<String> restaurants) async {
+    if (!configured) {
+      return 'Firebase не включён в эту Android-сборку.';
+    }
+    await initialize();
+    if (!_initialized) {
+      return 'Не удалось инициализировать Firebase на телефоне.';
+    }
+    if (!OwnerBackend.hasSession) {
+      return 'Сначала войдите в аккаунт Smart Horeca.';
+    }
+    final ids = restaurants.where((id) => id.isNotEmpty).toSet();
+    if (ids.isEmpty) {
+      return 'Сначала выберите хотя бы один ресторан.';
+    }
+    final token = await FirebaseMessaging.instance.getToken();
+    if (token == null || token.isEmpty) {
+      return 'Firebase не выдал токен этому телефону.';
+    }
+    final result = await OwnerBackend.postJson(
+      '/api/mobile/v1/push-subscriptions',
+      workspaceId: workspace,
+      departmentIds: ids,
+      payload: {'action': 'status', 'token': token},
+    );
+    final serverConfigured = result['configured'] == true;
+    final serverEnabled = result['enabled'] == true;
+    final localEnabled = await isEnabled();
+    if (!serverConfigured) {
+      return 'Сервер не настроен для отправки Firebase push. '
+          'Проверьте FCM_SERVICE_ACCOUNT_JSON в том окружении Cloudflare, '
+          'к которому подключено приложение.';
+    }
+    if (!serverEnabled) {
+      return localEnabled
+          ? 'Подписка есть в телефоне, но не зарегистрирована на сервере. '
+              'Выключите Push и включите его снова.'
+          : 'Подписка телефона не активна. Включите Push выше.';
+    }
+    final kinds = (result['kinds'] as List? ?? []).whereType<String>().toSet();
+    if (!kinds.contains('DISCOUNT_APPLIED')) {
+      return 'Подписка на сервере активна, но событие «Применена скидка» '
+          'выключено. Поставьте галочку напротив этого события.';
+    }
+    return 'Firebase сервера настроен, телефон зарегистрирован. '
+        'Уведомление о скидке разрешено. '
+        'Если сообщение не приходит, проверьте, что кассовые события '
+        'попадают на этот же сервер, и журнал отправки FCM.';
+  }
+
   static Future<void> syncScope(
       String workspace,Iterable<String> restaurants) async {
     _workspace=workspace;
