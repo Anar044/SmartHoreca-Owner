@@ -51,17 +51,21 @@ class OwnerState extends ChangeNotifier {
   Map<String, dynamic>? summary;
   int _summaryGeneration = 0;
 
-  // Short-lived RAM cache for read-only mobile reports. Scoped by the
+  // Session RAM cache for read-only mobile reports. Scoped by the
   // verified workspace, restaurant IDs and period supplied by each caller.
   // Never persist tenant financial data in phone preferences or across login.
   final Map<String, Map<String,dynamic>> _responseCache = {};
   final Map<String, DateTime> _responseCachedAt = {};
 
   Map<String,dynamic>? cachedResponse(String key, {
-    Duration maxAge = const Duration(seconds: 35),
+    Duration? maxAge,
   }) {
     final updated=_responseCachedAt[key];
-    if (updated == null ||
+    if (updated == null) return null;
+    // Never expire during one session solely because user navigated away.
+    // A new workspace, period, or restaurant selection gets a different key.
+    // The user explicitly refreshes by pulling down.
+    if (maxAge != null &&
         DateTime.now().difference(updated) > maxAge) {
       return null;
     }
@@ -69,8 +73,9 @@ class OwnerState extends ChangeNotifier {
   }
 
   void rememberResponse(String key,Map<String,dynamic> value) {
-    // Small bounded cache: only active pages and the recently viewed reports.
-    if(_responseCache.length>=8 && !_responseCache.containsKey(key)) {
+    // Keep each visited report for this session; do not drop a page merely
+    // because the user visited several other reports.
+    if(_responseCache.length>=48 && !_responseCache.containsKey(key)) {
       final oldest=_responseCachedAt.entries.reduce((a,b)=>
         a.value.isBefore(b.value)?a:b).key;
       _responseCache.remove(oldest);
@@ -379,16 +384,10 @@ class OwnerState extends ChangeNotifier {
   }
 
   void setTab(int value) {
-    final changed = tabIndex != value;
     tabIndex = value;
     notifyListeners();
-    // Switching tabs must not launch another expensive 22-restaurant OLAP
-    // query every time. Period/restaurant changes and pull-to-refresh
-    // already trigger a new scoped query.
-    if (changed && value == 0 && live && stage == OwnerStage.shell &&
-        summary == null && !dashboardLoading && dashboardError == null) {
-      unawaited(loadSummary());
-    }
+    // Initial login and explicit selection changes load the dashboard.
+    // Navigating tabs is presentation-only: no network I/O here.
   }
 
   Future<void> signOut() async {

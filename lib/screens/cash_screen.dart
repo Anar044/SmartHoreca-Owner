@@ -14,8 +14,8 @@ class OwnerCashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (OwnerScope.of(context).live) {
-      // IndexedStack builds offstage tabs; do not prefetch shifts offscreen.
-      if (OwnerScope.of(context).tabIndex != 1) return const SizedBox.shrink();
+      // OwnerShell lazily mounts tabs and preserves their State. Do not
+      // destroy the Cash screen when switching to another tab.
       return const OwnerLiveCashScreen();
     }
     final owner = OwnerScope.of(context);

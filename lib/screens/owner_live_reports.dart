@@ -26,6 +26,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
   bool loading = true;
   double? lastLoadSeconds;
   bool table = false;
+  bool amountDescending = true;
   bool loadingNext = false;
   String? error;
   Map<String, dynamic>? data;
@@ -210,9 +211,48 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
     ),
   );
 
+  List<Map<String, dynamic>> _sortedByAmount(
+      List<Map<String, dynamic>> original, {String field='value'}) {
+    final result=[...original];
+    result.sort((a,b){
+      final av=(a[field] as num?)?.toDouble();
+      final bv=(b[field] as num?)?.toDouble();
+      if(av==null && bv==null) return 0;
+      if(av==null) return 1;
+      if(bv==null) return -1;
+      final cmp=av.compareTo(bv);
+      return amountDescending ? -cmp : cmp;
+    });
+    return result;
+  }
+
+  Widget _sortAmountControl() => Row(
+    children:[
+      const Icon(Icons.sort,size:18),
+      const SizedBox(width:8),
+      const Text('Сортировка по сумме'),
+      const Spacer(),
+      PopupMenuButton<bool>(
+        tooltip:'Порядок суммы',
+        initialValue:amountDescending,
+        onSelected:(next)=>setState(()=>amountDescending=next),
+        itemBuilder:(context)=>const [
+          PopupMenuItem(value:true,child:Text('Сначала большие ↓')),
+          PopupMenuItem(value:false,child:Text('Сначала меньшие ↑')),
+        ],
+        child:Row(mainAxisSize:MainAxisSize.min,children:[
+          Text(amountDescending?'↓ По убыванию':'↑ По возрастанию',
+            style:const TextStyle(fontSize:12)),
+          const Icon(Icons.arrow_drop_down),
+        ]),
+      ),
+    ],
+  );
+
   Widget _olapView(BuildContext context, OwnerState state) {
     final rows = (data?['rows'] as List? ?? [])
         .whereType<Map<String, dynamic>>().toList();
+    final tableRows=table ? _sortedByAmount(rows) : rows;
     final nestedCash = widget.kind == 'cash' &&
         data?['secondaryField'] != null;
     final groupTotals = <String, double>{};
@@ -261,6 +301,10 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         onSelectionChanged: (v) => setState(() => table = v.first),
       ),
       const SizedBox(height: 12),
+      if (table && rows.isNotEmpty) ...[
+        _sortAmountControl(),
+        const SizedBox(height:12),
+      ],
       if (rows.isEmpty)
         const OwnerCard(child: OwnerText('Нет данных для выбранного периода.'))
       else if (!table)
@@ -292,7 +336,10 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         OwnerHeading(widget.kind == 'cash'
           ? 'Касса → Способ оплаты' : 'Касса → Блюдо'),
         const SizedBox(height:8),
-        for (final group in groupTotals.entries) ...[
+        for (final group in (groupTotals.entries.toList()
+          ..sort((a,b)=>amountDescending
+            ? b.value.compareTo(a.value)
+            : a.value.compareTo(b.value))) ...[
           OwnerCard(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -303,7 +350,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
                 trailing: Text(_money(group.value),
                     style: const TextStyle(fontWeight: FontWeight.w700)),
               ),
-              for (final row in rows.where(
+              for (final row in tableRows.where(
                   (row) => row['group']?.toString() == group.key))
                 Padding(
                   padding: const EdgeInsets.only(left: 22),
@@ -320,7 +367,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         ],
       ]
       else
-        for (final row in rows) ...[
+        for (final row in tableRows) ...[
           OwnerCard(child: ListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(row['label'].toString()),

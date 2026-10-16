@@ -8,12 +8,22 @@ import 'reports_screen.dart';
 import 'ai_screen.dart';
 import 'profile_screen.dart';
 
-class OwnerShell extends StatelessWidget {
+class OwnerShell extends StatefulWidget {
   const OwnerShell({super.key});
+
+  @override
+  State<OwnerShell> createState() => _OwnerShellState();
+}
+
+class _OwnerShellState extends State<OwnerShell> {
+  final Set<int> _activatedTabs = {0};
 
   @override
   Widget build(BuildContext context) {
     final state = OwnerScope.of(context);
+    // Build each page just once when first opened, and keep it mounted in
+    // IndexedStack. Tab changes must NEVER trigger a data reload.
+    _activatedTabs.add(state.tabIndex);
     const pages = [
       OwnerHomeScreen(),
       OwnerCashScreen(),
@@ -48,7 +58,13 @@ class OwnerShell extends StatelessWidget {
           const SizedBox(width: 6),
         ],
       ),
-      body: IndexedStack(index: state.tabIndex, children: pages),
+      body: IndexedStack(index: state.tabIndex, children: [
+        for (var i = 0; i < pages.length; i++)
+          if (_activatedTabs.contains(i))
+            pages[i]
+          else
+            const SizedBox.shrink(),
+      ]),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         backgroundColor: OwnerPalette.surface(context),
