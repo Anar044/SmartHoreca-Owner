@@ -34,18 +34,24 @@ class OwnerMetric extends StatelessWidget {
   final String value;
   final String? trend;
   final Color? trendColor;
+  final VoidCallback? onTap;
 
-  const OwnerMetric(this.label, this.value, {super.key, this.trend, this.trendColor});
+  const OwnerMetric(this.label, this.value, {super.key, this.trend, this.trendColor, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return OwnerCard(
+      onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(OwnerL10n.tr(OwnerScope.of(context).language, label),
-            style: TextStyle(color: OwnerPalette.muted(context), fontSize: 12)),
+          Row(children: [
+            Expanded(child: Text(OwnerL10n.tr(OwnerScope.of(context).language, label),
+              style: TextStyle(color: OwnerPalette.muted(context), fontSize: 12))),
+            if (onTap != null) Icon(Icons.chevron_right, size: 16,
+              color: OwnerPalette.muted(context)),
+          ]),
           const SizedBox(height: 8),
           FittedBox(
             alignment: Alignment.centerLeft,
@@ -204,13 +210,85 @@ class OwnerBars extends StatelessWidget {
   }
 }
 
-class OwnerScreenFrame extends StatelessWidget {
-  final List<Widget> children;
-  const OwnerScreenFrame({super.key, required this.children});
+class OwnerRevenueDiagram extends StatelessWidget {
+  final List<double> values;
+  final List<String> labels;
+  final List<String> valueLabels;
+  const OwnerRevenueDiagram({
+    super.key, required this.values, required this.labels,
+    required this.valueLabels,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    final maxValue = values.fold<double>(0, (max, value) =>
+      value > max ? value : max);
+    if (values.isEmpty) return const Text('Нет данных для диаграммы.');
+    return Column(
+      children: List.generate(values.length, (i) {
+        final value = values[i];
+        final fraction = maxValue > 0 ? (value / maxValue).clamp(0.0, 1.0) : 0.0;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 11),
+          child: Row(children: [
+            SizedBox(
+              width: 45,
+              child: Text(i < labels.length ? labels[i] : '',
+                style: TextStyle(fontSize: 11,
+                  color: OwnerPalette.muted(context))),
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Container(
+              height: 13,
+              decoration: BoxDecoration(
+                color: OwnerPalette.raised(context),
+                borderRadius: BorderRadius.circular(5),
+              ),
+              alignment: Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: fraction,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: OwnerPalette.accent(context),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
+              ),
+            )),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 82,
+              child: Text(i < valueLabels.length ? valueLabels[i] : '—',
+                textAlign: TextAlign.end,
+                maxLines: 1,
+                style: const TextStyle(fontSize: 11,
+                  fontWeight: FontWeight.w600),
+              ),
+            ),
+          ]),
+        );
+      }),
+    );
+  }
+}
+
+class OwnerScreenFrame extends StatelessWidget {
+  final List<Widget> children;
+  final Future<void> Function()? onRefresh;
+  const OwnerScreenFrame({super.key, required this.children, this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        if (onRefresh != null) {
+          await onRefresh!();
+        } else if (state.live && state.tabIndex == 0) {
+          await state.loadSummary();
+        }
+      },
+      child: ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
         if (!OwnerScope.of(context).live) ...[
@@ -219,6 +297,6 @@ class OwnerScreenFrame extends StatelessWidget {
         ],
         ...children,
       ],
-    );
+    ));
   }
 }
