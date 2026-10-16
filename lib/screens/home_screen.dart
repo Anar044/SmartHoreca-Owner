@@ -5,6 +5,7 @@ import '../core/owner_state.dart';
 import '../core/owner_demo_data.dart';
 import '../core/owner_l10n.dart';
 import '../core/owner_finance_validation.dart';
+import 'owner_live_reports.dart';
 
 class OwnerHomeScreen extends StatelessWidget {
   const OwnerHomeScreen({super.key});
@@ -26,9 +27,9 @@ class OwnerHomeScreen extends StatelessWidget {
     final data = state.summary;
     final metrics = data?['metrics'] is Map ? data!['metrics'] as Map : const {};
     final daily = (data?['daily'] is List ? data!['daily'] as List : const [])
-        .whereType<Map<String, dynamic>>().toList();
+        .whereType<Map<String, dynamic>>().where((e) => e['revenue'] is num).toList();
 
-    return OwnerScreenFrame(children: [
+    return OwnerScreenFrame(onRefresh: state.live ? state.loadSummary : null, children: [
       const OwnerHeading('Главная', caption: 'Обзор бизнеса'),
       const SizedBox(height: 14),
       const OwnerRestaurantPicker(),
@@ -86,7 +87,11 @@ class OwnerHomeScreen extends StatelessWidget {
           ])),
         ] else if (data != null) ...[
           Row(children: [
-            Expanded(child: OwnerMetric('Выручка', _money(metrics['revenue']))),
+            Expanded(child: OwnerMetric('Выручка', _money(metrics['revenue']),
+              onTap: state.live ? () => Navigator.push(context,
+                MaterialPageRoute<void>(builder: (_) => const OwnerLiveReportScreen(
+                  title: 'Касса и способы оплаты', kind: 'cash',
+                ))) : null)),
             const SizedBox(width: 10),
             Expanded(child: OwnerMetric('Чеков', _count(metrics['checks']))),
           ]),
@@ -96,6 +101,14 @@ class OwnerHomeScreen extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(child: OwnerMetric('Валовая прибыль', _money(metrics['grossProfit']))),
           ]),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(child: OwnerMetric('Скидки гостям', _money(metrics['discounts']))),
+            const SizedBox(width: 10),
+            Expanded(child: OwnerMetric('Надбавки', _money(metrics['surcharges']))),
+          ]),
+          const SizedBox(height: 10),
+          OwnerMetric('Себестоимость товаров', _money(metrics['costOfGoods'])),
           if (OwnerFinanceValidation.grossProfitMatchesRevenue(metrics)) ...[
             const SizedBox(height: 10),
             OwnerCard(child: Row(
@@ -120,11 +133,18 @@ class OwnerHomeScreen extends StatelessWidget {
               const OwnerHeading('Выручка по дням'),
               const SizedBox(height: 12),
               if (daily.isNotEmpty)
-                OwnerBars(
-                  values: daily.map((e) => (e['revenue'] as num?)?.toDouble() ?? 0).toList(),
-                  labels: daily.map((e) => e['date'].toString().substring(5)).toList(),
+                OwnerRevenueDiagram(
+                  values: daily.map((e) => (e['revenue'] as num).toDouble()).toList(),
+                  labels: daily.map((e) {
+                    final date = (e['date'] ?? '').toString();
+                    return date.length >= 10
+                      ? '${date.substring(8, 10)}.${date.substring(5, 7)}'
+                      : date;
+                  }).toList(),
+                  valueLabels: daily.map((e) =>
+                    (e['revenue'] as num).toStringAsFixed(0)).toList(),
                 )
-              else const Text('Нет данных для графика за выбранный период.'),
+              else const Text('Нет подтверждённых данных для диаграммы за выбранный период.'),
             ],
           )),
           const SizedBox(height: 12),
