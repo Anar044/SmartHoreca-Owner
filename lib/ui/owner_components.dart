@@ -227,7 +227,7 @@ class OwnerRevenueDiagram extends StatelessWidget {
     return Column(
       children: List.generate(values.length, (i) {
         final value = values[i];
-        final fraction = maxValue > 0 ? (value / maxValue).clamp(0.0, 1.0) : 0.0;
+        final fraction = maxValue > 0 ? (value / maxValue).clamp(0.0, 1.0).toDouble() : 0.0;
         return Padding(
           padding: const EdgeInsets.only(bottom: 11),
           child: Row(children: [
