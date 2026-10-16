@@ -517,6 +517,67 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
     ]);
   }
 
+  Widget _discountsView(BuildContext context) {
+    final discounts=(data?['discounts'] as List? ?? [])
+      .whereType<Map<String,dynamic>>().toList();
+    final surcharges=(data?['surcharges'] as List? ?? [])
+      .whereType<Map<String,dynamic>>().toList();
+    Widget section(String title,List<Map<String,dynamic>> rows,
+        bool available,String? reason,bool byRestaurant) {
+      return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        OwnerHeading(title,caption:byRestaurant
+          ?'Разбивка по ресторанам: тип не передан SH OLAP'
+          :'Разбивка по типам из SH OLAP'),
+        const SizedBox(height:8),
+        if(!available)
+          OwnerCard(child:Text(reason ?? 'Источник не предоставил этот показатель.'))
+        else if(rows.isEmpty)
+          const OwnerCard(child:OwnerText('Нет данных за выбранный период.'))
+        else for(final row in rows) ...[
+          OwnerCard(child:ListTile(
+            contentPadding:EdgeInsets.zero,
+            title:Text((row['label'] ?? '—').toString()),
+            trailing:Text(_money(row['value']),
+              style:const TextStyle(fontWeight:FontWeight.w700)),
+          )),
+          const SizedBox(height:7),
+        ],
+        const SizedBox(height:8),
+      ]);
+    }
+    return Column(children:[
+      Row(children:[
+        Expanded(child:OwnerMetric('Сумма скидок',
+          data?['discountTotal'] is num
+            ?_money(data?['discountTotal']):'—')),
+        const SizedBox(width:10),
+        Expanded(child:OwnerMetric('Сумма надбавок',
+          data?['surchargeTotal'] is num
+            ?_money(data?['surchargeTotal']):'—')),
+      ]),
+      const SizedBox(height:15),
+      if(data?['partial']==true) ...[
+        const OwnerCard(child:Row(children:[
+          Icon(Icons.info_outline,color:OwnerPalette.warning),
+          SizedBox(width:9),
+          Expanded(child:OwnerText(
+            'SH OLAP не предоставил один из показателей. '
+            'Отсутствующая сумма не заменяется нулём.')),
+        ])),
+        const SizedBox(height:14),
+      ],
+      section('Скидки гостям',discounts,
+        data?['discountAvailable']==true,
+        data?['discountUnavailableReason']?.toString(),
+        data?['discountByRestaurant']==true),
+      section('Надбавки',surcharges,
+        data?['surchargeAvailable']==true,
+        data?['surchargeUnavailableReason']?.toString(),
+        data?['surchargeByRestaurant']==true),
+      _source(context),
+    ]);
+  }
+
   Widget _pnlView(BuildContext context) {
     final metrics = data?['metrics'] as Map? ?? {};
     final rows = (data?['rows'] as List? ?? [])
@@ -616,6 +677,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
           else if (widget.kind == 'orders') _ordersView(context)
           else if (widget.kind == 'movements') _movementsView(context)
           else if (widget.kind == 'pnl') _pnlView(context)
+          else if (widget.kind == 'discounts') _discountsView(context)
           else _olapView(context, owner),
       ]),
     );
@@ -727,10 +789,16 @@ class _OwnerLiveOrderScreenState extends State<OwnerLiveOrderScreen> {
             trailing:Text('${order['date'] ?? '—'}')),
           const Divider(height:1),
           ListTile(title:const OwnerText('Стол'),
-            trailing:Text('${order['table'] ?? '—'}')),
+            trailing:Text((order['table'] ?? details?['table'] ?? '—').toString())),
           const Divider(height:1),
           ListTile(title:const OwnerText('Официант'),
-            trailing:Text('${order['waiter'] ?? '—'}')),
+            trailing:Text((order['waiter'] ?? details?['waiter'] ?? '—').toString())),
+          const Divider(height:1),
+          ListTile(title:const OwnerText('Скидка'),
+            trailing:Text(money(order['discountAmount']))),
+          const Divider(height:1),
+          ListTile(title:const OwnerText('Надбавка'),
+            trailing:Text(money(order['surchargeAmount']))),
           const Divider(height:1),
           ListTile(title:const OwnerText('Сумма'),
             trailing:Text(money(order['amount']))),
@@ -780,9 +848,22 @@ class _OwnerLiveOrderScreenState extends State<OwnerLiveOrderScreen> {
             title:const OwnerText('Сумма позиций'),
             trailing:Text(money(details?['itemsTotal'])))),
           const SizedBox(height:12),
-          OwnerCard(child:Text(
-            (details?['paymentNote'] ??
-              'Детализация оплат не подтверждена SH Server.').toString())),
+          const OwnerHeading('Способы оплаты'),
+          const SizedBox(height:8),
+          if(details?['paymentsAvailable'] == true)
+            for(final payment in (details?['payments'] as List? ?? [])
+                .whereType<Map<String,dynamic>>()) ...[
+              OwnerCard(child:ListTile(
+                contentPadding:EdgeInsets.zero,
+                title:Text((payment['name'] ?? '—').toString()),
+                trailing:Text(money(payment['amount']),
+                  style:const TextStyle(fontWeight:FontWeight.w700)),
+              )),
+              const SizedBox(height:7),
+            ]
+          else
+            OwnerCard(child:Text((details?['paymentNote'] ??
+              'Способы оплаты не подтверждены SH Server.').toString())),
         ],
       ]),
     );
