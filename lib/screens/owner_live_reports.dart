@@ -463,6 +463,8 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
   Widget _movementsView(BuildContext context) {
     final rows = (data?['rows'] as List? ?? [])
         .whereType<Map<String,dynamic>>().toList();
+    final summary = data?['summary'] as Map? ?? {};
+    final sourceStatus = data?['sourceStatus'] as Map? ?? {};
     final missing = (data?['missingSources'] as List? ?? [])
         .map((v) => v.toString()).toList();
     const sourceNames = <String, String>{
@@ -491,9 +493,49 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
       ],
       OwnerCard(child: ListTile(
         title: const OwnerText('Движение товаров'),
+        subtitle: Text('Проверено источников: ${sourceStatus.values.whereType<Map>().where((s)=>s['ok']==true).length} из ${sourceStatus.length}'),
         trailing: Text('${data?['count'] ?? rows.length}'),
       )),
-      const SizedBox(height: 10),
+      const SizedBox(height:10),
+      Row(children:[
+        Expanded(child:OwnerMetric('Приход',_money(summary['incoming']))),
+        const SizedBox(width:8),
+        Expanded(child:OwnerMetric('Расход',_money(summary['outgoing']))),
+      ]),
+      const SizedBox(height:8),
+      Row(children:[
+        Expanded(child:OwnerMetric('Списание',_money(summary['writeoff']))),
+        const SizedBox(width:8),
+        Expanded(child:OwnerMetric('Перемещение',_money(summary['transfer']))),
+      ]),
+      const SizedBox(height:8),
+      OwnerMetric('Инвентаризация',_money(summary['inventory'])),
+      const SizedBox(height:10),
+      if(sourceStatus.isNotEmpty)
+        OwnerCard(child:Column(
+          crossAxisAlignment:CrossAxisAlignment.start,
+          children:[
+            const OwnerText('Источники документов',
+              style:TextStyle(fontWeight:FontWeight.w700)),
+            const SizedBox(height:6),
+            for(final entry in sourceStatus.entries)
+              Padding(
+                padding:const EdgeInsets.symmetric(vertical:3),
+                child:Row(children:[
+                  Icon(entry.value is Map && entry.value['ok']==true
+                    ?Icons.check_circle_outline:Icons.error_outline,
+                    size:17,color:entry.value is Map && entry.value['ok']==true
+                      ?OwnerPalette.green:OwnerPalette.warning),
+                  const SizedBox(width:7),
+                  Expanded(child:Text('${sourceNames[entry.key.toString()] ?? entry.key}')),
+                  Text(entry.value is Map
+                    ?'${entry.value['count'] ?? 0} док.'
+                    :'—'),
+                ]),
+              ),
+          ],
+        )),
+      const SizedBox(height:10),
       if (rows.isEmpty) const OwnerCard(child: OwnerText('Движений за период нет.')),
       for (final row in rows) ...[
         OwnerCard(child: Column(
@@ -502,8 +544,18 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
             Text(row['productName'].toString(),
                 style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            Text('${row['date'] ?? ''} • ${row['documentNumber'] ?? ''}'),
-            Text('${row['type'] ?? ''} • ${row['storeName'] ?? ''}'),
+            Text('${row['date'] ?? ''} • Документ ${row['documentNumber'] ?? '—'}'),
+            Text(row['type'] == 'transfer' &&
+              ((row['fromStoreName'] ?? '').toString().isNotEmpty ||
+               (row['toStoreName'] ?? '').toString().isNotEmpty)
+              ?'Перемещение: ${row['fromStoreName'] ?? '—'} → ${row['toStoreName'] ?? '—'}'
+              :' ${row['label'] ?? sourceNames[row['type']?.toString()] ?? row['type'] ?? ''} • ${row['storeName'] ?? ''}'),
+            if((row['status'] ?? '').toString().isNotEmpty)
+              Text('Статус: ${row['status']}',
+                style:TextStyle(fontSize:11,color:OwnerPalette.muted(context))),
+            if((row['comment'] ?? '').toString().isNotEmpty)
+              Text(row['comment'].toString(),
+                style:TextStyle(fontSize:11,color:OwnerPalette.muted(context))),
             const SizedBox(height: 6),
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Text(_amount(row['quantity'], row['unit']?.toString() ?? '')),
