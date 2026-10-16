@@ -29,6 +29,9 @@ jobs:
         run: flutter analyze
       - name: Widget tests
         run: flutter test
+      # PR checks build the design-preview APK. A direct branch push
+      # additionally verifies the live Preview API and packages Real-Data-Pilot.
+      # This avoids silently confusing PR success with a deployable pilot.
       - name: Verify real-data pilot API availability
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
         env:
