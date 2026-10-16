@@ -1067,22 +1067,26 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
       .whereType<Map<String,dynamic>>().toList();
     final payments=(details?['payments'] as List? ?? [])
       .whereType<Map<String,dynamic>>().toList();
+    final openedAt=_time(order['openedAt']);
+    final closedAt=_time(order['closedAt']);
+    final status=_raw(order['status']).toUpperCase();
     final info=<MapEntry<String,String>>[
       MapEntry('Статус',_raw(order['status'])),
+      MapEntry('Время открытия',openedAt.isEmpty?'—':openedAt),
       MapEntry('Ресторан',widget.restaurant),
       MapEntry('Касса',widget.registerName),
       MapEntry('Зал',_raw(order['floor'])),
       MapEntry('Стол',_raw(order['table'])),
       MapEntry('Официант',_raw(order['waiter'])),
       MapEntry('Кассир',_raw(order['cashier'])),
-      MapEntry('Открыт',_time(order['openedAt'])),
       MapEntry('Выставлен счёт',_time(order['billAt'])),
-      MapEntry('Закрыт',_time(order['closedAt'])),
       if(order['discountAmount'] is num && order['discountAmount'] != 0)
         MapEntry('Скидка',_money(order['discountAmount'])),
       if(order['surchargeAmount'] is num && order['surchargeAmount'] != 0)
         MapEntry('Надбавка',_money(order['surchargeAmount'])),
       if(order['amount'] is num) MapEntry('Итого',_money(order['amount'])),
+      MapEntry('Время закрытия',
+        closedAt.isEmpty ? (status=='OPEN'?'Ещё открыт':'—') : closedAt),
     ].where((entry)=>entry.value.trim().isNotEmpty).toList();
     final title='Заказ №${widget.order['number']}';
     return Scaffold(

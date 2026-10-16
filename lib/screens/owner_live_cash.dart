@@ -289,7 +289,10 @@ class _RegisterDetailState extends State<_RegisterDetail> {
                     Text('${order['status'] == 'OPEN' ? 'Открыт' : order['status'] == 'CLOSED' ? 'Закрыт' : order['status'] ?? 'Статус не указан'}'
                       '${(order['floor'] ?? '').toString().trim().isNotEmpty ? ' · Зал: ${order['floor']}' : ''}'
                       '${(order['table'] ?? '').toString().trim().isNotEmpty ? ' · Стол: ${order['table']}' : ''}'),
-                    Text('Открыт: ${_time(order['openedAt'])} · Закрыт: ${_time(order['closedAt'])}',
+                    Text('Время открытия: ${_time(order['openedAt'])}',
+                      style: TextStyle(fontSize: 11,
+                        color: OwnerPalette.muted(context))),
+                    Text('Время закрытия: ${_time(order['closedAt'])}',
                       style: TextStyle(fontSize: 11,
                         color: OwnerPalette.muted(context))),
                   ],
