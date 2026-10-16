@@ -140,15 +140,17 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
   void initState(){
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final enabled=await OwnerPushService.isEnabled();
       final workspace=OwnerScope.of(context).workspaceId;
+      final enabled=await OwnerPushService.isEnabled();
       final kinds=workspace==null
         ?OwnerPushService.kinds.toSet()
         :await OwnerPushService.selectedKinds(workspace);
-      if(mounted)setState((){
-        pushEnabled=enabled;
-        selectedKinds=kinds;
-      });
+      if (mounted) {
+        setState((){
+          pushEnabled=enabled;
+          selectedKinds=kinds;
+        });
+      }
     });
   }
 
