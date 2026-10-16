@@ -32,6 +32,14 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
   String filter = 'Все';
   String search = '';
 
+  @override
+  void initState() {
+    super.initState();
+    // The revenue-card drill-down should immediately show registers and
+    // payment methods, rather than hiding payment details behind a chart toggle.
+    table = widget.kind == 'cash';
+  }
+
   static String _fmt(DateTime date) =>
       '${date.year.toString().padLeft(4, '0')}-'
       '${date.month.toString().padLeft(2, '0')}-'
