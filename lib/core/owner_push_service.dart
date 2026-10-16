@@ -97,12 +97,16 @@ class OwnerPushService {
 
   static Future<void> enable(
       String workspace,Iterable<String> restaurants) async {
-    if(!configured)throw const OwnerApiException(
-      'FIREBASE_NOT_CONFIGURED',
-      'Firebase Cloud Messaging ещё не подключён к Android-сборке.',503);
+    if(!configured){
+      throw const OwnerApiException(
+        'FIREBASE_NOT_CONFIGURED',
+        'Firebase Cloud Messaging ещё не подключён к Android-сборке.',503);
+    }
     await initialize();
-    if(!_initialized)throw const OwnerApiException(
-      'FIREBASE_INIT_FAILED','Не удалось запустить Firebase.',503);
+    if(!_initialized){
+      throw const OwnerApiException(
+        'FIREBASE_INIT_FAILED','Не удалось запустить Firebase.',503);
+    }
     final permission=await FirebaseMessaging.instance.requestPermission(
       alert:true,badge:true,sound:true,
     );
