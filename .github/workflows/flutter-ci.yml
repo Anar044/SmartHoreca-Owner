@@ -63,6 +63,15 @@ jobs:
           SH_FIREBASE_PROJECT_ID: ${{ vars.SH_FIREBASE_PROJECT_ID }}
         run: |
           set -euo pipefail
+          # A successful pilot APK must not silently ship with push disabled.
+          # These Firebase Android values are public client configuration,
+          # not the server-side FCM service account.
+          for name in SH_FIREBASE_ANDROID_API_KEY SH_FIREBASE_ANDROID_APP_ID SH_FIREBASE_SENDER_ID SH_FIREBASE_PROJECT_ID; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing GitHub Actions variable: $name. Real-Data-Pilot push would not work."
+              exit 1
+            fi
+          done
           if [[ ! "$SH_PILOT_ORIGIN" =~ ^https://[A-Za-z0-9.-]+/?$ ]]; then
             echo "::error::Verified Cloudflare Preview HTTPS origin required."
             exit 1
