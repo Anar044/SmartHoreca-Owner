@@ -342,8 +342,11 @@ class OwnerState extends ChangeNotifier {
     final changed = tabIndex != value;
     tabIndex = value;
     notifyListeners();
-    // Refresh dashboard once when returning from a report's date selection.
-    if (changed && value == 0 && live && stage == OwnerStage.shell) {
+    // Switching tabs must not launch another expensive 22-restaurant OLAP
+    // query every time. Period/restaurant changes and pull-to-refresh
+    // already trigger a new scoped query.
+    if (changed && value == 0 && live && stage == OwnerStage.shell &&
+        summary == null && !dashboardLoading && dashboardError == null) {
       unawaited(loadSummary());
     }
   }

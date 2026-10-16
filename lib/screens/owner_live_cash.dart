@@ -31,6 +31,9 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
     final key = '${owner.workspaceId}:${ids.join(',')}';
     if (key != scope) {
       scope = key;
+      // Never show figures from a different organization or restaurant
+      // selection while the next scoped request is loading.
+      data = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _load();
       });
@@ -46,7 +49,9 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
       return;
     }
     final seq = ++generation;
-    setState(() { loading = true; error = null; data = null; });
+    // Retain the last verified snapshot during a manual refresh. It is only
+    // retained for the same selected restaurant scope.
+    setState(() { loading = true; error = null; });
     try {
       final payload = await OwnerBackend.getJson('/api/mobile/v1/cash',
         workspaceId: workspace, departmentIds: ids);
@@ -70,7 +75,10 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
     final state = OwnerScope.of(context);
     final registers = (data?['registers'] as List? ?? [])
       .whereType<Map<String, dynamic>>().toList();
-    final totals = (data?['totals'] as Map?) ?? {};
+    final partial = data?['partial'] == true;
+    final totals = (data?['totals'] as Map?) ??
+        (data?['availableTotals'] as Map?) ?? {};
+    final coverageSuffix = partial ? ' (доступные кассы)' : '';
     final restaurants = <String,String>{
       for (final entry in state.restaurantIdsByName.entries)
         entry.value: entry.key
@@ -80,12 +88,16 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
       const SizedBox(height: 12),
       const OwnerRestaurantPicker(),
       const SizedBox(height: 12),
-      if (loading)
+      if (loading && data == null)
         const OwnerCard(child: Padding(
           padding: EdgeInsets.all(24),
-          child: Center(child: CircularProgressIndicator()),
+          child: Column(children: [
+            Center(child: CircularProgressIndicator()),
+            SizedBox(height: 10),
+            Text('Получаем данные подключённых касс…'),
+          ]),
         ))
-      else if (error != null)
+      else if (error != null && data == null)
         OwnerCard(child: Column(children: [
           const Icon(Icons.cloud_off_outlined, size: 30,
             color: OwnerPalette.error),
@@ -96,6 +108,19 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
             icon: const Icon(Icons.refresh), label: const OwnerText('Повторить')),
         ]))
       else ...[
+        if (loading) ...[
+          const LinearProgressIndicator(),
+          const SizedBox(height: 8),
+          const Text('Обновляем данные подключённых касс…',
+            style: TextStyle(fontSize: 12)),
+          const SizedBox(height: 12),
+        ],
+        if (error != null) ...[
+          OwnerCard(child: Text('Не удалось обновить данные. '
+            'Ниже оставлены результаты последнего успешного запроса.',
+            style: const TextStyle(color: OwnerPalette.warning))),
+          const SizedBox(height: 12),
+        ],
         if (data?['partial'] == true) ...[
           OwnerCard(child: Row(children: [
             const Icon(Icons.warning_amber_rounded,
@@ -113,18 +138,18 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
           const SizedBox(height: 12),
         ],
         Row(children: [
-          Expanded(child: OwnerMetric('Закрытые заказы',
+          Expanded(child: OwnerMetric('Закрытые$coverageSuffix',
             money(totals['closedSum']))),
           const SizedBox(width: 10),
-          Expanded(child: OwnerMetric('Открытые заказы',
+          Expanded(child: OwnerMetric('Открытые$coverageSuffix',
             money(totals['openSum']))),
         ]),
         const SizedBox(height: 10),
         Row(children: [
-          Expanded(child: OwnerMetric('Ожидаемая выручка',
+          Expanded(child: OwnerMetric('Ожидаемая выручка$coverageSuffix',
             money(totals['expectedSum']))),
           const SizedBox(width: 10),
-          Expanded(child: OwnerMetric('Всего заказов',
+          Expanded(child: OwnerMetric('Всего заказов$coverageSuffix',
             (totals['totalOrders'] ?? '—').toString())),
         ]),
         const SizedBox(height: 13),
