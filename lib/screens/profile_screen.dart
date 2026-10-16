@@ -4,6 +4,7 @@ import '../core/owner_theme.dart';
 import '../core/owner_l10n.dart';
 import '../ui/owner_components.dart';
 import '../core/owner_backend.dart';
+import '../core/owner_push_service.dart';
 import 'owner_live_reports.dart';
 
 class OwnerProfileScreen extends StatelessWidget {
@@ -130,11 +131,117 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
   bool cash = true;
   bool sales = true;
   bool inventory = true;
+  bool pushEnabled=false;
+  bool pushBusy=false;
+  String? pushStatus;
+
+  @override
+  void initState(){
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final enabled=await OwnerPushService.isEnabled();
+      if(mounted)setState(()=>pushEnabled=enabled);
+    });
+  }
+
+  Future<void> _togglePush(bool enabled) async {
+    final state=OwnerScope.of(context);
+    if(state.workspaceId==null)return;
+    setState((){pushBusy=true;pushStatus=null;});
+    try{
+      if(enabled){
+        await OwnerPushService.enable(
+          state.workspaceId!,state.selectedRestaurantIds);
+      }else{
+        await OwnerPushService.disable();
+      }
+      if(!mounted)return;
+      setState((){
+        pushEnabled=enabled;
+        pushStatus=enabled
+          ?'Push включён для выбранных ресторанов.'
+          :'Push-уведомления отключены на этом телефоне.';
+      });
+    }catch(e){
+      if(!mounted)return;
+      setState((){
+        pushStatus=e is OwnerApiException
+          ?e.message
+          :'Не удалось изменить настройки уведомлений.';
+      });
+    }finally{
+      if(mounted)setState(()=>pushBusy=false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (OwnerScope.of(context).live) {
-      return const OwnerLiveReportScreen(title: 'Уведомления', kind: 'notifications');
+    final state=OwnerScope.of(context);
+    if(state.live){
+      return Scaffold(
+        appBar:AppBar(title:const Text('Уведомления')),
+        body:OwnerScreenFrame(children:[
+          const OwnerHeading('События касс',
+            caption:'Push на экран телефона, включая закрытое приложение'),
+          const SizedBox(height:12),
+          OwnerCard(child:Column(
+            crossAxisAlignment:CrossAxisAlignment.start,
+            children:[
+              SwitchListTile(
+                contentPadding:EdgeInsets.zero,
+                title:const Text('Push от Smart Horeca Owner'),
+                subtitle:Text(OwnerPushService.configured
+                  ?'Для ${state.selectedRestaurantIds.length} выбранных ресторанов'
+                  :'Ожидает настройки Firebase для Android'),
+                value:pushEnabled,
+                onChanged:pushBusy||!OwnerPushService.configured
+                  ?null:_togglePush,
+              ),
+              if(pushBusy)const LinearProgressIndicator(),
+              if(pushStatus!=null)...[
+                const SizedBox(height:8),
+                Text(pushStatus!,style:TextStyle(fontSize:12,
+                  color:OwnerPalette.muted(context))),
+              ],
+              const SizedBox(height:8),
+              const Divider(),
+              const Text('Какие события отправляются',
+                style:TextStyle(fontWeight:FontWeight.bold)),
+              const SizedBox(height:8),
+              for(final event in const [
+                'Применена скидка',
+                'Удалена скидка',
+                'Отменён пречек',
+                'Удалено блюдо',
+                'Сторнирован чек'
+              ])
+                Padding(padding:const EdgeInsets.only(bottom:7),
+                  child:Row(children:[
+                    const Icon(Icons.notifications_active_outlined,size:18),
+                    const SizedBox(width:10),
+                    Expanded(child:Text(event)),
+                  ])),
+              const SizedBox(height:8),
+              Text('События должны поступать из кассового плагина. '
+                'Приложение не создаёт уведомления по догадкам.',
+                style:TextStyle(fontSize:11,
+                  color:OwnerPalette.muted(context))),
+            ],
+          )),
+          const SizedBox(height:14),
+          OwnerCard(
+            onTap:()=>Navigator.push(context,MaterialPageRoute<void>(
+              builder:(_)=>const OwnerLiveReportScreen(
+                title:'Складские предупреждения',
+                kind:'notifications'))),
+            child:const ListTile(
+              contentPadding:EdgeInsets.zero,
+              leading:Icon(Icons.inventory_2_outlined),
+              title:Text('Складские предупреждения'),
+              trailing:Icon(Icons.chevron_right),
+            )),
+        ]),
+      );
     }
     return Scaffold(
       appBar: AppBar(title: const Text('Уведомления'), actions: [
