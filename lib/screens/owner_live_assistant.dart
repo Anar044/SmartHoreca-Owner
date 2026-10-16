@@ -55,6 +55,15 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     }
   }
 
+  Future<void> _refreshCurrentConversation() async {
+    final id = conversationId;
+    if (id != null && id.isNotEmpty) {
+      await _openChat(id);
+    } else if (mounted) {
+      setState(() => error = null);
+    }
+  }
+
   Future<void> _showHistory() async {
     final owner = OwnerScope.of(context);
     final workspace = owner.workspaceId;
@@ -217,7 +226,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   @override
   Widget build(BuildContext context) {
     final state = OwnerScope.of(context);
-    return OwnerScreenFrame(children: [
+    return OwnerScreenFrame(onRefresh: _refreshCurrentConversation, children: [
       const OwnerRestaurantPicker(),
       const SizedBox(height: 12),
       const OwnerHeading('AI Smart Horeca Assistant'),
