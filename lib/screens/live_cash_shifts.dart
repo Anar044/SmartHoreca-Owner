@@ -109,7 +109,7 @@ class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
       ].any((value) => (value ?? '').toString().toLowerCase().contains(needle));
     }).toList();
 
-    return OwnerScreenFrame(children: [
+    return OwnerScreenFrame(onRefresh: _load, children: [
       const OwnerHeading('Кассы', caption: 'Просмотр кассовых смен'),
       const SizedBox(height: 12),
       const OwnerRestaurantPicker(),
@@ -336,7 +336,7 @@ class _OwnerLiveShiftDetailState extends State<OwnerLiveShiftDetail> {
         .whereType<Map<String, dynamic>>().toList();
     return Scaffold(
       appBar: AppBar(title: const OwnerText('Детали смены')),
-      body: OwnerScreenFrame(children: [
+      body: OwnerScreenFrame(onRefresh: _load, children: [
         if (loading)
           const OwnerCard(child: Padding(
             padding: EdgeInsets.all(18),
