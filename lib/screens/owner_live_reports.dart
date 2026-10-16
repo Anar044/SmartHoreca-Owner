@@ -589,7 +589,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
           ),
         ],
       ),
-      body: OwnerScreenFrame(children: [
+      body: OwnerScreenFrame(onRefresh: _load, children: [
         const OwnerRestaurantPicker(),
         const SizedBox(height: 12),
         if (widget.kind != 'inventory' && widget.kind != 'notifications')
@@ -718,7 +718,7 @@ class _OwnerLiveOrderScreenState extends State<OwnerLiveOrderScreen> {
       .whereType<Map<String,dynamic>>().toList();
     return Scaffold(
       appBar: AppBar(title: Text('${OwnerL10n.tr(OwnerScope.of(context).language, 'Чек')} ${order['number']}')),
-      body: OwnerScreenFrame(children: [
+      body: OwnerScreenFrame(onRefresh: _load, children: [
         OwnerHeading('${OwnerL10n.tr(OwnerScope.of(context).language, 'Чек')} ${order['number']}',
           caption:'Данные SH OLAP только для просмотра'),
         const SizedBox(height:12),
