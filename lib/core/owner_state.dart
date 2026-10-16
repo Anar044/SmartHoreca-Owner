@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'owner_backend.dart';
+import 'owner_push_service.dart';
 
 enum OwnerStage { signIn, workspaces, restaurants, shell }
 
@@ -275,7 +276,11 @@ class OwnerState extends ChangeNotifier {
     stage = availableRestaurants.isEmpty
         ? OwnerStage.restaurants
         : OwnerStage.shell;
-    if (stage == OwnerStage.shell) unawaited(loadSummary());
+    if (stage == OwnerStage.shell) {
+      unawaited(loadSummary());
+      unawaited(OwnerPushService.syncScope(id,selectedRestaurantIds)
+        .catchError((Object _) {}));
+    }
   }
 
   void showRestaurants() {
@@ -315,6 +320,10 @@ class OwnerState extends ChangeNotifier {
           'sh_owner_depts_$workspaceId', selectedRestaurantIds.toList()));
     }
     notifyListeners();
+    if(live && workspaceId!=null && selectedRestaurantIds.isNotEmpty){
+      unawaited(OwnerPushService.syncScope(workspaceId!,selectedRestaurantIds)
+        .catchError((Object _) {}));
+    }
     if (live && stage == OwnerStage.shell && tabIndex == 0 &&
         selectedRestaurantIds.isNotEmpty) {
       unawaited(loadSummary());
@@ -329,6 +338,10 @@ class OwnerState extends ChangeNotifier {
           'sh_owner_depts_$workspaceId', selectedRestaurantIds.toList()));
     }
     notifyListeners();
+    if(live && workspaceId!=null && selectedRestaurantIds.isNotEmpty){
+      unawaited(OwnerPushService.syncScope(workspaceId!,selectedRestaurantIds)
+        .catchError((Object _) {}));
+    }
     if (live && stage == OwnerStage.shell && tabIndex == 0 &&
         selectedRestaurantIds.isNotEmpty) {
       unawaited(loadSummary());
@@ -391,6 +404,7 @@ class OwnerState extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    await OwnerPushService.onSignOut();
     await OwnerBackend.signOut();
     logOutPreview();
   }

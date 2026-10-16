@@ -61,9 +61,16 @@ class OwnerPushService {
     }
   }
 
+  static String get _optInKey {
+    final userId=OwnerBackend.hasSession
+        ?OwnerBackend.client.auth.currentUser?.id??''
+        :'';
+    return 'sh_owner_push_opt_in_$userId';
+  }
   static Future<bool> isEnabled() async {
+    if(!OwnerBackend.hasSession)return false;
     final prefs=SharedPreferencesAsync();
-    return await prefs.getBool('sh_owner_push_opt_in')??false;
+    return await prefs.getBool(_optInKey)??false;
   }
 
   static Future<void> _registerToken(
@@ -113,12 +120,18 @@ class OwnerPushService {
     _workspace=workspace;
     _departments=restaurants.toSet();
     _enabled=true;
-    await SharedPreferencesAsync().setBool('sh_owner_push_opt_in',true);
+    await SharedPreferencesAsync().setBool(_optInKey,true);
   }
 
   static Future<void> disable() async {
     _enabled=false;
-    await SharedPreferencesAsync().setBool('sh_owner_push_opt_in',false);
+    if(OwnerBackend.hasSession){
+      await SharedPreferencesAsync().setBool(_optInKey,false);
+    }
+    await _unregisterAndDelete();
+  }
+
+  static Future<void> _unregisterAndDelete() async {
     if(!_initialized)return;
     final workspace=_workspace;
     final token=await FirebaseMessaging.instance.getToken();
@@ -136,7 +149,10 @@ class OwnerPushService {
   }
 
   static Future<void> onSignOut() async {
-    try{await disable();}catch(_){}
+    // Keep this account's opt-in choice across logins, but revoke this
+    // device's current FCM token immediately on sign-out.
+    _enabled=false;
+    try{await _unregisterAndDelete();}catch(_){}
     _workspace=null;_departments={};
   }
 }
