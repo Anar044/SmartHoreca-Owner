@@ -5,6 +5,7 @@ import '../core/owner_theme.dart';
 import '../ui/owner_components.dart';
 import '../ui/owner_text.dart';
 import 'live_cash_shifts.dart';
+import 'owner_live_reports.dart';
 
 /// POS operational cash status: uses /api/mobile/v1/cash, the same source as
 /// the website's /cash, not iiko cash-shift history.
@@ -89,6 +90,19 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
         child: const Row(children: [
           Icon(Icons.history), SizedBox(width: 12),
           Expanded(child: OwnerText('История кассовых смен')),
+          Icon(Icons.chevron_right),
+        ]),
+      ),
+      const SizedBox(height: 9),
+      OwnerCard(
+        onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+          builder: (_) => const OwnerLiveReportScreen(
+            title: 'Чеки', kind: 'orders',
+          ),
+        )),
+        child: const Row(children: [
+          Icon(Icons.receipt_long_outlined), SizedBox(width: 12),
+          Expanded(child: OwnerText('Чеки и состав заказов')),
           Icon(Icons.chevron_right),
         ]),
       ),
