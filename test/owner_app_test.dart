@@ -5,6 +5,8 @@ import 'package:smart_horeca_owner/main.dart';
 void main() {
   testWidgets('approved flow opens preview and keeps four bottom tabs', (tester) async {
     await tester.pumpWidget(const SmartHorecaOwnerApp());
+    // Allow the new branded splash to finish restoring local preferences.
+    await tester.pumpAndSettle();
     expect(find.text('SMART HORECA'), findsOneWidget);
 
     await tester.tap(find.text('Посмотреть утверждённый дизайн'));
