@@ -37,7 +37,9 @@ class OwnerPushOrderTarget {
     final id = RegExp(r'^[0-9a-fA-F-]{36}$');
     if (!id.hasMatch(departmentId) || !id.hasMatch(pluginId) ||
         orderNum.isEmpty || orderNum.length > 120 ||
-        !validKinds.contains(kind)) return null;
+        !validKinds.contains(kind)) {
+      return null;
+    }
     return OwnerPushOrderTarget(
       departmentId: departmentId, pluginId: pluginId,
       orderNum: orderNum, kind: kind,
