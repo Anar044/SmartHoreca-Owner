@@ -7,6 +7,7 @@ import 'cash_screen.dart';
 import 'reports_screen.dart';
 import 'ai_screen.dart';
 import 'profile_screen.dart';
+import '../ui/owner_brand.dart';
 
 class OwnerShell extends StatefulWidget {
   const OwnerShell({super.key});
@@ -33,13 +34,20 @@ class _OwnerShellState extends State<OwnerShell> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Smart Horeca Owner', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            Text(OwnerL10n.tr(state.language, 'Ваш бизнес под контролем'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.normal)),
-          ],
-        ),
+        title: Row(children: [
+          const OwnerBrandMark(size: 39),
+          const SizedBox(width: 10),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Smart Horeca Owner', style: TextStyle(
+                fontSize: 17, fontWeight: FontWeight.w800)),
+              Text(OwnerL10n.tr(state.language, 'Ваш бизнес под контролем'),
+                style: const TextStyle(fontSize: 11,
+                  fontWeight: FontWeight.normal)),
+            ],
+          )),
+        ]),
         actions: [
           IconButton(
             tooltip: OwnerL10n.tr(state.language, 'Уведомления'),
