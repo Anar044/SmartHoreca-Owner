@@ -25,6 +25,16 @@ jobs:
         run: flutter create . --platforms=android,ios
       - name: Fetch dependencies
         run: flutter pub get
+      - name: Use high-resolution approved brand image
+        run: |
+          curl --fail --location --silent --show-error --max-time 20 \
+            https://raw.githubusercontent.com/Anar044/anarsystem/main/assets/brand/smarthoreca-logo-user-exact.jpeg \
+            --output assets/brand/smart-horeca-logo.jpg \
+            || echo "Using committed original-logo asset"
+      - name: Generate launcher icon and native splash
+        run: |
+          dart run flutter_launcher_icons
+          dart run flutter_native_splash:create
       - name: Static analysis
         run: flutter analyze
       - name: Widget tests
@@ -33,7 +43,7 @@ jobs:
       # additionally verifies the live Preview API and packages Real-Data-Pilot.
       # This avoids silently confusing PR success with a deployable pilot.
       - name: Verify real-data pilot API availability
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
+        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/feature/approved-ui-foundation' || github.ref == 'refs/heads/feature/push-open-order-branded-launch-20261019') }}
         env:
           SH_PILOT_ORIGIN: https://feature-owner-mobile-readonl.smarthoreca.pages.dev
         run: |
@@ -54,7 +64,7 @@ jobs:
       # Pilot APK uses public auth configuration, retrieved securely at build time.
       # It never embeds SH Server passwords or Supabase service-role credentials.
       - name: Build Android owner pilot APK
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
+        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/feature/approved-ui-foundation' || github.ref == 'refs/heads/feature/push-open-order-branded-launch-20261019') }}
         env:
           SH_PILOT_ORIGIN: https://feature-owner-mobile-readonl.smarthoreca.pages.dev
           SH_FIREBASE_ANDROID_API_KEY: ${{ vars.SH_FIREBASE_ANDROID_API_KEY }}
@@ -100,7 +110,7 @@ jobs:
           NODE
           flutter build apk --debug --dart-define-from-file=/tmp/sh-owner-pilot-defines.json
       - name: Upload Android owner pilot APK
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feature/approved-ui-foundation' }}
+        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/feature/approved-ui-foundation' || github.ref == 'refs/heads/feature/push-open-order-branded-launch-20261019') }}
         uses: actions/upload-artifact@v4
         with:
           name: Smart-Horeca-Owner-Android-Real-Data-Pilot
