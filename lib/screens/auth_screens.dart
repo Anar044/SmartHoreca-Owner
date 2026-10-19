@@ -4,6 +4,7 @@ import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_l10n.dart';
 import '../ui/owner_components.dart';
+import '../ui/owner_brand.dart';
 
 const bool _allowPreview = bool.fromEnvironment(
   'SH_ENABLE_DEMO', defaultValue: true);
@@ -29,7 +30,6 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = OwnerPalette.isDark(context);
     final state = OwnerScope.of(context);
     String tr(String ru) => OwnerL10n.tr(state.language, ru);
     return Scaffold(
@@ -41,15 +41,7 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
               constraints: const BoxConstraints(maxWidth: 430),
               child: Column(children: [
                 const SizedBox(height: 14),
-                Container(
-                  width: 80, height: 80,
-                  decoration: BoxDecoration(
-                    color: dark ? OwnerPalette.darkSurface : OwnerPalette.lightRaised,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Icon(Icons.restaurant_menu_rounded,
-                      color: OwnerPalette.accent(context), size: 40),
-                ),
+                const OwnerBrandMark(size: 96),
                 const SizedBox(height: 22),
                 const Text('SMART HORECA', style: TextStyle(
                     fontSize: 29, fontWeight: FontWeight.w900, letterSpacing: 1.2)),
