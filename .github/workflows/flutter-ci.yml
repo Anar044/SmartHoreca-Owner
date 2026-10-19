@@ -21,8 +21,10 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Generate platform runners for design branch
-        run: flutter create . --platforms=android,ios
+      - name: Generate Android and iOS runners with Owner app label
+        run: |
+          flutter create . --platforms=android,ios
+          sed -i 's/android:label="smart_horeca_owner"/android:label="Smart Horeca Owner"/' android/app/src/main/AndroidManifest.xml
       - name: Fetch dependencies
         run: flutter pub get
       - name: Normalize brand image for Android icon generators
