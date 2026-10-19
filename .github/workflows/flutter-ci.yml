@@ -25,12 +25,6 @@ jobs:
         run: flutter create . --platforms=android,ios
       - name: Fetch dependencies
         run: flutter pub get
-      - name: Use high-resolution approved brand image
-        run: |
-          curl --fail --location --silent --show-error --max-time 20 \
-            https://raw.githubusercontent.com/Anar044/anarsystem/main/assets/brand/smarthoreca-logo-user-exact.jpeg \
-            --output assets/brand/smart-horeca-logo.jpg \
-            || echo "Using committed original-logo asset"
       - name: Normalize brand image for Android icon generators
         run: |
           python3 -m pip install --quiet Pillow
