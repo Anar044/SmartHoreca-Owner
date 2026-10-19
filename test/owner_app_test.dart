@@ -9,6 +9,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('SMART HORECA'), findsOneWidget);
 
+    // The larger approved logo extends the sign-in page on short devices.
+    await tester.ensureVisible(find.text('Посмотреть утверждённый дизайн'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Посмотреть утверждённый дизайн'));
     await tester.pumpAndSettle();
     expect(find.text('Выберите рестораны'), findsOneWidget);
