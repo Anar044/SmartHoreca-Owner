@@ -31,6 +31,17 @@ jobs:
             https://raw.githubusercontent.com/Anar044/anarsystem/main/assets/brand/smarthoreca-logo-user-exact.jpeg \
             --output assets/brand/smart-horeca-logo.jpg \
             || echo "Using committed original-logo asset"
+      - name: Normalize brand image for Android icon generators
+        run: |
+          python3 -m pip install --quiet Pillow
+          python3 - <<'PY'
+          from PIL import Image
+          path = 'assets/brand/smart-horeca-logo.jpg'
+          with Image.open(path) as image:
+              rgb = image.convert('RGB')
+              rgb.save(path, format='JPEG', quality=92,
+                       optimize=False, progressive=False, subsampling=0)
+          PY
       - name: Generate launcher icon and native splash
         run: |
           dart run flutter_launcher_icons
