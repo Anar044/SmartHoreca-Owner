@@ -33,7 +33,9 @@ class _SmartHorecaOwnerAppState extends State<SmartHorecaOwnerApp> {
 
   void _tryOpenPushOrder() {
     if (!mounted || !_ready || _openingPushOrder ||
-        owner.stage != OwnerStage.shell || !owner.live) return;
+        owner.stage != OwnerStage.shell || !owner.live) {
+      return;
+    }
     final target = OwnerPushService.pendingOrder;
     if (target == null) return;
     _openingPushOrder = true;
