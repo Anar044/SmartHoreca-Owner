@@ -1,4 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import '../core/owner_voice_locale.dart';
 import 'owner_assistant_visuals.dart';
 import '../ui/owner_text.dart';
 import '../core/owner_backend.dart';
@@ -26,7 +30,12 @@ class OwnerLiveAssistantScreen extends StatefulWidget {
 
 class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   final controller = TextEditingController();
+  final stt.SpeechToText _recognizer = stt.SpeechToText();
+  final FlutterTts _tts = FlutterTts();
   final List<_OwnerAssistantMessage> conversation = [];
+  bool listening = false;
+  bool speaking = false;
+  String? modelName;
   bool sending = false;
   String? error;
   String? conversationId;
@@ -34,7 +43,23 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   int _generation = 0;
 
   @override
+  void initState() {
+    super.initState();
+    _tts.setCompletionHandler(() {
+      if (mounted) setState(() => speaking = false);
+    });
+    _tts.setCancelHandler(() {
+      if (mounted) setState(() => speaking = false);
+    });
+    _tts.setErrorHandler((_) {
+      if (mounted) setState(() => speaking = false);
+    });
+  }
+
+  @override
   void dispose() {
+    unawaited(_recognizer.stop());
+    unawaited(_tts.stop());
     controller.dispose();
     super.dispose();
   }
@@ -52,6 +77,130 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       conversationId = null;
       error = null;
       sending = false;
+      listening = false;
+      speaking = false;
+      modelName = null;
+      unawaited(_recognizer.stop());
+      unawaited(_tts.stop());
+      unawaited(_fetchModel(owner.workspaceId, owner.selectedRestaurantIds, _generation));
+    }
+  }
+
+  Future<void> _fetchModel(
+    String? workspaceId, Set<String> departmentIds, int generation) async {
+    if (workspaceId == null || departmentIds.isEmpty) return;
+    try {
+      final data = await OwnerBackend.getJson(
+        '/api/mobile/v1/assistant',
+        workspaceId: workspaceId,
+        departmentIds: departmentIds,
+        query: const {'action':'status'},
+      );
+      if (!mounted || generation != _generation) return;
+      final model = (data['model'] ?? '').toString().trim();
+      if (model.isNotEmpty) setState(() => modelName = model);
+    } catch (_) {
+      // The assistant remains usable if the optional model badge fails.
+    }
+  }
+
+  Future<void> _toggleListening() async {
+    if (sending) return;
+    if (listening) {
+      await _recognizer.stop();
+      if (mounted) setState(() => listening = false);
+      return;
+    }
+    await _tts.stop();
+    if (mounted) setState(() => speaking = false);
+    try {
+      final ready = await _recognizer.initialize(
+        onStatus: (status) {
+          if (!mounted) return;
+          if (status == 'done' || status == 'notListening') {
+            setState(() => listening = false);
+          }
+        },
+        onError: (e) {
+          if (mounted) {
+            setState(() {
+              listening = false;
+              error = 'Не удалось распознать речь: ${e.errorMsg}.';
+            });
+          }
+        },
+      );
+      if (!ready) {
+        if (mounted) setState(() =>
+          error = 'Распознавание речи недоступно. Проверь разрешения микрофона и речи в настройках iPhone.');
+        return;
+      }
+      final state = OwnerScope.of(context);
+      final locales = await _recognizer.locales();
+      final locale = OwnerVoiceLocale.availableSpeechLocale(
+        state.language, locales.map((l) => l.localeId));
+      if (!mounted) return;
+      setState(() {
+        error = null;
+        listening = true;
+      });
+      await _recognizer.listen(
+        localeId: locale,
+        listenOptions: stt.SpeechListenOptions(
+          partialResults: true,
+          cancelOnError: true,
+        ),
+        onResult: (result) {
+          if (!mounted) return;
+          controller.text = result.recognizedWords;
+          controller.selection = TextSelection.collapsed(
+            offset: controller.text.length);
+          if (result.finalResult) setState(() => listening = false);
+        },
+      );
+    } catch (_) {
+      if (mounted) setState(() {
+        listening = false;
+        error = 'Не удалось включить микрофон. Проверь разрешения в настройках устройства.';
+      });
+    }
+  }
+
+  Future<void> _readAnswer(String text) async {
+    if (speaking) {
+      await _tts.stop();
+      if (mounted) setState(() => speaking = false);
+      return;
+    }
+    await _recognizer.stop();
+    if (!mounted) return;
+    final state = OwnerScope.of(context);
+    final locale = OwnerVoiceLocale.ttsLocale(state.language);
+    // Spoken text is only delivered to the device OS TTS; do not send
+    // confidential restaurant answers to a new third-party endpoint.
+    try {
+      final installed = await _tts.isLanguageAvailable(locale);
+      if (installed != true) {
+        if (mounted) setState(() =>
+          error = 'На устройстве не найден голос для языка $locale. Установи голос в настройках iPhone.');
+        return;
+      }
+      await _tts.setLanguage(locale);
+      await _tts.setSpeechRate(0.48);
+      await _tts.setVolume(1.0);
+      if (!mounted) return;
+      setState(() {
+        speaking = true;
+        error = null;
+      });
+      await _tts.speak(
+        text.replaceAll(RegExp(r'[*#_`]+'), '').substring(
+          0, text.length > 3000 ? 3000 : text.length));
+    } catch (_) {
+      if (mounted) setState(() {
+        speaking = false;
+        error = 'Не удалось озвучить ответ. Проверь настройки речи устройства.';
+      });
     }
   }
 
@@ -160,17 +309,23 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   }
 
   void _newConversation() {
+    unawaited(_recognizer.stop());
+    unawaited(_tts.stop());
     ++_generation;
     setState(() {
       conversationId = null;
       conversation.clear();
       error = null;
       sending = false;
+      listening = false;
+      speaking = false;
     });
   }
 
   Future<void> _send([String? preset]) async {
     if (sending) return;
+    await _recognizer.stop();
+    if (mounted) setState(() => listening = false);
     final owner = OwnerScope.of(context);
     final message = (preset ?? controller.text).trim();
     if (message.isEmpty || owner.workspaceId == null) return;
@@ -231,6 +386,11 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       const OwnerRestaurantPicker(),
       const SizedBox(height: 12),
       const OwnerHeading('AI Smart Horeca Assistant'),
+      if (modelName != null) ...[
+        const SizedBox(height: 4),
+        Text('Модель: $modelName · Только чтение',
+          style: TextStyle(fontSize: 11, color: OwnerPalette.muted(context))),
+      ],
       const SizedBox(height: 10),
       Row(children: [
         Expanded(
@@ -256,10 +416,10 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
                 style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
             for (final question in const [
-              'Какая выручка сегодня?',
-              'Сравни продажи ресторанов',
+              'Какая выручка сегодня по выбранным ресторанам?',
+              'Сравни выручку ресторанов за 7 дней и покажи график',
+              'Покажи топ-5 блюд по выручке за сегодня',
               'Какие товары заканчиваются?',
-              'Покажи топ-5 блюд',
             ]) ...[
               OutlinedButton(
                 onPressed: sending ? null : () => _send(question),
@@ -279,7 +439,24 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
               ? Alignment.centerRight : Alignment.centerLeft,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 500),
-            child: OwnerCard(child: Text(message.text)),
+            child: OwnerCard(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(message.text),
+                if (message.role == 'assistant') ...[
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      tooltip: speaking ? 'Остановить озвучивание' : 'Озвучить ответ',
+                      onPressed: () => _readAnswer(message.text),
+                      icon: Icon(speaking ? Icons.stop_circle_outlined
+                          : Icons.volume_up_outlined, size: 21),
+                    ),
+                  ),
+                ],
+              ],
+            )),
           ),
         ),
         if (message.role == 'assistant' &&
@@ -308,6 +485,15 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           Expanded(child: Text(error!)),
         ])),
       ],
+      if (listening) ...[
+        const SizedBox(height: 8),
+        OwnerCard(child: Row(children: [
+          const Icon(Icons.mic, color: Colors.redAccent),
+          const SizedBox(width: 8),
+          const Expanded(child: Text('Слушаю… Нажми микрофон ещё раз, чтобы остановить.')),
+          TextButton(onPressed: _toggleListening, child: const Text('Стоп')),
+        ])),
+      ],
       const SizedBox(height: 12),
       TextField(
         controller: controller,
@@ -315,10 +501,23 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         decoration: InputDecoration(
           hintText: OwnerL10n.tr(state.language, 'Напишите вопрос...'),
           prefixIcon: const Icon(Icons.smart_toy_outlined),
-          suffixIcon: IconButton(
-            icon: const Icon(Icons.send_rounded),
-            tooltip: 'Отправить',
-            onPressed: sending ? null : _send,
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(listening ? Icons.stop_circle_outlined
+                    : Icons.mic_none_rounded,
+                    color: listening ? Colors.redAccent
+                        : OwnerPalette.accent(context)),
+                tooltip: listening ? 'Остановить запись' : 'Голосовой вопрос',
+                onPressed: sending ? null : _toggleListening,
+              ),
+              IconButton(
+                icon: const Icon(Icons.send_rounded),
+                tooltip: 'Отправить',
+                onPressed: sending ? null : _send,
+              ),
+            ],
           ),
         ),
         onSubmitted: sending ? null : (value) => _send(value),
