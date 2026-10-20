@@ -1,7 +1,7 @@
 name: smart_horeca_owner
 description: Smart Horeca Owner - approved mobile design preview (Android/iOS).
 publish_to: none
-version: 0.1.1+2
+version: 0.1.2+3
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -26,11 +26,14 @@ flutter:
   uses-material-design: true
   assets:
     - assets/brand/smart-horeca-logo.jpg
+    - assets/brand/splash-dining-dark.jpg
+    - assets/brand/splash-dining-light.jpg
 
 # Installed Android launcher icon derived from the approved Smart Horeca logo.
 flutter_launcher_icons:
   android: true
-  ios: false
+  ios: true
+  remove_alpha_ios: true
   image_path: assets/brand/smart-horeca-logo.jpg
   adaptive_icon_background: "#091827"
   adaptive_icon_foreground: assets/brand/smart-horeca-logo.jpg
@@ -38,13 +41,13 @@ flutter_launcher_icons:
 
 # Native startup view matches the approved dark Owner splash.
 flutter_native_splash:
-  color: "#091827"
+  color: "#F3F6FC"
   image: assets/brand/smart-horeca-logo.jpg
   color_dark: "#091827"
   image_dark: assets/brand/smart-horeca-logo.jpg
   android_12:
-    color: "#091827"
+    color: "#F3F6FC"
     image: assets/brand/smart-horeca-logo.jpg
     icon_background_color: "#091827"
   android: true
-  ios: false
+  ios: true
