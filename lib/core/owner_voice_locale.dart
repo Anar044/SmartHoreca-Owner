@@ -4,7 +4,9 @@ class OwnerVoiceLocale {
   static String languageCode(String selected) {
     final s = selected.toLowerCase();
     if (s.contains('az') || s.contains('азер') || s.contains('azer') ||
-        s.contains('azərbaycan')) return 'az';
+        s.contains('azərbaycan')) {
+      return 'az';
+    }
     if (s.contains('en') || s.contains('англ') || s.contains('english')) {
       return 'en';
     }
@@ -29,7 +31,7 @@ class OwnerVoiceLocale {
         return id;
       }
     }
-    final prefix = languageCode(language) + '-';
+    final prefix = '${languageCode(language)}-';
     for (final id in localeList) {
       if (id.toLowerCase().replaceAll('_','-').startsWith(prefix)) return id;
     }
