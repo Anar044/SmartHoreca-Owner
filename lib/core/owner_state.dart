@@ -98,6 +98,33 @@ class OwnerState extends ChangeNotifier {
     'Ресторан Баку', 'Jelly Park', 'Jelly Metropark'
   };
   Map<String, String> restaurantIdsByName = {};
+  // Informational POS status comes only from the selected organization's
+  // authorized, saved CHAIN structure, never from today's sales.
+  final Map<String, String> restaurantPosStatusByName = {};
+  String restaurantListFilter = 'all'; // all, with_pos, without_pos, unknown
+
+  String posStatusOf(String name) =>
+      restaurantPosStatusByName[name] ?? 'unknown';
+
+  List<String> get visibleRestaurantNames => availableRestaurants.where((name) {
+    if (restaurantListFilter == 'all') return true;
+    return posStatusOf(name) == restaurantListFilter;
+  }).toList();
+
+  int get configuredPosRestaurantCount => availableRestaurants
+      .where((r) => posStatusOf(r) == 'with_pos').length;
+  int get withoutPosRestaurantCount => availableRestaurants
+      .where((r) => posStatusOf(r) == 'without_pos').length;
+  int get unknownPosRestaurantCount => availableRestaurants
+      .where((r) => posStatusOf(r) == 'unknown').length;
+
+  void setRestaurantListFilter(String value) {
+    if (!const {'all', 'with_pos', 'without_pos', 'unknown'}.contains(value)) {
+      return;
+    }
+    restaurantListFilter = value;
+    notifyListeners();
+  }
 
   Set<String> get selectedRestaurantIds => selectedRestaurants
       .map((name) => restaurantIdsByName[name] ?? '')
@@ -243,6 +270,8 @@ class OwnerState extends ChangeNotifier {
     final restaurants = (data['restaurants'] as List? ?? [])
         .whereType<Map<String, dynamic>>().toList();
     restaurantIdsByName = {};
+    restaurantPosStatusByName.clear();
+    restaurantListFilter = 'all';
     for (final restaurant in restaurants) {
       final id = restaurant['id'].toString();
       final name = (restaurant['name'] ?? id).toString();
@@ -251,6 +280,10 @@ class OwnerState extends ChangeNotifier {
         label = '$name · ${id.substring(0, id.length < 7 ? id.length : 7)}';
       }
       restaurantIdsByName[label] = id;
+      final rawStatus = (restaurant['posStatus'] ?? '').toString();
+      restaurantPosStatusByName[label] =
+          const {'with_pos','without_pos','unknown'}.contains(rawStatus)
+              ? rawStatus : 'unknown';
     }
     availableRestaurants = restaurantIdsByName.keys.toList();
     final prior = await _prefs.getStringList('sh_owner_depts_$id');
@@ -328,6 +361,28 @@ class OwnerState extends ChangeNotifier {
     }
     if (live && stage == OwnerStage.shell && tabIndex == 0 &&
         selectedRestaurantIds.isNotEmpty) {
+      unawaited(loadSummary());
+    }
+  }
+
+  // Opt-in one-tap selection: exclude departments not confirmed to have POS.
+  // Unknown departments remain in the list and can be picked manually.
+  // This is a UI preference, not authorization and not a server-wide switch.
+  void chooseOnlyRestaurantsWithPos() {
+    final configured = availableRestaurants
+        .where((name) => posStatusOf(name) == 'with_pos').toSet();
+    if (configured.isEmpty) return;
+    selectedRestaurants = configured;
+    if (live && workspaceId != null) {
+      unawaited(_prefs.setStringList('sh_owner_depts_$workspaceId',
+          selectedRestaurantIds.toList()));
+    }
+    notifyListeners();
+    if (live && workspaceId != null) {
+      unawaited(OwnerPushService.syncScope(workspaceId!, selectedRestaurantIds)
+          .catchError((Object _) {}));
+    }
+    if (live && stage == OwnerStage.shell && tabIndex == 0) {
       unawaited(loadSummary());
     }
   }

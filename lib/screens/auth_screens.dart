@@ -187,6 +187,46 @@ class OwnerRestaurantSelectScreen extends StatelessWidget {
               const SizedBox(height: 18),
               if (!state.live) const OwnerDemoNotice(),
               const SizedBox(height: 12),
+              if (state.live) ...[
+                Wrap(spacing: 7, runSpacing: 5, children: [
+                  for (final entry in <String, String>{
+                    'all': 'Все',
+                    'with_pos': 'С кассами',
+                    'without_pos': 'Без касс',
+                    'unknown': 'Не проверено',
+                  }.entries)
+                    ChoiceChip(
+                      label: Text(tr(entry.value)),
+                      selected: state.restaurantListFilter == entry.key,
+                      onSelected: (_) => state.setRestaurantListFilter(entry.key),
+                    ),
+                ]),
+                const SizedBox(height: 8),
+                Text('С кассами: ${state.configuredPosRestaurantCount} · '
+                    'Без касс в настройках: ${state.withoutPosRestaurantCount} · '
+                    'Не проверено: ${state.unknownPosRestaurantCount}',
+                  style: TextStyle(fontSize: 12,
+                    color: OwnerPalette.muted(context))),
+                const SizedBox(height: 8),
+                Text('Статус рассчитан по сохранённой структуре CHAIN, '
+                    'а не по сегодняшним продажам. Подразделения можно '
+                    'выбрать вручную.',
+                  style: TextStyle(fontSize: 11,
+                    color: OwnerPalette.muted(context))),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: state.configuredPosRestaurantCount > 0
+                      ? state.chooseOnlyRestaurantsWithPos : null,
+                  icon: const Icon(Icons.point_of_sale),
+                  label: Text('Выбрать только с кассами '
+                    '(${state.configuredPosRestaurantCount})'),
+                ),
+                const SizedBox(height: 8),
+                Text('Всего выбрано для отчётов: '
+                    '${state.selectedRestaurants.length}',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 10),
+              ],
               OwnerCard(child: CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(tr('Выбрать все')),
@@ -196,17 +236,25 @@ class OwnerRestaurantSelectScreen extends StatelessWidget {
                 onChanged: (v) => state.selectAllRestaurants(v ?? false),
               )),
               const SizedBox(height: 10),
-              for (final restaurant in state.availableRestaurants) ...[
+              for (final restaurant in state.visibleRestaurantNames) ...[
                 OwnerCard(child: CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   secondary: Icon(Icons.storefront,
                       color: OwnerPalette.accent(context)),
                   title: Text(restaurant),
+                  subtitle: state.live ? Text(switch (state.posStatusOf(restaurant)) {
+                    'with_pos' => 'POS подтверждён в настройках CHAIN',
+                    'without_pos' => 'POS не найден в сохранённой структуре',
+                    _ => 'Нет сведений о POS',
+                  }) : null,
                   value: state.selectedRestaurants.contains(restaurant),
                   onChanged: (v) => state.selectRestaurant(restaurant, v ?? false),
                 )),
                 const SizedBox(height: 10),
               ],
+              if (state.visibleRestaurantNames.isEmpty)
+                Text('Подразделения этой категории не найдены.',
+                  style: TextStyle(color: OwnerPalette.muted(context))),
             ],
           )),
           Padding(padding: const EdgeInsets.all(16),
