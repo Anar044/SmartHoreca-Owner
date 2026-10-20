@@ -1385,8 +1385,8 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
             child:Center(child:CircularProgressIndicator()))),
         if(error!=null)
           OwnerCard(child:Column(children:[
-            Text('Не удалось обновить состав заказа с кассы.',
-              style:const TextStyle(fontWeight:FontWeight.w700),
+            const Text('Не удалось обновить состав заказа с кассы.',
+              style:TextStyle(fontWeight:FontWeight.w700),
               textAlign:TextAlign.center),
             const SizedBox(height:8),
             Text(error!,textAlign:TextAlign.center),
