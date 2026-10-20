@@ -132,7 +132,7 @@ class _SmartHorecaOwnerAppState extends State<SmartHorecaOwnerApp> {
         child: MaterialApp(
           scaffoldMessengerKey:messenger,
           navigatorKey:navigator,
-          title: 'Smart Horeca Owner',
+          title: 'SH Owner',
           debugShowCheckedModeBanner: false,
           theme: OwnerPalette.light,
           darkTheme: OwnerPalette.dark,
