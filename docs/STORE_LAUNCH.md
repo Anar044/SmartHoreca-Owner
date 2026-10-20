@@ -16,11 +16,55 @@ with identical organization isolation; never silently change the target.
 - In-app title and brand: **Smart Horeca Owner**.
 - Suggested permanent iOS Bundle ID: `com.smarthoreca.owner`.
 - Suggested Android applicationId: `com.smarthoreca.owner`.
-- IDs are suggestions, not registered yet: the owner must confirm uniqueness
-  in App Store Connect and Google Play Console before activation.
+- iOS Bundle ID `com.smarthoreca.owner` is registered under SMART HORECA LLC
+  (Team ID `5Q94HG4LKS`) and its App Store Connect record is created.
+- Android applicationId remains a separate release decision: do not silently
+  change the existing Android pilot package.
 - Changing Android applicationId from the existing pilot package creates a
   distinct installation and resets the pilot's local preferences and FCM token.
   Avoid replacing it silently.
+
+
+## Apple signing bootstrap completed by owner (20 October 2026)
+
+- The owner registered SH Owner in App Store Connect and Apple Developer.
+- Push Notifications is enabled for the App ID; real iOS FCM delivery is **not** yet verified.
+- Owner-created Apple Distribution certificate expires 2027-10-20.
+- The matching App Store provisioning profile is named exactly
+  `AppStore com.smarthoreca.owner` and expires 2027-10-20.
+- GitHub **repository variables** were entered for
+  `SH_OWNER_IOS_BUNDLE_ID`, `APPSTORE_TEAM_ID`, `APPSTORE_ISSUER_ID`,
+  and `APPSTORE_API_KEY_ID`.
+- GitHub **repository secrets** were created for
+  `APPSTORE_API_PRIVATE_KEY`, `APPSTORE_CERTIFICATES_FILE_BASE64`,
+  and `APPSTORE_CERTIFICATES_PASSWORD`.
+- These entries were confirmed by screenshots of **names only**; their
+  secret values and certificate/provisioning compatibility are verified
+  for the first time when a manually approved signing workflow runs.
+- Never add a .p8, .key, .p12, .mobileprovision, or secret values to Git.
+
+## First TestFlight build: controlled release procedure
+
+1. Merge the TestFlight-preparation PR into the **default branch**, after
+   checking the Flutter and simulator CI and reviewing the full app changes.
+   GitHub's manual workflow_dispatch needs to be present on the default
+   branch to be visible in the Actions UI.
+2. Confirm GitHub `TestFlight` environment is configured for manual approval
+   or appropriate access restrictions, if the organization requires them.
+3. Decide whether the initial iPhone beta will test login and reports only,
+   or require iOS push. If push is required, first register the iOS app in
+   Firebase with the exact bundle ID, configure APNs, and provide the missing
+   `SH_FIREBASE_IOS_API_KEY` and `SH_FIREBASE_IOS_APP_ID` variables.
+4. Confirm the **preview beta backend**, data isolation and permissions.
+   The workflow deliberately defaults to the existing owner-mobile Cloudflare
+   Preview API; it must not silently target an unverified production API.
+5. Run **SH Owner Upload to TestFlight** manually from the default branch.
+   It imports the Apple Distribution .p12, verifies an App Store provisioning
+   profile with the exact expected name, compiles a signed IPA and uploads it.
+6. Review upload status in App Store Connect → TestFlight and add an internal
+   tester after Apple finishes processing. This does not publish the app.
+7. Test login, organization/restaurant selection, current shift metrics and
+   report permissions on an actual iPhone before any public release.
 
 ## TestFlight preparation
 
