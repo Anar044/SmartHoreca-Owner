@@ -27,6 +27,24 @@ if android.exists():
     )
     if count != 1:
         sys.exit("AndroidManifest is missing application label")
+    # Voice is opt-in: request Android microphone access only when tapped.
+    if 'android.permission.RECORD_AUDIO' not in updated:
+        updated = updated.replace(
+            '<manifest ',
+            '<manifest xmlns:tools="http://schemas.android.com/tools" ',
+            1,
+        ) if 'xmlns:tools=' not in updated else updated
+        updated = updated.replace(
+            '<application',
+            '    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n'
+            '    <queries>\n'
+            '      <intent>\n'
+            '        <action android:name="android.speech.RecognitionService" />\n'
+            '      </intent>\n'
+            '    </queries>\n'
+            '    <application',
+            1,
+        )
     android.write_text(updated, encoding="utf-8")
     print("Android launcher label:", NAME)
 
@@ -35,6 +53,13 @@ if ios.exists():
         data = plistlib.load(file)
     data["CFBundleDisplayName"] = NAME
     data["CFBundleName"] = NAME
+    # The app records no audio until the user explicitly taps the mic.
+    data["NSMicrophoneUsageDescription"] = (
+        "Микрофон нужен, чтобы задавать вопросы AI Smart Horeca голосом."
+    )
+    data["NSSpeechRecognitionUsageDescription"] = (
+        "Распознавание речи нужно для преобразования голосовых вопросов в текст."
+    )
     # FirebaseMessaging native iOS uses Apple Push Notification service.
     # Capability and provisioning still must be configured in Apple portal.
     modes = list(data.get("UIBackgroundModes", []))
