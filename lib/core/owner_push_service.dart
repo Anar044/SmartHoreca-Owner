@@ -11,6 +11,42 @@ Future<void> ownerPushBackgroundHandler(RemoteMessage message) async {
   // Never log token, message body, or event details here.
 }
 
+
+/// Verified routing metadata only; order details are always fetched through
+/// read-only workspace-scoped APIs after login.
+class OwnerPushOrderTarget {
+  final String departmentId;
+  final String pluginId;
+  final String orderNum;
+  final String kind;
+  const OwnerPushOrderTarget({
+    required this.departmentId,
+    required this.pluginId,
+    required this.orderNum,
+    required this.kind,
+  });
+  static OwnerPushOrderTarget? fromData(Map<String, dynamic> data) {
+    final departmentId = (data['departmentId'] ?? '').toString().trim();
+    final pluginId = (data['pluginId'] ?? '').toString().trim();
+    final orderNum = (data['orderNum'] ?? '').toString().trim();
+    final kind = (data['kind'] ?? '').toString().trim();
+    const validKinds = <String>{
+      'DISCOUNT_APPLIED', 'DISCOUNT_REMOVED', 'PRECHECK_CANCELLED',
+      'ITEM_REMOVED', 'RECEIPT_STORNO'
+    };
+    final id = RegExp(r'^[0-9a-fA-F-]{36}$');
+    if (!id.hasMatch(departmentId) || !id.hasMatch(pluginId) ||
+        orderNum.isEmpty || orderNum.length > 120 ||
+        !validKinds.contains(kind)) {
+      return null;
+    }
+    return OwnerPushOrderTarget(
+      departmentId: departmentId, pluginId: pluginId,
+      orderNum: orderNum, kind: kind,
+    );
+  }
+}
+
 class OwnerPushService {
   OwnerPushService._();
   static const _apiKey=String.fromEnvironment('SH_FIREBASE_ANDROID_API_KEY');
@@ -26,7 +62,19 @@ class OwnerPushService {
   static bool _enabled=false;
   static String? _workspace;
   static Set<String> _departments={};
-  static void Function(String,String)? onForegroundAlert;
+  static void Function(String,String,OwnerPushOrderTarget?)? onForegroundAlert;
+  static void Function(OwnerPushOrderTarget)? onOrderTap;
+  static OwnerPushOrderTarget? _pendingOrder;
+  static OwnerPushOrderTarget? get pendingOrder => _pendingOrder;
+  static void clearPendingOrder() => _pendingOrder = null;
+  static void openOrder(OwnerPushOrderTarget target) {
+    _pendingOrder = target;
+    onOrderTap?.call(target);
+  }
+  static void _openMessage(RemoteMessage message) {
+    final target = OwnerPushOrderTarget.fromData(message.data);
+    if (target != null) openOrder(target);
+  }
 
   static const kinds=<String>[
     'DISCOUNT_APPLIED','DISCOUNT_REMOVED','PRECHECK_CANCELLED',
@@ -45,8 +93,12 @@ class OwnerPushService {
         final n=message.notification;
         final title=n?.title ?? 'Smart Horeca Owner';
         final body=n?.body ?? 'Новое событие кассы';
-        onForegroundAlert?.call(title,body);
+        onForegroundAlert?.call(title,body,
+          OwnerPushOrderTarget.fromData(message.data));
       });
+      FirebaseMessaging.onMessageOpenedApp.listen(_openMessage);
+      final launchMessage = await FirebaseMessaging.instance.getInitialMessage();
+      if (launchMessage != null) _openMessage(launchMessage);
       FirebaseMessaging.instance.onTokenRefresh.listen((token){
         if(_enabled && _workspace!=null && _departments.isNotEmpty){
           unawaited(_registerToken(token,_workspace!,_departments));
@@ -264,6 +316,7 @@ class OwnerPushService {
   }
 
   static Future<void> onSignOut() async {
+    clearPendingOrder();
     // Keep this account's opt-in choice across logins, but revoke this
     // device's current FCM token immediately on sign-out.
     _enabled=false;

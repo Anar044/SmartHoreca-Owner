@@ -4,6 +4,8 @@ import 'package:smart_horeca_owner/main.dart';
 void main() {
   testWidgets('Smart Horeca Owner renders login design preview', (tester) async {
     await tester.pumpWidget(const SmartHorecaOwnerApp());
+    // Allow the new branded splash to finish restoring local preferences.
+    await tester.pumpAndSettle();
     expect(find.text('SMART HORECA'), findsOneWidget);
     expect(find.text('Посмотреть утверждённый дизайн'), findsOneWidget);
   });

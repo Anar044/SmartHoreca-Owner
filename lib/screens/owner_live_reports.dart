@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../ui/owner_text.dart';
 
 import '../core/owner_backend.dart';
+import '../core/owner_audit_history.dart';
 import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_l10n.dart';
@@ -1057,6 +1058,9 @@ class OwnerLivePosOrderScreen extends StatefulWidget {
 class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
   Map<String,dynamic>? details;
   String? error;
+  // Show a clearly labelled previously verified POS list snapshot only when
+  // an upstream 5xx occurs and the user still has that restaurant selected.
+  bool showVerifiedSummaryOnError = false;
   bool loading = true;
   bool historyLoading = true;
   String? historyError;
@@ -1113,11 +1117,18 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
       });
       return;
     }
-    setState((){
-      historyLoading=true;
-      historyError=null;
-      historyNote=null;
-    });
+    final key=ownerPosAuditCacheKey(workspace,widget.departmentId,
+      widget.pluginId,_raw(widget.order['number']));
+    final cached=(owner.cachedResponse(key)?['events'] as List? ?? [])
+      .whereType<Map<String,dynamic>>().toList();
+    if(mounted){
+      setState((){
+        auditEvents=mergeConfirmedAuditEvents(auditEvents,cached);
+        historyLoading=true;
+        historyError=null;
+        historyNote=null;
+      });
+    }
     try {
       final result=await OwnerBackend.getJson(
         '/api/mobile/v1/cash-order-history',
@@ -1130,22 +1141,32 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
         },
         retryTransient:false,
       );
-      if(!mounted)return;
+      if(!mounted || OwnerScope.of(context).workspaceId!=workspace)return;
+      final incoming=(result['events'] as List? ?? [])
+        .whereType<Map<String,dynamic>>().toList();
+      final merged=mergeConfirmedAuditEvents(auditEvents,incoming);
+      if(merged.isNotEmpty) owner.rememberResponse(key,{'events':merged});
       setState((){
-        auditEvents=(result['events'] as List? ?? [])
-            .whereType<Map<String,dynamic>>().toList()
-          ..sort((a,b)=>(a['occurredAt']??'').toString()
-            .compareTo((b['occurredAt']??'').toString()));
-        historyNote=(result['message']??'').toString();
+        auditEvents=merged;
+        historyNote=incoming.isEmpty && merged.isNotEmpty
+          ?'Сервер временно вернул пустую историю. Показаны ранее '
+            'подтверждённые события этой кассы.'
+          :(result['message']??'').toString();
         historyLoading=false;
       });
     }catch(e){
-      if(!mounted)return;
+      if(!mounted || OwnerScope.of(context).workspaceId!=workspace)return;
       setState((){
         historyLoading=false;
-        historyError=e is OwnerApiException
-          ?'${e.message} (${e.code})'
-          :'Не удалось получить историю событий POS.';
+        if(auditEvents.isNotEmpty){
+          historyError=null;
+          historyNote='Не удалось обновить журнал. Показаны ранее '
+            'подтверждённые события; повторите загрузку позже.';
+        }else{
+          historyError=e is OwnerApiException
+            ?'${e.message} (${e.code})'
+            :'Не удалось получить историю событий POS.';
+        }
       });
     }
   }
@@ -1158,14 +1179,14 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
         const OwnerHeading('История заказа',
           caption:'Подтверждённые события кассового плагина'),
         const SizedBox(height:9),
-        if(historyLoading)
+        if(historyLoading && auditEvents.isEmpty)
           const OwnerCard(child:Row(children:[
             SizedBox(height:17,width:17,
               child:CircularProgressIndicator(strokeWidth:2)),
             SizedBox(width:10),
             Expanded(child:Text('Получаем историю действий с кассы…')),
           ]))
-        else if(historyError!=null)
+        else if(historyError!=null && auditEvents.isEmpty)
           OwnerCard(child:Column(
             crossAxisAlignment:CrossAxisAlignment.start,children:[
               Text(historyError!),
@@ -1198,6 +1219,22 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
                         color:OwnerPalette.muted(context))),
                     if((entry['itemName']??'').toString().isNotEmpty)
                       Text('Блюдо: ${entry['itemName']}'),
+                    if((entry['adjustmentName']??'').toString().isNotEmpty)
+                      Text('${entry['kind']=='SURCHARGE_APPLIED' ||
+                        entry['kind']=='SURCHARGE_REMOVED' ? 'Надбавка' : 'Скидка'}: '
+                        '${entry['adjustmentName']}'),
+                    if(entry['percent'] is num)
+                      Text('Процент: ${entry['percent']}%'),
+                    if((entry['writeOffLabel']??'').toString().isNotEmpty)
+                      Text('Списание: ${entry['writeOffLabel']}'),
+                    if((entry['writeOffReason']??'').toString().isNotEmpty)
+                      Text('Причина списания: ${entry['writeOffReason']}'),
+                    if((entry['writeOffComment']??'').toString().isNotEmpty)
+                      Text('Комментарий: ${entry['writeOffComment']}'),
+                    if(entry['billMinutes'] is num)
+                      Text('Время ожидания: ${entry['billMinutes']} мин'),
+                    if((entry['linkedOrderNum']??'').toString().isNotEmpty)
+                      Text('Связанный чек: №${entry['linkedOrderNum']}'),
                     if(entry['quantity'] is num)
                       Text('Количество: ${entry['quantity']}'),
                     if(entry['amount'] is num)
@@ -1212,6 +1249,9 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
             )),
             const SizedBox(height:7),
           ],
+          if(historyLoading)
+            const Padding(padding:EdgeInsets.only(bottom:8),
+              child:Text('Обновляем историю заказа…')),
           if(historyNote?.isNotEmpty==true)
             Text(historyNote!,style:TextStyle(fontSize:11,
               color:OwnerPalette.muted(context))),
@@ -1231,7 +1271,12 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
       });
       return;
     }
-    setState(() {loading=true;error=null;details=null;});
+    setState(() {
+      loading=true;
+      error=null;
+      showVerifiedSummaryOnError=false;
+      details=null;
+    });
     final order=widget.order;
     final query=<String,String>{
       'pluginId':widget.pluginId,
@@ -1259,8 +1304,16 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
       setState(() {loading=false;details=result;});
     } catch(e) {
       if(!mounted)return;
+      // A failed *details* request must not erase the separately loaded
+      // audit journal, nor hide verified list metadata behind a blank page.
+      // For 401/403 never display a cached order after authorization loss.
+      final mayShowVerifiedSummary=e is OwnerApiException &&
+        e.status >= 500 &&
+        OwnerScope.of(context).workspaceId==workspace &&
+        OwnerScope.of(context).selectedRestaurantIds.contains(widget.departmentId);
       setState(() {
         loading=false;
+        showVerifiedSummaryOnError=mayShowVerifiedSummary;
         error=e is OwnerApiException
           ?'${e.message} (${e.code})'
           :'Не удалось загрузить информацию о заказе.';
@@ -1332,12 +1385,36 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
             child:Center(child:CircularProgressIndicator()))),
         if(error!=null)
           OwnerCard(child:Column(children:[
+            const Text('Не удалось обновить состав заказа с кассы.',
+              style:TextStyle(fontWeight:FontWeight.w700),
+              textAlign:TextAlign.center),
+            const SizedBox(height:8),
             Text(error!,textAlign:TextAlign.center),
             const SizedBox(height:10),
             FilledButton.tonalIcon(onPressed:_load,
               icon:const Icon(Icons.refresh),
               label:const OwnerText('Повторить')),
           ])),
+        if(showVerifiedSummaryOnError && info.length > 2)
+          OwnerCard(child:Column(
+            crossAxisAlignment:CrossAxisAlignment.start,
+            children:[
+              const Text('Последние подтверждённые сведения из списка кассы',
+                style:TextStyle(fontWeight:FontWeight.w700)),
+              const SizedBox(height:5),
+              const Text('Это не обновлённый состав заказа. '
+                'Список блюд и оплат требует ответа кассы.',
+                style:TextStyle(fontSize:12)),
+              const SizedBox(height:8),
+              for(final entry in info)
+                ListTile(
+                  dense:true,
+                  contentPadding:EdgeInsets.zero,
+                  title:Text(entry.key),
+                  trailing:Text(entry.value),
+                ),
+            ],
+          )),
         if(!loading && error==null && details!=null) ...[
           OwnerCard(child:Column(children:[
             for(var i=0;i<info.length;i++) ...[

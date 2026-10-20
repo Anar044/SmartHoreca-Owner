@@ -5,8 +5,13 @@ import 'package:smart_horeca_owner/main.dart';
 void main() {
   testWidgets('approved flow opens preview and keeps four bottom tabs', (tester) async {
     await tester.pumpWidget(const SmartHorecaOwnerApp());
+    // Allow the new branded splash to finish restoring local preferences.
+    await tester.pumpAndSettle();
     expect(find.text('SMART HORECA'), findsOneWidget);
 
+    // The larger approved logo extends the sign-in page on short devices.
+    await tester.ensureVisible(find.text('Посмотреть утверждённый дизайн'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Посмотреть утверждённый дизайн'));
     await tester.pumpAndSettle();
     expect(find.text('Выберите рестораны'), findsOneWidget);
