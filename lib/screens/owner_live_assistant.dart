@@ -106,6 +106,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
 
   Future<void> _toggleListening() async {
     if (sending) return;
+    final selectedLanguage = OwnerScope.of(context).language;
     if (listening) {
       await _recognizer.stop();
       if (mounted) setState(() => listening = false);
@@ -131,22 +132,23 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         },
       );
       if (!ready) {
-        if (mounted) setState(() =>
-          error = 'Распознавание речи недоступно. Проверь разрешения микрофона и речи в настройках iPhone.');
+        if (mounted) {
+          setState(() =>
+            error = 'Распознавание речи недоступно. Проверь разрешения микрофона и речи в настройках iPhone.');
+        }
         return;
       }
-      final state = OwnerScope.of(context);
       final locales = await _recognizer.locales();
       final locale = OwnerVoiceLocale.availableSpeechLocale(
-        state.language, locales.map((l) => l.localeId));
+        selectedLanguage, locales.map((l) => l.localeId));
       if (!mounted) return;
       setState(() {
         error = null;
         listening = true;
       });
       await _recognizer.listen(
-        localeId: locale,
         listenOptions: stt.SpeechListenOptions(
+          localeId: locale,
           partialResults: true,
           cancelOnError: true,
         ),
@@ -155,18 +157,23 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           controller.text = result.recognizedWords;
           controller.selection = TextSelection.collapsed(
             offset: controller.text.length);
-          if (result.finalResult) setState(() => listening = false);
+          if (result.finalResult) {
+            setState(() => listening = false);
+          }
         },
       );
     } catch (_) {
-      if (mounted) setState(() {
-        listening = false;
-        error = 'Не удалось включить микрофон. Проверь разрешения в настройках устройства.';
-      });
+      if (mounted) {
+        setState(() {
+          listening = false;
+          error = 'Не удалось включить микрофон. Проверь разрешения в настройках устройства.';
+        });
+      }
     }
   }
 
   Future<void> _readAnswer(String text) async {
+    final locale = OwnerVoiceLocale.ttsLocale(OwnerScope.of(context).language);
     if (speaking) {
       await _tts.stop();
       if (mounted) setState(() => speaking = false);
@@ -174,15 +181,15 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     }
     await _recognizer.stop();
     if (!mounted) return;
-    final state = OwnerScope.of(context);
-    final locale = OwnerVoiceLocale.ttsLocale(state.language);
     // Spoken text is only delivered to the device OS TTS; do not send
     // confidential restaurant answers to a new third-party endpoint.
     try {
       final installed = await _tts.isLanguageAvailable(locale);
       if (installed != true) {
-        if (mounted) setState(() =>
-          error = 'На устройстве не найден голос для языка $locale. Установи голос в настройках iPhone.');
+        if (mounted) {
+          setState(() =>
+            error = 'На устройстве не найден голос для языка $locale. Установи голос в настройках iPhone.');
+        }
         return;
       }
       await _tts.setLanguage(locale);
@@ -197,10 +204,12 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       await _tts.speak(spoken.length > 3000
           ? spoken.substring(0, 3000) : spoken);
     } catch (_) {
-      if (mounted) setState(() {
-        speaking = false;
-        error = 'Не удалось озвучить ответ. Проверь настройки речи устройства.';
-      });
+      if (mounted) {
+        setState(() {
+          speaking = false;
+          error = 'Не удалось озвучить ответ. Проверь настройки речи устройства.';
+        });
+      }
     }
   }
 
@@ -324,9 +333,10 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
 
   Future<void> _send([String? preset]) async {
     if (sending) return;
-    await _recognizer.stop();
-    if (mounted) setState(() => listening = false);
     final owner = OwnerScope.of(context);
+    await _recognizer.stop();
+    if (!mounted) return;
+    setState(() => listening = false);
     final message = (preset ?? controller.text).trim();
     if (message.isEmpty || owner.workspaceId == null) return;
     if (message.length > 4000) {
