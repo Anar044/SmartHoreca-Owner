@@ -40,8 +40,8 @@ jobs:
             echo "::error::Apple Distribution certificate and App Store Connect API secrets missing."
             exit 1
           fi
-          if [[ "$SH_OWNER_IOS_BUNDLE_ID" == *example* ]]; then
-            echo "::error::Temporary example bundle IDs are forbidden for TestFlight."
+          if [[ "$SH_OWNER_IOS_BUNDLE_ID" != "com.smarthoreca.owner" ]]; then
+            echo "::error::Bundle ID must match the registered SH Owner App Store Connect record."
             exit 1
           fi
           xcodebuild -version
@@ -58,22 +58,37 @@ jobs:
           dart run flutter_launcher_icons
           dart run flutter_native_splash:create
           ruby scripts/configure_ios_release.rb
+          plutil -lint ios/Runner/Runner.entitlements /tmp/sh_owner_export_options.plist
       - name: Verify Flutter analysis and tests
         run: |
           flutter analyze
           flutter test
       - name: Import Apple signing certificate
+        id: signing_cert
         uses: apple-actions/import-codesign-certs@v7
         with:
           p12-file-base64: ${{ secrets.APPSTORE_CERTIFICATES_FILE_BASE64 }}
           p12-password: ${{ secrets.APPSTORE_CERTIFICATES_PASSWORD }}
+      - name: Confirm distribution signing identity
+        env:
+          APPLE_IDENTITIES: ${{ steps.signing_cert.outputs.identities }}
+        run: |
+          node -e 'const list=JSON.parse(process.env.APPLE_IDENTITIES||"[]"); if(!list.some(i=>(i.name||"").startsWith("Apple Distribution:"))) { console.error("::error::No valid Apple Distribution signing identity was imported"); process.exit(1) }'
       - name: Download matching App Store provisioning profile
+        id: appstore_profile
         uses: apple-actions/download-provisioning-profiles@v6
         with:
           bundle-id: ${{ vars.SH_OWNER_IOS_BUNDLE_ID }}
+          profile-type: IOS_APP_STORE
           issuer-id: ${{ vars.APPSTORE_ISSUER_ID }}
           api-key-id: ${{ vars.APPSTORE_API_KEY_ID }}
           api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+      - name: Confirm exact App Store provisioning profile
+        env:
+          PROFILE_LIST: ${{ steps.appstore_profile.outputs.profiles }}
+          EXPECTED_PROFILE: AppStore ${{ vars.SH_OWNER_IOS_BUNDLE_ID }}
+        run: |
+          node -e 'const list=JSON.parse(process.env.PROFILE_LIST||"[]"); if(!list.some(p=>p.name===process.env.EXPECTED_PROFILE && p.type==="IOS_APP_STORE")) { console.error("::error::Matching iOS App Store profile not downloaded"); process.exit(1) }'
       - name: Validate live beta API and generate public client defines
         run: |
           set -euo pipefail
@@ -87,6 +102,7 @@ jobs:
           curl --fail --silent --show-error --location --max-time 20 \
             https://raw.githubusercontent.com/Anar044/anarsystem/main/auth-config.js \
             -o /tmp/sh-owner-public-auth.js
+          echo "Compiling TestFlight beta against authenticated Owner API origin: $ORIGIN"
           export SH_OWNER_API_ORIGIN="$ORIGIN"
           node - <<'NODE'
           const fs = require('fs');
