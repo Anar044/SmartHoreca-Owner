@@ -1,0 +1,144 @@
+name: SH Owner Upload to TestFlight
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  testflight:
+    runs-on: macos-latest
+    timeout-minutes: 80
+    environment: TestFlight
+    env:
+      SH_OWNER_IOS_BUNDLE_ID: ${{ vars.SH_OWNER_IOS_BUNDLE_ID }}
+      APPSTORE_TEAM_ID: ${{ vars.APPSTORE_TEAM_ID }}
+      APPSTORE_ISSUER_ID: ${{ vars.APPSTORE_ISSUER_ID }}
+      APPSTORE_API_KEY_ID: ${{ vars.APPSTORE_API_KEY_ID }}
+      SH_OWNER_API_ORIGIN: ${{ vars.SH_OWNER_API_ORIGIN }}
+      SH_FIREBASE_IOS_API_KEY: ${{ vars.SH_FIREBASE_IOS_API_KEY }}
+      SH_FIREBASE_IOS_APP_ID: ${{ vars.SH_FIREBASE_IOS_APP_ID }}
+      SH_FIREBASE_PROJECT_ID: ${{ vars.SH_FIREBASE_PROJECT_ID }}
+      SH_FIREBASE_SENDER_ID: ${{ vars.SH_FIREBASE_SENDER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Apple release configuration (no secrets logged)
+        env:
+          P12: ${{ secrets.APPSTORE_CERTIFICATES_FILE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.APPSTORE_CERTIFICATES_PASSWORD }}
+          ASC_P8: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          for name in SH_OWNER_IOS_BUNDLE_ID APPSTORE_TEAM_ID APPSTORE_ISSUER_ID APPSTORE_API_KEY_ID; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Set GitHub Actions variable $name first."
+              exit 1
+            fi
+          done
+          if [[ -z "$P12" || -z "$P12_PASSWORD" || -z "$ASC_P8" ]]; then
+            echo "::error::Apple Distribution certificate and App Store Connect API secrets missing."
+            exit 1
+          fi
+          if [[ "$SH_OWNER_IOS_BUNDLE_ID" != "com.smarthoreca.owner" ]]; then
+            echo "::error::Bundle ID must match the registered SH Owner App Store Connect record."
+            exit 1
+          fi
+          xcodebuild -version
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Prepare Flutter Runner, package name and UI assets
+        run: |
+          flutter create . --platforms=ios,android
+          python3 scripts/configure_native_brand.py
+          flutter pub get
+          dart run flutter_launcher_icons
+          dart run flutter_native_splash:create
+          ruby scripts/configure_ios_release.rb
+          plutil -lint ios/Runner/Runner.entitlements /tmp/sh_owner_export_options.plist
+      - name: Verify Flutter analysis and tests
+        run: |
+          flutter analyze
+          flutter test
+      - name: Import Apple signing certificate
+        id: signing_cert
+        uses: apple-actions/import-codesign-certs@v7
+        with:
+          p12-file-base64: ${{ secrets.APPSTORE_CERTIFICATES_FILE_BASE64 }}
+          p12-password: ${{ secrets.APPSTORE_CERTIFICATES_PASSWORD }}
+      - name: Confirm distribution signing identity
+        env:
+          APPLE_IDENTITIES: ${{ steps.signing_cert.outputs.identities }}
+        run: |
+          node -e 'const list=JSON.parse(process.env.APPLE_IDENTITIES||"[]"); if(!list.some(i=>(i.name||"").startsWith("Apple Distribution:"))) { console.error("::error::No valid Apple Distribution signing identity was imported"); process.exit(1) }'
+      - name: Download matching App Store provisioning profile
+        id: appstore_profile
+        uses: apple-actions/download-provisioning-profiles@v6
+        with:
+          bundle-id: ${{ vars.SH_OWNER_IOS_BUNDLE_ID }}
+          profile-type: IOS_APP_STORE
+          issuer-id: ${{ vars.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ vars.APPSTORE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+      - name: Confirm exact App Store provisioning profile
+        env:
+          PROFILE_LIST: ${{ steps.appstore_profile.outputs.profiles }}
+          EXPECTED_PROFILE: AppStore ${{ vars.SH_OWNER_IOS_BUNDLE_ID }}
+        run: |
+          node -e 'const list=JSON.parse(process.env.PROFILE_LIST||"[]"); if(!list.some(p=>p.name===process.env.EXPECTED_PROFILE && p.type==="IOS_APP_STORE")) { console.error("::error::Matching iOS App Store profile not downloaded"); process.exit(1) }'
+      - name: Validate live beta API and generate public client defines
+        run: |
+          set -euo pipefail
+          # Internal TestFlight initially targets the same authenticated Owner
+          # beta API as the working Android pilot; never use fake/demo data.
+          ORIGIN="${SH_OWNER_API_ORIGIN:-https://feature-owner-mobile-readonl.smarthoreca.pages.dev}"
+          [[ "$ORIGIN" =~ ^https://[A-Za-z0-9.-]+/?$ ]] || exit 1
+          curl --fail --silent --show-error --max-time 20 "$ORIGIN/api/mobile/v1/health" \
+            -o /tmp/sh-owner-ios-health.json
+          node -e "const p=require('/tmp/sh-owner-ios-health.json'); if(!p.success||p.service!=='Smart Horeca Owner Mobile API') process.exit(1)"
+          curl --fail --silent --show-error --location --max-time 20 \
+            https://raw.githubusercontent.com/Anar044/anarsystem/main/auth-config.js \
+            -o /tmp/sh-owner-public-auth.js
+          echo "Compiling TestFlight beta against authenticated Owner API origin: $ORIGIN"
+          export SH_OWNER_API_ORIGIN="$ORIGIN"
+          node - <<'NODE'
+          const fs = require('fs');
+          const source = fs.readFileSync('/tmp/sh-owner-public-auth.js','utf8');
+          const url = source.match(/url:\s*["'](https:\/\/[^"']+)["']/)?.[1];
+          const key = source.match(/publishableKey:\s*["'](sb_publishable_[^"']+)["']/)?.[1];
+          if (!url || !key) throw new Error('Public Supabase config unavailable');
+          const defs = {
+            SH_ENABLE_DEMO: 'false',
+            SH_API_BASE_URL: process.env.SH_OWNER_API_ORIGIN,
+            SH_SUPABASE_URL: url,
+            SH_SUPABASE_PUBLISHABLE_KEY: key,
+            SH_FIREBASE_IOS_API_KEY: process.env.SH_FIREBASE_IOS_API_KEY||'',
+            SH_FIREBASE_IOS_APP_ID: process.env.SH_FIREBASE_IOS_APP_ID||'',
+            SH_FIREBASE_IOS_BUNDLE_ID: process.env.SH_OWNER_IOS_BUNDLE_ID,
+            SH_FIREBASE_PROJECT_ID: process.env.SH_FIREBASE_PROJECT_ID||'',
+            SH_FIREBASE_SENDER_ID: process.env.SH_FIREBASE_SENDER_ID||'',
+          };
+          fs.writeFileSync('/tmp/sh-owner-ios-defines.json',JSON.stringify(defs));
+          NODE
+      - name: Build signed IPA for App Store Connect
+        run: |
+          flutter build ipa --release \
+            --build-number=${{ github.run_number }} \
+            --export-options-plist=/tmp/sh_owner_export_options.plist \
+            --dart-define-from-file=/tmp/sh-owner-ios-defines.json
+          IPA="$(find build/ios/ipa -maxdepth 1 -name '*.ipa' -type f | head -1)"
+          [[ -n "$IPA" ]] || { echo "::error::Signed IPA missing"; exit 1; }
+          echo "IPA_FILE=$IPA" >> "$GITHUB_ENV"
+      - name: Upload to TestFlight
+        uses: apple-actions/upload-testflight-build@v5
+        with:
+          app-path: ${{ env.IPA_FILE }}
+          issuer-id: ${{ vars.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ vars.APPSTORE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+
+# Manual workflow only. It will not upload anything until the user has
+# explicitly set Apple signing credentials and run this workflow.

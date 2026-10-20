@@ -1,0 +1,76 @@
+name: SH Owner iOS Simulator Check
+
+on:
+  push:
+    branches:
+      - feature/sh-owner-brand-and-testflight-20261020
+  pull_request:
+    paths:
+      - 'lib/**'
+      - 'assets/**'
+      - 'pubspec.yaml'
+      - 'scripts/configure_native_brand.py'
+      - '.github/workflows/ios-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sh-owner-ios-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios-simulator:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode version
+        run: xcodebuild -version
+      - name: Setup Flutter stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate both platforms with branded display names
+        run: |
+          flutter create . --platforms=ios,android
+          python3 scripts/configure_native_brand.py
+      - name: Flutter dependencies
+        run: flutter pub get
+      - name: Generate both platform launcher icons and splash
+        run: |
+          dart run flutter_launcher_icons
+          dart run flutter_native_splash:create
+      - name: Flutter analyze and widget tests
+        run: |
+          flutter analyze
+          flutter test
+      - name: Compile iOS simulator build without Apple signing
+        run: flutter build ios --simulator --debug --dart-define=SH_ENABLE_DEMO=true
+      - name: Validate TestFlight signing project without Apple credentials
+        env:
+          SH_OWNER_IOS_BUNDLE_ID: com.smarthoreca.owner
+          APPSTORE_TEAM_ID: 5Q94HG4LKS
+        run: |
+          ruby -c scripts/configure_ios_release.rb
+          ruby scripts/configure_ios_release.rb
+          plutil -lint ios/Runner/Runner.entitlements /tmp/sh_owner_export_options.plist
+          ruby -rxcodeproj -e '
+            p = Xcodeproj::Project.open("ios/Runner.xcodeproj")
+            r = p.targets.find { |t| t.name == "Runner" }
+            abort "Runner target missing" unless r
+            %w[Release Profile].each do |name|
+              c = r.build_configurations.find { |x| x.name == name }
+              abort "Runner config missing: #{name}" unless c
+              s = c.build_settings
+              abort "Unexpected bundle ID" unless s["PRODUCT_BUNDLE_IDENTIFIER"] == ENV.fetch("SH_OWNER_IOS_BUNDLE_ID")
+              abort "Unexpected provisioning profile" unless s["PROVISIONING_PROFILE_SPECIFIER"] == "AppStore #{ENV.fetch("SH_OWNER_IOS_BUNDLE_ID")}"
+              abort "Signing not manual" unless s["CODE_SIGN_STYLE"] == "Manual"
+              abort "APNs entitlement not wired" unless s["CODE_SIGN_ENTITLEMENTS"] == "Runner/Runner.entitlements"
+            end
+          '
+
+# This proves compilation only. A TestFlight IPA needs a finalized bundle ID,
+# Apple distribution signing, provisioning, and upload to App Store Connect.
