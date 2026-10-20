@@ -39,6 +39,21 @@ class OwnerHomeScreen extends StatelessWidget {
       const OwnerRestaurantPicker(),
       const SizedBox(height: 13),
       const OwnerPeriodPicker(),
+      if (state.live && state.period == 'Вчера') ...[
+        const SizedBox(height: 7),
+        Text('Вчера — календарные продажи. Смена, открытая вчера и '
+          'продолжившаяся после полуночи, учитывается в «Сегодня» '
+          'по кассовым сменам.',
+          style: TextStyle(fontSize: 11,
+            color: OwnerPalette.muted(context))),
+      ],
+      if (state.live && data?['noSalesForPeriod'] == true) ...[
+        const SizedBox(height: 7),
+        Text('SH OLAP подтвердил отсутствие продаж в выбранном '
+          'календарном периоде.',
+          style: TextStyle(fontSize: 12,
+            color: OwnerPalette.muted(context))),
+      ],
       const SizedBox(height: 15),
       if (state.live && data?['mode'] == 'operational' &&
           data?['operatingDay'] is Map) ...[
