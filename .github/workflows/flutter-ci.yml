@@ -21,10 +21,10 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Generate Android and iOS runners with Owner app label
+      - name: Generate Android and iOS runners with SH Owner app label
         run: |
           flutter create . --platforms=android,ios
-          sed -i 's/android:label="smart_horeca_owner"/android:label="Smart Horeca Owner"/' android/app/src/main/AndroidManifest.xml
+          python3 scripts/configure_native_brand.py
       - name: Fetch dependencies
         run: flutter pub get
       - name: Normalize brand image for Android icon generators
@@ -50,7 +50,7 @@ jobs:
       # additionally verifies the live Preview API and packages Real-Data-Pilot.
       # This avoids silently confusing PR success with a deployable pilot.
       - name: Verify real-data pilot API availability
-        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/feature/approved-ui-foundation' || github.ref == 'refs/heads/feature/push-open-order-branded-launch-20261019') }}
+        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/feature/approved-ui-foundation' || (github.ref == 'refs/heads/feature/push-open-order-branded-launch-20261019' || github.ref == 'refs/heads/feature/sh-owner-brand-and-testflight-20261020')) }}
         env:
           SH_PILOT_ORIGIN: https://feature-owner-mobile-readonl.smarthoreca.pages.dev
         run: |
@@ -71,7 +71,7 @@ jobs:
       # Pilot APK uses public auth configuration, retrieved securely at build time.
       # It never embeds SH Server passwords or Supabase service-role credentials.
       - name: Build Android owner pilot APK
-        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/feature/approved-ui-foundation' || github.ref == 'refs/heads/feature/push-open-order-branded-launch-20261019') }}
+        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/feature/approved-ui-foundation' || (github.ref == 'refs/heads/feature/push-open-order-branded-launch-20261019' || github.ref == 'refs/heads/feature/sh-owner-brand-and-testflight-20261020')) }}
         env:
           SH_PILOT_ORIGIN: https://feature-owner-mobile-readonl.smarthoreca.pages.dev
           SH_FIREBASE_ANDROID_API_KEY: ${{ vars.SH_FIREBASE_ANDROID_API_KEY }}
@@ -117,7 +117,7 @@ jobs:
           NODE
           flutter build apk --debug --dart-define-from-file=/tmp/sh-owner-pilot-defines.json
       - name: Upload Android owner pilot APK
-        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/feature/approved-ui-foundation' || github.ref == 'refs/heads/feature/push-open-order-branded-launch-20261019') }}
+        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/feature/approved-ui-foundation' || (github.ref == 'refs/heads/feature/push-open-order-branded-launch-20261019' || github.ref == 'refs/heads/feature/sh-owner-brand-and-testflight-20261020')) }}
         uses: actions/upload-artifact@v4
         with:
           name: Smart-Horeca-Owner-Android-Real-Data-Pilot
