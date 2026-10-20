@@ -26,7 +26,8 @@ class OwnerSplashScreen extends StatelessWidget {
         children: [
           Positioned.fill(
             child: Image.asset(
-              'assets/brand/splash-dining-dark.jpg',
+              dark ? 'assets/brand/splash-dining-dark.jpg'
+                  : 'assets/brand/splash-dining-light.jpg',
               fit: BoxFit.cover,
               alignment: Alignment.bottomCenter,
             ),
