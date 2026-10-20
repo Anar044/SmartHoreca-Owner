@@ -45,5 +45,24 @@ if ios.exists():
         plistlib.dump(data, file, fmt=plistlib.FMT_XML, sort_keys=False)
     print("iOS home screen display name:", NAME)
 
+    # FlutterFire iOS SDKs require modern iOS deployment targets.
+    podfile = ROOT / "ios/Podfile"
+    if podfile.exists():
+        pod = podfile.read_text(encoding="utf-8")
+        platform = "platform :ios, '15.0'"
+        updated, found = re.subn(
+            r"(?m)^\s*#?\s*platform\s+:ios,\s*['\"][0-9.]+['\"]",
+            platform, pod, count=1,
+        )
+        if not found:
+            updated = platform + "\n" + pod
+        podfile.write_text(updated, encoding="utf-8")
+    pbx = ROOT / "ios/Runner.xcodeproj/project.pbxproj"
+    if pbx.exists():
+        project = pbx.read_text(encoding="utf-8")
+        project = re.sub(r"IPHONEOS_DEPLOYMENT_TARGET\s*=\s*[0-9.]+;",
+                         "IPHONEOS_DEPLOYMENT_TARGET = 15.0;", project)
+        pbx.write_text(project, encoding="utf-8")
+
 if not android.exists() and not ios.exists():
     sys.exit("Run flutter create . --platforms=android,ios first")
