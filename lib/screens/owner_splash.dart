@@ -24,16 +24,32 @@ class OwnerSplashScreen extends StatelessWidget {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: dark
-                    ? const [Color(0xFF081321), Color(0xFF132C40),
-                        Color(0xFF07111E)]
-                    : const [Color(0xFFF9FBFF), Color(0xFFF0F7FF),
-                        Color(0xFFE9F9F6)],
+          Positioned.fill(
+            child: Image.asset(
+              'assets/brand/splash-dining-dark.jpg',
+              fit: BoxFit.cover,
+              alignment: Alignment.bottomCenter,
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0.0, 0.27, 0.48, 0.69, 1.0],
+                  colors: dark
+                      ? const [
+                          Color(0xF2081321), Color(0xEE081321),
+                          Color(0xD9081321), Color(0x33081321),
+                          Color(0x11081321),
+                        ]
+                      : const [
+                          Color(0xFFF7FAFF), Color(0xFFF7FAFF),
+                          Color(0xEFF7FAFF), Color(0x99F7FAFF),
+                          Color(0x00F7FAFF),
+                        ],
+                ),
               ),
             ),
           ),
@@ -148,7 +164,7 @@ class OwnerSplashScreen extends StatelessWidget {
                     Text(
                       'SH Owner',
                       style: TextStyle(
-                        color: subtitle,
+                        color: Colors.white,
                         fontSize: 11,
                         letterSpacing: 1.2,
                       ),
