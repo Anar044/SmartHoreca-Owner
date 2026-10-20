@@ -162,7 +162,7 @@ class OwnerSplashScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    Text(
+                    const Text(
                       'SH Owner',
                       style: TextStyle(
                         color: Colors.white,
