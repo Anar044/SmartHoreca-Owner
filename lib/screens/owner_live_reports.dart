@@ -1058,6 +1058,9 @@ class OwnerLivePosOrderScreen extends StatefulWidget {
 class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
   Map<String,dynamic>? details;
   String? error;
+  // Show a clearly labelled previously verified POS list snapshot only when
+  // an upstream 5xx occurs and the user still has that restaurant selected.
+  bool showVerifiedSummaryOnError = false;
   bool loading = true;
   bool historyLoading = true;
   String? historyError;
@@ -1268,7 +1271,12 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
       });
       return;
     }
-    setState(() {loading=true;error=null;details=null;});
+    setState(() {
+      loading=true;
+      error=null;
+      showVerifiedSummaryOnError=false;
+      details=null;
+    });
     final order=widget.order;
     final query=<String,String>{
       'pluginId':widget.pluginId,
@@ -1296,8 +1304,16 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
       setState(() {loading=false;details=result;});
     } catch(e) {
       if(!mounted)return;
+      // A failed *details* request must not erase the separately loaded
+      // audit journal, nor hide verified list metadata behind a blank page.
+      // For 401/403 never display a cached order after authorization loss.
+      final mayShowVerifiedSummary=e is OwnerApiException &&
+        e.status >= 500 &&
+        OwnerScope.of(context).workspaceId==workspace &&
+        OwnerScope.of(context).selectedRestaurantIds.contains(widget.departmentId);
       setState(() {
         loading=false;
+        showVerifiedSummaryOnError=mayShowVerifiedSummary;
         error=e is OwnerApiException
           ?'${e.message} (${e.code})'
           :'Не удалось загрузить информацию о заказе.';
@@ -1369,12 +1385,36 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
             child:Center(child:CircularProgressIndicator()))),
         if(error!=null)
           OwnerCard(child:Column(children:[
+            Text('Не удалось обновить состав заказа с кассы.',
+              style:const TextStyle(fontWeight:FontWeight.w700),
+              textAlign:TextAlign.center),
+            const SizedBox(height:8),
             Text(error!,textAlign:TextAlign.center),
             const SizedBox(height:10),
             FilledButton.tonalIcon(onPressed:_load,
               icon:const Icon(Icons.refresh),
               label:const OwnerText('Повторить')),
           ])),
+        if(showVerifiedSummaryOnError && info.length > 2)
+          OwnerCard(child:Column(
+            crossAxisAlignment:CrossAxisAlignment.start,
+            children:[
+              const Text('Последние подтверждённые сведения из списка кассы',
+                style:TextStyle(fontWeight:FontWeight.w700)),
+              const SizedBox(height:5),
+              const Text('Это не обновлённый состав заказа. '
+                'Список блюд и оплат требует ответа кассы.',
+                style:TextStyle(fontSize:12)),
+              const SizedBox(height:8),
+              for(final entry in info)
+                ListTile(
+                  dense:true,
+                  contentPadding:EdgeInsets.zero,
+                  title:Text(entry.key),
+                  trailing:Text(entry.value),
+                ),
+            ],
+          )),
         if(!loading && error==null && details!=null) ...[
           OwnerCard(child:Column(children:[
             for(var i=0;i<info.length;i++) ...[
