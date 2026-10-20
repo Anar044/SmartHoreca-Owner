@@ -193,9 +193,9 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         speaking = true;
         error = null;
       });
-      await _tts.speak(
-        text.replaceAll(RegExp(r'[*#_`]+'), '').substring(
-          0, text.length > 3000 ? 3000 : text.length));
+      final spoken = text.replaceAll(RegExp(r'[*#_`]+'), '');
+      await _tts.speak(spoken.length > 3000
+          ? spoken.substring(0, 3000) : spoken);
     } catch (_) {
       if (mounted) setState(() {
         speaking = false;
