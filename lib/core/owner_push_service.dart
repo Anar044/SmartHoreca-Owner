@@ -53,10 +53,17 @@ class OwnerPushService {
   static const _appId=String.fromEnvironment('SH_FIREBASE_ANDROID_APP_ID');
   static const _senderId=String.fromEnvironment('SH_FIREBASE_SENDER_ID');
   static const _projectId=String.fromEnvironment('SH_FIREBASE_PROJECT_ID');
+  // iOS Firebase is a separate Firebase app, bound to the final Apple bundle
+  // ID. Android values must NEVER be reused as the iOS appId/API key.
+  static const _iosApiKey=String.fromEnvironment('SH_FIREBASE_IOS_API_KEY');
+  static const _iosAppId=String.fromEnvironment('SH_FIREBASE_IOS_APP_ID');
+  static const _iosBundleId=String.fromEnvironment('SH_FIREBASE_IOS_BUNDLE_ID');
 
-  static bool get configured => Platform.isAndroid &&
-    _apiKey.isNotEmpty && _appId.isNotEmpty &&
-    _senderId.isNotEmpty && _projectId.isNotEmpty;
+  static bool get configured =>
+    _senderId.isNotEmpty && _projectId.isNotEmpty &&
+    ((Platform.isAndroid && _apiKey.isNotEmpty && _appId.isNotEmpty) ||
+     (Platform.isIOS && _iosApiKey.isNotEmpty &&
+      _iosAppId.isNotEmpty && _iosBundleId.isNotEmpty));
 
   static bool _initialized=false;
   static bool _enabled=false;
@@ -84,10 +91,17 @@ class OwnerPushService {
   static Future<void> initialize() async {
     if(!configured || _initialized)return;
     try{
-      await Firebase.initializeApp(options:const FirebaseOptions(
-        apiKey:_apiKey,appId:_appId,
-        messagingSenderId:_senderId,projectId:_projectId,
-      ));
+      final options = Platform.isIOS
+        ? const FirebaseOptions(
+            apiKey:_iosApiKey,appId:_iosAppId,
+            messagingSenderId:_senderId,projectId:_projectId,
+            iosBundleId:_iosBundleId,
+          )
+        : const FirebaseOptions(
+            apiKey:_apiKey,appId:_appId,
+            messagingSenderId:_senderId,projectId:_projectId,
+          );
+      await Firebase.initializeApp(options:options);
       FirebaseMessaging.onBackgroundMessage(ownerPushBackgroundHandler);
       FirebaseMessaging.onMessage.listen((message){
         final n=message.notification;
@@ -192,7 +206,7 @@ class OwnerPushService {
   static Future<String> checkConnection(
       String workspace, Iterable<String> restaurants) async {
     if (!configured) {
-      return 'Firebase не включён в эту Android-сборку.';
+      return 'Firebase не настроен для этого устройства.';
     }
     await initialize();
     if (!_initialized) {
@@ -260,7 +274,7 @@ class OwnerPushService {
     if(!configured){
       throw const OwnerApiException(
         'FIREBASE_NOT_CONFIGURED',
-        'Firebase Cloud Messaging ещё не подключён к Android-сборке.',503);
+        'Firebase Cloud Messaging не настроен для этого устройства.',503);
     }
     await initialize();
     if(!_initialized){
@@ -273,7 +287,7 @@ class OwnerPushService {
     if(permission.authorizationStatus!=AuthorizationStatus.authorized &&
        permission.authorizationStatus!=AuthorizationStatus.provisional){
       throw const OwnerApiException('PUSH_PERMISSION_DENIED',
-        'Разрешите уведомления Smart Horeca в настройках Android.',403);
+        'Разрешите уведомления SH Owner в настройках телефона.',403);
     }
     final token=await FirebaseMessaging.instance.getToken();
     if(token==null||token.isEmpty){
