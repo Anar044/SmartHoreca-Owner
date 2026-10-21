@@ -10,6 +10,7 @@ import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_l10n.dart';
 import '../ui/owner_components.dart';
+import '../ui/owner_chat_bubble.dart';
 
 class _OwnerAssistantMessage {
   final String role;
@@ -17,8 +18,10 @@ class _OwnerAssistantMessage {
   final Map<String, dynamic>? chart;
   final Map<String, dynamic>? report;
   final bool chartMissing;
+  final List<Map<String,dynamic>> sourceWarnings;
   const _OwnerAssistantMessage(this.role, this.text,
-      {this.chart, this.report, this.chartMissing = false});
+      {this.chart, this.report, this.chartMissing = false,
+       this.sourceWarnings = const []});
 }
 
 class OwnerLiveAssistantScreen extends StatefulWidget {
@@ -300,6 +303,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
               m['role'].toString(), (m['content'] ?? '').toString(),
               chart: OwnerAssistantVisuals.structured(meta?['chart']),
               report: OwnerAssistantVisuals.structured(meta?['report']),
+              sourceWarnings: (meta?['sourceWarnings'] as List? ?? [])
+                  .whereType<Map<String,dynamic>>().toList(),
             );
           }).toList();
       setState(() {
@@ -371,6 +376,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           (result['answer'] ?? 'AI не вернул текст ответа.').toString(),
           chart: OwnerAssistantVisuals.structured(result['chart']),
           report: OwnerAssistantVisuals.structured(result['report']),
+          sourceWarnings: (result['sourceWarnings'] as List? ?? [])
+              .whereType<Map<String,dynamic>>().toList(),
           chartMissing: RegExp(
             r'график|диаграм|chart|graph|diaqram|qrafik',
             caseSensitive: false,
@@ -444,34 +451,34 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         )),
       ],
       for (final message in conversation) ...[
-        Align(
-          alignment: message.role == 'user'
-              ? Alignment.centerRight : Alignment.centerLeft,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 500),
-            child: OwnerCard(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(message.text),
-                if (message.role == 'assistant') ...[
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: IconButton(
-                      tooltip: speaking ? 'Остановить озвучивание' : 'Озвучить ответ',
-                      onPressed: () => _readAnswer(message.text),
-                      icon: Icon(speaking ? Icons.stop_circle_outlined
-                          : Icons.volume_up_outlined, size: 21),
-                    ),
-                  ),
-                ],
-              ],
-            )),
-          ),
+        OwnerChatBubble(
+          role: message.role,
+          text: message.text,
+          speaking: speaking && message.role == 'assistant',
+          onSpeak: message.role == 'assistant'
+              ? () => _readAnswer(message.text) : null,
         ),
         if (message.role == 'assistant' &&
             (message.chart != null || message.report != null))
           OwnerAssistantVisuals(chart: message.chart, report: message.report),
+        if (message.role == 'assistant' &&
+            message.sourceWarnings.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 8, top: 5, bottom: 7),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Icon(Icons.info_outline_rounded,
+                color: OwnerPalette.warning, size: 17),
+              const SizedBox(width: 8),
+              Expanded(child: Text(
+                '${message.sourceWarnings.map((item) =>
+                  (item['code'] ?? 'SOURCE_UNAVAILABLE').toString()).toSet().join(', ')}'
+                ' — источник не вернул полный отчёт. '
+                'Попробуйте повторить вопрос позже.',
+                style: TextStyle(fontSize: 12,
+                  color: OwnerPalette.muted(context)),
+              )),
+            ]),
+          ),
         if (message.chartMissing)
           OwnerCard(child: Row(children: [
             const Icon(Icons.info_outline, color: OwnerPalette.warning),
