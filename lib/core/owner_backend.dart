@@ -29,6 +29,10 @@ class OwnerBackend {
     await Supabase.initialize(
       url: supabaseUrl,
       publishableKey: supabasePublishableKey,
+      authOptions: const FlutterAuthClientOptions(
+        autoRefreshToken: true,
+        persistSession: true,
+      ),
     );
   }
 
@@ -257,7 +261,5 @@ class OwnerBackend {
         milliseconds: transientAttempts == 0 ? 500 : 1400));
       transientAttempts++;
     }
-    throw const OwnerApiException('RETRY_EXHAUSTED',
-      'Не удалось получить данные Smart Horeca.', 503);
   }
 }
