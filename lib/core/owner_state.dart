@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'owner_backend.dart';
 import 'owner_push_service.dart';
+import 'owner_department_evidence.dart';
 
 enum OwnerStage { signIn, workspaces, restaurants, shell }
 
@@ -98,6 +99,12 @@ class OwnerState extends ChangeNotifier {
     'Ресторан Баку', 'Jelly Park', 'Jelly Metropark'
   };
   Map<String, String> restaurantIdsByName = {};
+  Map<String,OwnerDepartmentEvidence> departmentEvidence = {};
+  bool activityLoading = false;
+  String? activityWarning;
+  bool activitySalesAvailable = false;
+  int activityLookbackDays = 30;
+  int _activityGeneration = 0;
 
   Set<String> get selectedRestaurantIds => selectedRestaurants
       .map((name) => restaurantIdsByName[name] ?? '')
@@ -242,6 +249,11 @@ class OwnerState extends ChangeNotifier {
       '/api/mobile/v1/bootstrap', workspaceId: id);
     final restaurants = (data['restaurants'] as List? ?? [])
         .whereType<Map<String, dynamic>>().toList();
+    ++_activityGeneration;
+    departmentEvidence = {};
+    activityWarning = null;
+    activityLoading = false;
+    activitySalesAvailable = false;
     restaurantIdsByName = {};
     for (final restaurant in restaurants) {
       final id = restaurant['id'].toString();
@@ -278,6 +290,7 @@ class OwnerState extends ChangeNotifier {
     stage = availableRestaurants.isEmpty || selectedRestaurants.isEmpty
         ? OwnerStage.restaurants
         : OwnerStage.shell;
+    unawaited(loadRestaurantActivity());
     if (stage == OwnerStage.shell) {
       unawaited(loadSummary());
       unawaited(OwnerPushService.syncScope(id,selectedRestaurantIds)
@@ -289,6 +302,70 @@ class OwnerState extends ChangeNotifier {
     ++_summaryGeneration;
     stage = OwnerStage.restaurants;
     notifyListeners();
+    if (live && departmentEvidence.isEmpty && !activityLoading) {
+      unawaited(loadRestaurantActivity());
+    }
+  }
+
+  Future<void> loadRestaurantActivity() async {
+    final ws = workspaceId;
+    if (!live || ws == null || restaurantIdsByName.isEmpty) return;
+    final generation = ++_activityGeneration;
+    activityLoading = true;
+    activityWarning = null;
+    notifyListeners();
+    try {
+      // Request only this authenticated organization's authorized IDs.
+      final data=await OwnerBackend.getJson(
+        '/api/mobile/v1/restaurant-activity',
+        workspaceId:ws,departmentIds:restaurantIdsByName.values,
+      );
+      if(generation!=_activityGeneration || workspaceId!=ws) return;
+      final allowed=restaurantIdsByName.values.toSet();
+      final next=<String,OwnerDepartmentEvidence>{};
+      for(final raw in (data['departments'] as List? ?? const [])){
+        if(raw is! Map<String,dynamic>) continue;
+        final item=OwnerDepartmentEvidence.fromJson(raw);
+        if(allowed.contains(item.id)) next[item.id]=item;
+      }
+      departmentEvidence=next;
+      activitySalesAvailable=data['sourceStatus']=='VERIFIED';
+      activityLookbackDays=(data['lookbackDays'] is int)
+        ? data['lookbackDays'] as int : 30;
+      if(!activitySalesAvailable) {
+        activityWarning=
+          'Продажи за последние 30 дней пока не удалось проверить. '
+          'Группы и кассы показаны по доступной конфигурации.';
+      }
+    } catch (_) {
+      if(generation!=_activityGeneration || workspaceId!=ws)return;
+      activityWarning='Не удалось проверить активность подразделений. '
+        'Список доступных ресторанов остаётся без изменений.';
+    } finally {
+      if(generation==_activityGeneration) {
+        activityLoading=false;
+        notifyListeners();
+      }
+    }
+  }
+
+  void selectRestaurantsWithEvidence() {
+    if (departmentEvidence.isEmpty) return;
+    final working=restaurantIdsByName.entries.where((entry)=>
+      departmentEvidence[entry.value]?.evidenceOfWork==true)
+      .map((entry)=>entry.key).toSet();
+    if (working.isEmpty) return;
+    selectedRestaurants=working;
+    if (live && workspaceId != null) {
+      unawaited(_prefs.setStringList(
+        'sh_owner_depts_$workspaceId',selectedRestaurantIds.toList()));
+      unawaited(OwnerPushService.syncScope(workspaceId!,selectedRestaurantIds)
+        .catchError((Object _) {}));
+    }
+    notifyListeners();
+    if(live && stage==OwnerStage.shell && tabIndex==0) {
+      unawaited(loadSummary());
+    }
   }
 
   void previewSignIn() {
@@ -413,6 +490,11 @@ class OwnerState extends ChangeNotifier {
 
   void logOutPreview() {
     clearResponseCache();
+    ++_activityGeneration;
+    departmentEvidence={};
+    activityWarning=null;
+    activitySalesAvailable=false;
+    activityLoading=false;
     ++_summaryGeneration;
     live = false;
     stage = OwnerStage.signIn;
