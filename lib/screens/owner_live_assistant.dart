@@ -11,6 +11,7 @@ import '../core/owner_theme.dart';
 import '../core/owner_l10n.dart';
 import '../ui/owner_components.dart';
 import '../ui/owner_chat_bubble.dart';
+import '../ui/owner_speech_stop_banner.dart';
 
 class _OwnerAssistantMessage {
   final String role;
@@ -38,6 +39,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   final List<_OwnerAssistantMessage> conversation = [];
   bool listening = false;
   bool speaking = false;
+  _OwnerAssistantMessage? _speakingMessage;
+  int _speechToken = 0;
   String? modelName;
   bool sending = false;
   String? error;
@@ -48,19 +51,35 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   @override
   void initState() {
     super.initState();
-    _tts.setCompletionHandler(() {
-      if (mounted) setState(() => speaking = false);
+    _tts.setCompletionHandler(_finishSpeech);
+    _tts.setCancelHandler(_finishSpeech);
+    _tts.setErrorHandler((_) => _finishSpeech);
+  }
+
+  void _finishSpeech() {
+    if (!mounted || !speaking) return;
+    setState(() {
+      speaking = false;
+      _speakingMessage = null;
     });
-    _tts.setCancelHandler(() {
-      if (mounted) setState(() => speaking = false);
-    });
-    _tts.setErrorHandler((_) {
-      if (mounted) setState(() => speaking = false);
-    });
+  }
+
+  /// Invalidate pending async TTS setup BEFORE awaiting native stop.
+  /// The button updates immediately, even if the iOS speaker is busy.
+  Future<void> _stopSpeech() async {
+    ++_speechToken;
+    if (mounted && (speaking || _speakingMessage != null)) {
+      setState(() {
+        speaking = false;
+        _speakingMessage = null;
+      });
+    }
+    await _tts.stop();
   }
 
   @override
   void dispose() {
+    ++_speechToken;
     unawaited(_recognizer.stop());
     unawaited(_tts.stop());
     controller.dispose();
@@ -82,6 +101,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       sending = false;
       listening = false;
       speaking = false;
+      _speakingMessage = null;
+      ++_speechToken;
       modelName = null;
       unawaited(_recognizer.stop());
       unawaited(_tts.stop());
@@ -115,8 +136,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       if (mounted) setState(() => listening = false);
       return;
     }
-    await _tts.stop();
-    if (mounted) setState(() => speaking = false);
+    await _stopSpeech();
+    if (!mounted) return;
     try {
       final ready = await _recognizer.initialize(
         onStatus: (status) {
@@ -175,43 +196,54 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     }
   }
 
-  Future<void> _readAnswer(String text) async {
-    final locale = OwnerVoiceLocale.ttsLocale(OwnerScope.of(context).language);
-    if (speaking) {
-      await _tts.stop();
-      if (mounted) setState(() => speaking = false);
+  Future<void> _readAnswer(_OwnerAssistantMessage message) async {
+    if (speaking && identical(_speakingMessage, message)) {
+      await _stopSpeech();
       return;
     }
-    await _recognizer.stop();
+
+    // Another answer may be playing. Never allow two speeches to overlap.
+    await _stopSpeech();
     if (!mounted) return;
-    // Spoken text is only delivered to the device OS TTS; do not send
-    // confidential restaurant answers to a new third-party endpoint.
+    final locale = OwnerVoiceLocale.ttsLocale(OwnerScope.of(context).language);
+    final requestToken = ++_speechToken;
+    setState(() {
+      speaking = true; // Show Stop even while iOS prepares the voice.
+      _speakingMessage = message;
+      error = null;
+    });
+
+    bool stillCurrent() => mounted && requestToken == _speechToken;
     try {
+      await _recognizer.stop();
+      if (!stillCurrent()) return;
       final installed = await _tts.isLanguageAvailable(locale);
+      if (!stillCurrent()) return;
       if (installed != true) {
-        if (mounted) {
-          setState(() =>
-            error = 'На устройстве не найден голос для языка $locale. Установи голос в настройках iPhone.');
-        }
+        _finishSpeech();
+        setState(() => error =
+          'На устройстве не найден голос для языка $locale. Установи голос в настройках iPhone.');
         return;
       }
       await _tts.setLanguage(locale);
+      if (!stillCurrent()) return;
       await _tts.setSpeechRate(0.48);
+      if (!stillCurrent()) return;
       await _tts.setVolume(1.0);
-      if (!mounted) return;
-      setState(() {
-        speaking = true;
-        error = null;
-      });
-      final spoken = text.replaceAll(RegExp(r'[*#_`]+'), '');
+      if (!stillCurrent()) return;
+      final spoken = message.text.replaceAll(RegExp(r'[*#_`]+'), '');
+      if (spoken.isEmpty) {
+        _finishSpeech();
+        return;
+      }
+      // Keep 3,000-char limit; the Stop banner stays available at all times.
       await _tts.speak(spoken.length > 3000
           ? spoken.substring(0, 3000) : spoken);
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          speaking = false;
-          error = 'Не удалось озвучить ответ. Проверь настройки речи устройства.';
-        });
+      if (stillCurrent()) {
+        _finishSpeech();
+        setState(() =>
+          error = 'Не удалось озвучить ответ. Проверь настройки речи устройства.');
       }
     }
   }
@@ -283,6 +315,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
 
   Future<void> _openChat(String id) async {
     if (id.isEmpty) return;
+    await _stopSpeech();
+    if (!mounted) return;
     final owner = OwnerScope.of(context);
     if (owner.workspaceId == null) return;
     final generation = _generation;
@@ -324,7 +358,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
 
   void _newConversation() {
     unawaited(_recognizer.stop());
-    unawaited(_tts.stop());
+    unawaited(_stopSpeech());
     ++_generation;
     setState(() {
       conversationId = null;
@@ -333,12 +367,14 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       sending = false;
       listening = false;
       speaking = false;
+      _speakingMessage = null;
     });
   }
 
   Future<void> _send([String? preset]) async {
     if (sending) return;
     final owner = OwnerScope.of(context);
+    await _stopSpeech();
     await _recognizer.stop();
     if (!mounted) return;
     setState(() => listening = false);
@@ -399,7 +435,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   @override
   Widget build(BuildContext context) {
     final state = OwnerScope.of(context);
-    return OwnerScreenFrame(onRefresh: _refreshCurrentConversation, children: [
+    return Stack(children: [
+      OwnerScreenFrame(onRefresh: _refreshCurrentConversation, children: [
       const OwnerRestaurantPicker(),
       const SizedBox(height: 12),
       const OwnerHeading('AI Smart Horeca Assistant'),
@@ -454,9 +491,9 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         OwnerChatBubble(
           role: message.role,
           text: message.text,
-          speaking: speaking && message.role == 'assistant',
+          speaking: speaking && identical(_speakingMessage, message),
           onSpeak: message.role == 'assistant'
-              ? () => _readAnswer(message.text) : null,
+              ? () => _readAnswer(message) : null,
         ),
         if (message.role == 'assistant' &&
             (message.chart != null || message.report != null))
@@ -544,6 +581,14 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         style: TextStyle(fontSize: 11,
           color: OwnerPalette.muted(context))),
       const SizedBox(height: 15),
+      ]),
+      if (speaking)
+        Positioned(
+          left: 16, right: 16, bottom: 12,
+          child: OwnerSpeechStopBanner(
+            onStop: () => unawaited(_stopSpeech()),
+          ),
+        ),
     ]);
   }
 }
