@@ -189,7 +189,13 @@ class OwnerState extends ChangeNotifier {
       await _loadWorkspacesAfterSignIn();
     } catch (e) {
       error = e is OwnerApiException ? e.message : 'Ошибка загрузки доступа.';
-      stage = OwnerStage.signIn;
+      // Keep the selected workspace and saved selection on a temporary
+      // refresh/network failure. Only a revoked/missing token needs login.
+      if (e is OwnerApiException &&
+          (e.code == 'SESSION_RELOGIN_REQUIRED' ||
+           e.code == 'SESSION_MISSING')) {
+        stage = OwnerStage.signIn;
+      }
     } finally {
       busy = false;
       notifyListeners();

@@ -84,29 +84,7 @@ class OwnerSplashScreen extends StatelessWidget {
                 return Column(
                   children: [
                     const Spacer(flex: 3),
-                    Container(
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(34),
-                        border: Border.all(
-                          color: dark
-                              ? const Color(0x5576E2CF)
-                              : const Color(0x6676B9E2),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (dark ? mint : blue).withValues(alpha: 0.17),
-                            blurRadius: 42,
-                            spreadRadius: 7,
-                          ),
-                        ],
-                      ),
-                      child: OwnerBrandMark(
-                        size: logoSize,
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                    ),
+                    OwnerBrandMark(size: logoSize),
                     SizedBox(height: compact ? 22 : 32),
                     Text(
                       'SMART HORECA',
