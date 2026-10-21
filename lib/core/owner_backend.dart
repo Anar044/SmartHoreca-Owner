@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'owner_session_policy.dart';
 
 class OwnerApiException implements Exception {
   final String code;
@@ -35,6 +36,66 @@ class OwnerBackend {
 
   static bool get hasSession =>
       configured && client.auth.currentSession != null;
+
+  static Future<String>? _refreshInFlight;
+
+  /// Supabase Flutter restores the last persisted session before it has
+  /// necessarily refreshed its expired access token on cold iOS launch.
+  /// Coalesce concurrent refresh requests (dashboard, AI, notifications).
+  static Future<String> freshAccessToken({bool forceRefresh = false}) async {
+    if (!configured) {
+      throw const OwnerApiException('NOT_CONFIGURED',
+          'Не настроено подключение приложения.', 503);
+    }
+    final session = client.auth.currentSession;
+    if (session == null) {
+      throw const OwnerApiException('SESSION_MISSING',
+          'Войдите в аккаунт.', 401);
+    }
+    if (!forceRefresh && !ownerSessionNeedsRenewal(
+        isExpired: session.isExpired,
+        expiresAt: session.expiresAt,
+        nowSeconds: DateTime.now().millisecondsSinceEpoch ~/ 1000)) {
+      return session.accessToken;
+    }
+    if (_refreshInFlight != null) return _refreshInFlight!;
+    final future = () async {
+      try {
+        final refreshed = (await client.auth.refreshSession()).session;
+        final token = refreshed?.accessToken;
+        if (token == null || token.isEmpty) {
+          throw const OwnerApiException('SESSION_REFRESH_REQUIRED',
+              'Не удалось подтвердить сессию. Попробуйте обновить данные.', 401);
+        }
+        return token;
+      } on OwnerApiException {
+        rethrow;
+      } on AuthException catch (e) {
+        // Invalid refresh credentials genuinely require another login.
+        // Network failures must not erase the previously persisted session.
+        final reason=e.message.toLowerCase();
+        if (reason.contains('invalid refresh token') ||
+            reason.contains('refresh token not found') ||
+            reason.contains('session not found')) {
+          throw const OwnerApiException('SESSION_RELOGIN_REQUIRED',
+              'Срок действия авторизации завершился. Войдите повторно.', 401);
+        }
+        throw const OwnerApiException('SESSION_REFRESH_UNAVAILABLE',
+            'Не удалось обновить авторизацию. Проверьте соединение и повторите.',
+            503);
+      } catch (_) {
+        throw const OwnerApiException('SESSION_REFRESH_UNAVAILABLE',
+            'Не удалось обновить авторизацию. Проверьте соединение и повторите.',
+            503);
+      }
+    }();
+    _refreshInFlight = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(_refreshInFlight, future)) _refreshInFlight = null;
+    }
+  }
 
   static Future<void> signIn(String email, String password) async {
     if (!configured) {
@@ -101,10 +162,7 @@ class OwnerBackend {
       throw const OwnerApiException('NOT_CONFIGURED',
           'Не настроено подключение приложения.', 503);
     }
-    final token = client.auth.currentSession?.accessToken;
-    if (token == null || token.isEmpty) {
-      throw const OwnerApiException('SESSION_MISSING', 'Войдите в аккаунт.', 401);
-    }
+    final token = await freshAccessToken();
     final uri = Uri.parse('$apiBase$path');
     if (uri.scheme != 'https') {
       throw const OwnerApiException(
@@ -142,10 +200,7 @@ class OwnerBackend {
       throw const OwnerApiException('NOT_CONFIGURED',
           'Не настроено подключение приложения.', 503);
     }
-    final token = client.auth.currentSession?.accessToken;
-    if (token == null || token.isEmpty) {
-      throw const OwnerApiException('SESSION_MISSING', 'Войдите в аккаунт.', 401);
-    }
+    var token = await freshAccessToken();
     final uri = Uri.parse('$apiBase$path')
         .replace(queryParameters: query?.isEmpty == true ? null : query);
     if (uri.scheme != 'https') {
@@ -163,33 +218,44 @@ class OwnerBackend {
       final ids = departmentIds.where((x) => x.isNotEmpty).toList()..sort();
       if (ids.isNotEmpty) headers['X-SH-Department-Ids'] = ids.join(',');
     }
-    // Retry only safe, idempotent reads. 401/403 must never be treated
-    // as temporary failures or bypassed; POST requests are never retried.
-    final maxAttempts = retryTransient ? 3 : 1;
-    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+    // Refresh once on 401 for safe reads. 403 is an actual permission denial,
+    // never retried. POST is never replayed (it may create an AI message).
+    final maxTransientAttempts = retryTransient ? 3 : 1;
+    var transientAttempts = 0;
+    var renewedAfter401 = false;
+    while (true) {
       try {
         final result = await http.get(uri, headers: headers)
             .timeout(const Duration(seconds: 50));
-        if (_transient(result.statusCode) && attempt < maxAttempts - 1) {
-          await Future<void>.delayed(
-            Duration(milliseconds: attempt == 0 ? 500 : 1400));
+        if (result.statusCode == 401 && !renewedAfter401) {
+          renewedAfter401 = true;
+          token = await freshAccessToken(forceRefresh: true);
+          headers['Authorization'] = 'Bearer $token';
+          continue;
+        }
+        if (_transient(result.statusCode) &&
+            transientAttempts < maxTransientAttempts - 1) {
+          await Future<void>.delayed(Duration(
+            milliseconds: transientAttempts == 0 ? 500 : 1400));
+          transientAttempts++;
           continue;
         }
         return _decodeResponse(result);
       } on TimeoutException {
-        if (attempt == maxAttempts - 1) {
+        if (transientAttempts >= maxTransientAttempts - 1) {
           throw const OwnerApiException('API_TIMEOUT',
             'Превышено время ожидания Smart Horeca. '
             'Сервер или соединение временно недоступны.', 504);
         }
       } on http.ClientException {
-        if (attempt == maxAttempts - 1) {
+        if (transientAttempts >= maxTransientAttempts - 1) {
           throw const OwnerApiException('NETWORK_UNAVAILABLE',
             'Не удалось связаться с Smart Horeca. Проверьте сеть.', 503);
         }
       }
-      await Future<void>.delayed(
-        Duration(milliseconds: attempt == 0 ? 500 : 1400));
+      await Future<void>.delayed(Duration(
+        milliseconds: transientAttempts == 0 ? 500 : 1400));
+      transientAttempts++;
     }
     throw const OwnerApiException('RETRY_EXHAUSTED',
       'Не удалось получить данные Smart Horeca.', 503);
