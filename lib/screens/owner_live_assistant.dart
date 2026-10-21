@@ -41,7 +41,6 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   bool speaking = false;
   _OwnerAssistantMessage? _speakingMessage;
   int _speechToken = 0;
-  String? modelName;
   bool sending = false;
   String? error;
   String? conversationId;
@@ -103,28 +102,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       speaking = false;
       _speakingMessage = null;
       ++_speechToken;
-      modelName = null;
       unawaited(_recognizer.stop());
       unawaited(_tts.stop());
-      unawaited(_fetchModel(owner.workspaceId, owner.selectedRestaurantIds, _generation));
-    }
-  }
-
-  Future<void> _fetchModel(
-    String? workspaceId, Set<String> departmentIds, int generation) async {
-    if (workspaceId == null || departmentIds.isEmpty) return;
-    try {
-      final data = await OwnerBackend.getJson(
-        '/api/mobile/v1/assistant',
-        workspaceId: workspaceId,
-        departmentIds: departmentIds,
-        query: const {'action':'status'},
-      );
-      if (!mounted || generation != _generation) return;
-      final model = (data['model'] ?? '').toString().trim();
-      if (model.isNotEmpty) setState(() => modelName = model);
-    } catch (_) {
-      // The assistant remains usable if the optional model badge fails.
     }
   }
 
@@ -440,11 +419,6 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       const OwnerRestaurantPicker(),
       const SizedBox(height: 12),
       const OwnerHeading('AI Smart Horeca Assistant'),
-      if (modelName != null) ...[
-        const SizedBox(height: 4),
-        Text('Модель: $modelName · Только чтение',
-          style: TextStyle(fontSize: 11, color: OwnerPalette.muted(context))),
-      ],
       const SizedBox(height: 10),
       Row(children: [
         Expanded(

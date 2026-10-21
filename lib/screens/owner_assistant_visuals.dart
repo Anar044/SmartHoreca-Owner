@@ -18,7 +18,7 @@ class OwnerAssistantVisuals extends StatelessWidget {
   Widget build(BuildContext context) => Column(children: [
     if (chart != null) ...[
       const SizedBox(height: 9),
-      OwnerCard(child: _OwnerChart(chart!)),
+      OwnerCard(child: _OwnerChart(chart!, showNotes: report == null)),
     ],
     if (report != null) ...[
       const SizedBox(height: 9),
@@ -35,7 +35,8 @@ class _PlotPoint {
 
 class _OwnerChart extends StatelessWidget {
   final Map<String, dynamic> data;
-  const _OwnerChart(this.data);
+  final bool showNotes;
+  const _OwnerChart(this.data,{required this.showNotes});
 
   List<_PlotPoint> points() {
     final result=< _PlotPoint >[];
@@ -76,8 +77,8 @@ class _OwnerChart extends StatelessWidget {
           labels:pointsList.map((p)=>p.label).toList(),
           valueLabels:pointsList.map((p)=>p.value.toStringAsFixed(2)).toList(),
         ),
-      for(final note in (data['notes'] is List
-        ?(data['notes'] as List).take(4):<dynamic>[])) ...[
+      for(final note in (showNotes && data['notes'] is List
+        ?(data['notes'] as List).take(2):<dynamic>[])) ...[
         const SizedBox(height:4),
         Text(note.toString(),style:muted),
       ],
@@ -141,11 +142,15 @@ class _OwnerReport extends StatelessWidget {
           ),
         ),
       ],
-      for (final note in notes)
-        Padding(padding: const EdgeInsets.only(top: 5),
-          child: Text(note.toString(),
-            style: TextStyle(fontSize: 11,
-              color: OwnerPalette.muted(context)))),
+      if (notes.isNotEmpty) ...[
+        const SizedBox(height: 7),
+        Divider(color: Theme.of(context).dividerColor),
+        for (final note in notes.toSet().take(3))
+          Padding(padding: const EdgeInsets.only(top: 5),
+            child: Text(note.toString(),
+              style: TextStyle(fontSize: 12, height: 1.35,
+                color: OwnerPalette.muted(context)))),
+      ],
     ]);
   }
 }

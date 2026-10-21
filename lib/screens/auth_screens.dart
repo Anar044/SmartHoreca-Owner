@@ -168,12 +168,28 @@ class OwnerWorkspaceSelectScreen extends StatelessWidget {
   }
 }
 
-class OwnerRestaurantSelectScreen extends StatelessWidget {
+class OwnerRestaurantSelectScreen extends StatefulWidget {
   const OwnerRestaurantSelectScreen({super.key});
+  @override
+  State<OwnerRestaurantSelectScreen> createState() => _OwnerRestaurantSelectScreenState();
+}
 
+class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScreen> {
+  String _filter='all';
+  String _query='';
   @override
   Widget build(BuildContext context) {
     final state = OwnerScope.of(context);
+    final visible=state.availableRestaurants.where((label) {
+      final id=state.restaurantIdsByName[label];
+      final evidence=state.departmentEvidence[id];
+      if(_query.isNotEmpty && !label.toLowerCase().contains(_query.toLowerCase())) {
+        return false;
+      }
+      if(_filter=='working') return evidence?.evidenceOfWork==true;
+      if(_filter=='unverified') return evidence!=null && !evidence.evidenceOfWork;
+      return true;
+    }).toList();
     String tr(String ru) => OwnerL10n.tr(state.language, ru);
     return Scaffold(
       appBar: AppBar(title: Text(tr('Выбор ресторанов'))),
@@ -186,6 +202,57 @@ class OwnerRestaurantSelectScreen extends StatelessWidget {
                   caption: 'В приложении будут показаны данные выбранных подразделений.'),
               const SizedBox(height: 18),
               if (!state.live) const OwnerDemoNotice(),
+              if (state.live) ...[
+                const SizedBox(height: 9),
+                Row(children: [
+                  Expanded(child: Text(
+                    'Признаки работы: продажи за последние 30 дней, '
+                    'группы и кассы.',
+                    style: TextStyle(fontSize: 12,
+                      color: OwnerPalette.muted(context)),
+                  )),
+                  IconButton(
+                    tooltip: 'Обновить признаки работы',
+                    onPressed: state.activityLoading
+                      ? null : () => state.loadRestaurantActivity(),
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                ]),
+                if(state.activityLoading) const LinearProgressIndicator(),
+                if(state.activityWarning!=null)
+                  Padding(padding:const EdgeInsets.symmetric(vertical:7),
+                    child:Text(state.activityWarning!,
+                      style:TextStyle(fontSize:12,
+                        color:OwnerPalette.muted(context)))),
+                const SizedBox(height: 7),
+                TextField(
+                  onChanged:(v)=>setState(()=>_query=v.trim()),
+                  decoration:const InputDecoration(
+                    prefixIcon:Icon(Icons.search_rounded),
+                    hintText:'Найти подразделение',
+                    isDense:true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(spacing:7,runSpacing:7,children:[
+                  ChoiceChip(label:const Text('Все'),
+                    selected:_filter=='all',showCheckmark:false,
+                    onSelected:(_)=>setState(()=>_filter='all')),
+                  ChoiceChip(label:const Text('С признаками работы'),
+                    selected:_filter=='working',showCheckmark:false,
+                    onSelected:(_)=>setState(()=>_filter='working')),
+                  ChoiceChip(label:const Text('Без подтверждения'),
+                    selected:_filter=='unverified',showCheckmark:false,
+                    onSelected:(_)=>setState(()=>_filter='unverified')),
+                ]),
+                if(state.departmentEvidence.values.any((x)=>x.evidenceOfWork))
+                  Align(alignment:Alignment.centerRight,
+                    child:TextButton.icon(
+                      onPressed:state.selectRestaurantsWithEvidence,
+                      icon:const Icon(Icons.done_all_rounded,size:17),
+                      label:const Text('Выбрать с признаками работы'),
+                    )),
+              ],
               const SizedBox(height: 12),
               OwnerCard(child: CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
@@ -196,15 +263,48 @@ class OwnerRestaurantSelectScreen extends StatelessWidget {
                 onChanged: (v) => state.selectAllRestaurants(v ?? false),
               )),
               const SizedBox(height: 10),
-              for (final restaurant in state.availableRestaurants) ...[
-                OwnerCard(child: CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  secondary: Icon(Icons.storefront,
-                      color: OwnerPalette.accent(context)),
-                  title: Text(restaurant),
-                  value: state.selectedRestaurants.contains(restaurant),
-                  onChanged: (v) => state.selectRestaurant(restaurant, v ?? false),
-                )),
+              if(visible.isEmpty) const Padding(
+                padding:EdgeInsets.symmetric(vertical:14),
+                child:Text('В этом фильтре подразделения не найдены.'),
+              ),
+              for (final restaurant in visible) ...[
+                Builder(builder:(context) {
+                  final id=state.restaurantIdsByName[restaurant];
+                  final info=state.departmentEvidence[id];
+                  return OwnerCard(child: CheckboxListTile(
+                    contentPadding:EdgeInsets.zero,
+                    secondary:Icon(
+                      info?.activity=='SALES_CONFIRMED'
+                        ? Icons.trending_up_rounded
+                        : info?.evidenceOfWork==true
+                          ? Icons.point_of_sale_rounded
+                          : Icons.storefront_outlined,
+                      color:info?.activity=='SALES_CONFIRMED'
+                        ? OwnerPalette.green
+                        : OwnerPalette.accent(context)),
+                    title:Text(restaurant),
+                    subtitle:info==null ? null:Padding(
+                      padding:const EdgeInsets.only(top:3),
+                      child:Column(
+                        crossAxisAlignment:CrossAxisAlignment.start,
+                        children:[
+                          Text(info.shortStatus,
+                            style:const TextStyle(fontSize:12)),
+                          Text(info.topologySummary,
+                            style:TextStyle(fontSize:11,
+                              color:OwnerPalette.muted(context))),
+                          if(info.recentRevenue!=null)
+                            Text('Выручка за 30 дней: '
+                              '${info.recentRevenue!.toStringAsFixed(2)} AZN',
+                              style:TextStyle(fontSize:11,
+                                color:OwnerPalette.muted(context))),
+                        ],
+                      ),
+                    ),
+                    value:state.selectedRestaurants.contains(restaurant),
+                    onChanged:(v)=>state.selectRestaurant(restaurant,v??false),
+                  ));
+                }),
                 const SizedBox(height: 10),
               ],
             ],
