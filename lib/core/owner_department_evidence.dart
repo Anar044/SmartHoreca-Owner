@@ -1,3 +1,5 @@
+import 'owner_l10n.dart';
+
 /// Evidence of CHAIN restaurant operation, always scoped to the user's
 /// authorized organization. Missing numbers mean "not verified", never zero.
 class OwnerDepartmentEvidence {
@@ -61,10 +63,13 @@ class OwnerDepartmentEvidence {
     return 'Активность не подтверждена';
   }
 
-  String get topologySummary {
+  String get topologySummary => topologySummaryFor('Русский');
+
+  String topologySummaryFor(String language) {
     final groups=groupCount==null?'—':'$groupCount';
     final registers=cashCount==null?'—':'$cashCount';
-    return 'Групп: $groups · Касс/точек: $registers';
+    return '${OwnerL10n.tr(language,'Групп:')} $groups · '
+      '${OwnerL10n.tr(language,'Касс/точек:')} $registers';
   }
 
   String? get shiftSummary {
