@@ -227,8 +227,8 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
                 const SizedBox(height: 7),
                 TextField(
                   onChanged:(v)=>setState(()=>_query=v.trim()),
-                  decoration:const InputDecoration(
-                    prefixIcon:Icon(Icons.search_rounded),
+                  decoration:InputDecoration(
+                    prefixIcon:const Icon(Icons.search_rounded),
                     hintText:tr('Найти подразделение'),
                     isDense:true,
                   ),
