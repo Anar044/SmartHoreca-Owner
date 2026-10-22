@@ -81,11 +81,11 @@ class OwnerAiExport {
                 style:bodyStyle)),
           if(data.isNotEmpty) ...[
             pw.SizedBox(height:12),
-            pw.Table.fromTextArray(
+            pw.TableHelper.fromTextArray(
               data:data,
               headerStyle:pw.TextStyle(font:bold,fontSize:8),
               cellStyle:pw.TextStyle(font:regular,fontSize:8),
-              headerDecoration:pw.BoxDecoration(color:PdfColors.blue50),
+              headerDecoration:const pw.BoxDecoration(color:PdfColors.blue50),
               cellAlignment:pw.Alignment.centerLeft,
             )
           ],
@@ -100,11 +100,11 @@ class OwnerAiExport {
           pw.SizedBox(height:8),
           // Render verified chart measurements as a shareable table; never
           // fabricate missing dates, restaurant data, or chart points.
-          pw.Table.fromTextArray(
+          pw.TableHelper.fromTextArray(
             data:[['Ряд','Период / категория','Значение'],...points],
             headerStyle:pw.TextStyle(font:bold,fontSize:8),
             cellStyle:pw.TextStyle(font:regular,fontSize:8),
-            headerDecoration:pw.BoxDecoration(color:PdfColors.blue50),
+            headerDecoration:const pw.BoxDecoration(color:PdfColors.blue50),
           ),
         ],
       ],
