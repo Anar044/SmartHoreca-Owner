@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/owner_theme.dart';
+import '../core/owner_l10n.dart';
 
 /// Chat messages have independent visual identities; reports and charts
 /// remain full-width beneath the associated AI reply.
@@ -9,6 +10,7 @@ class OwnerChatBubble extends StatelessWidget {
     super.key,
     required this.role,
     required this.text,
+    this.language='Русский',
     this.onSpeak,
     this.onCopy,
     this.onPdf,
@@ -17,6 +19,7 @@ class OwnerChatBubble extends StatelessWidget {
 
   final String role;
   final String text;
+  final String language;
   final VoidCallback? onSpeak;
   final VoidCallback? onCopy;
   final VoidCallback? onPdf;
@@ -66,7 +69,7 @@ class OwnerChatBubble extends StatelessWidget {
                   ),
                   const SizedBox(width: 7),
                   Text(
-                    fromUser ? 'Вы' : 'AI Smart Horeca',
+                    fromUser ? OwnerL10n.tr(language,'Вы') : 'AI Smart Horeca',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -90,21 +93,21 @@ class OwnerChatBubble extends StatelessWidget {
                     alignment: Alignment.centerRight,
                     child: Row(mainAxisSize:MainAxisSize.min,children:[
                       if (onCopy != null) IconButton(
-                        tooltip:'Копировать ответ',
+                        tooltip:OwnerL10n.tr(language,'Копировать ответ'),
                         visualDensity:VisualDensity.compact,
                         icon:const Icon(Icons.copy_rounded,size:20),
                         onPressed:onCopy,
                       ),
                       if (onPdf != null) IconButton(
-                        tooltip:'Экспорт в PDF',
+                        tooltip:OwnerL10n.tr(language,'Экспорт в PDF'),
                         visualDensity:VisualDensity.compact,
                         icon:const Icon(Icons.picture_as_pdf_outlined,size:20),
                         onPressed:onPdf,
                       ),
                       if (onSpeak != null) IconButton(
-                      tooltip: speaking
+                      tooltip: OwnerL10n.tr(language,speaking
                           ? 'Остановить озвучивание'
-                          : 'Озвучить ответ',
+                          : 'Озвучить ответ'),
                       visualDensity: VisualDensity.compact,
                       icon: Icon(
                         speaking ? Icons.stop_circle_outlined
