@@ -278,7 +278,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
                 const OwnerHeading('История диалогов'),
                 const SizedBox(height: 12),
                 if (chats.isEmpty)
-                  OwnerText('Пока нет сохранённых разговоров.'),
+                  const OwnerText('Пока нет сохранённых разговоров.'),
                 for (final chat in chats)
                   ListTile(
                     leading: const Icon(Icons.chat_outlined),
