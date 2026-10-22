@@ -402,8 +402,10 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       await SharePlus.instance.share(ShareParams(
         text:answer,subject:'SH Owner — AI'));
     } catch (_) {
-      if(mounted) setState(()=>error=OwnerL10n.tr(
-        OwnerScope.of(context).language,'Не удалось поделиться ответом.'));
+      if(mounted) {
+        setState(()=>error=OwnerL10n.tr(
+          OwnerScope.of(context).language,'Не удалось поделиться ответом.'));
+      }
     }
   }
 
@@ -412,9 +414,11 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       await OwnerAiExport.sharePdf(answer:message.text,
         chart:message.chart,report:message.report);
     } catch (_) {
-      if(mounted) setState(()=>error=OwnerL10n.tr(
-        OwnerScope.of(context).language,
-        'Не удалось создать PDF. Проверьте подключение и повторите.'));
+      if(mounted) {
+        setState(()=>error=OwnerL10n.tr(
+          OwnerScope.of(context).language,
+          'Не удалось создать PDF. Проверьте подключение и повторите.'));
+      }
     }
   }
 
