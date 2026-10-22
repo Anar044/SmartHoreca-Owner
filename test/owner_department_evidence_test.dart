@@ -27,7 +27,19 @@ void main() {
     });
     expect(unknown.evidenceOfWork,false);
     expect(unknown.recentRevenue,isNull);
-    expect(unknown.topologySummary,'Конфигурация касс недоступна');
+    expect(unknown.topologySummary,'Групп: — · Касс/точек: —');
     expect(unknown.shortStatus,'Активность не подтверждена');
+    expect(unknown.hasUnknownSources,true);
+
+    final shift=OwnerDepartmentEvidence.fromJson({
+      'id':'r4','activity':'SHIFTS_CONFIRMED',
+      'groupCount':null,'cashCount':null,
+      'recentShiftCount':2,'recentShiftsVerified':true,
+      'shiftLookbackDays':14,'recentSalesVerified':false,
+      'recentPeriodVerified':false
+    });
+    expect(shift.evidenceOfWork,true);
+    expect(shift.shortStatus,'Есть кассовые смены');
+    expect(shift.shiftSummary,'Подтверждены кассовые смены');
   });
 }
