@@ -1,5 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../core/owner_voice_locale.dart';
@@ -335,6 +339,105 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     }
   }
 
+  // Cancel the local wait without replaying or modifying restaurant data.
+  // A started server request may still finish on the backend; obsolete
+  // responses cannot replace this conversation after generation changes.
+  void _stopThinking() {
+    if (!sending) return;
+    ++_generation;
+    setState(() {
+      sending=false;
+      error=null;
+    });
+  }
+
+  Future<void> _copyAnswer(String text) async {
+    await Clipboard.setData(ClipboardData(text:text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content:Text(OwnerL10n.tr(OwnerScope.of(context).language,
+          'Ответ скопирован')),
+      duration:const Duration(seconds:2),
+    ));
+  }
+
+  Future<void> _shareAnswerPdf(_OwnerAssistantMessage message) async {
+    try {
+      // Noto Sans supports Cyrillic, Azerbaijani and English in one report.
+      final regular=await PdfGoogleFonts.notoSansRegular();
+      final bold=await PdfGoogleFonts.notoSansBold();
+      final doc=pw.Document();
+      doc.addPage(pw.MultiPage(
+        pageFormat:PdfPageFormat.a4,
+        margin:const pw.EdgeInsets.all(36),
+        theme:pw.ThemeData.withFont(base:regular,bold:bold),
+        build:(ctx)=>[
+          pw.Text('Smart Horeca Owner',style:pw.TextStyle(font:bold,fontSize:18)),
+          pw.SizedBox(height:6),
+          pw.Text('AI Smart Horeca Assistant',style:const pw.TextStyle(fontSize:10)),
+          pw.SizedBox(height:16),
+          pw.Text(message.text,style:pw.TextStyle(font:regular,fontSize:11)),
+          if(message.report!=null) ...[
+            pw.SizedBox(height:18),
+            pw.Text((message.report!['title']??'AI Report').toString(),
+                style:pw.TextStyle(font:bold,fontSize:14)),
+            if(message.report!['subtitle']!=null)
+              pw.Text(message.report!['subtitle'].toString(),
+                  style:pw.TextStyle(font:regular,fontSize:10)),
+            for(final k in (message.report!['kpis'] as List? ?? const [])
+                .whereType<Map>().take(8))
+              pw.Padding(padding:const pw.EdgeInsets.only(top:5),
+                child:pw.Text('${k['label']??''}: ${k['value']??''}',
+                    style:pw.TextStyle(font:regular,fontSize:10))),
+            if(message.report!['columns'] is List &&
+                message.report!['rows'] is List)
+              pw.TableHelper.fromTextArray(
+                headerStyle:pw.TextStyle(font:bold,fontSize:9),
+                cellStyle:pw.TextStyle(font:regular,fontSize:8),
+                headers:(message.report!['columns'] as List).take(8)
+                  .map((c)=>c is Map?(c['label']??'').toString():c.toString())
+                  .toList(),
+                data:(message.report!['rows'] as List).take(50)
+                  .whereType<List>()
+                  .map((r)=>List<String>.generate(
+                      (message.report!['columns'] as List).take(8).length,
+                      (i)=>i<r.length?r[i].toString():''))
+                  .toList(),
+              ),
+            for(final note in (message.report!['notes'] as List? ?? const [])
+                .take(5))
+              pw.Padding(padding:const pw.EdgeInsets.only(top:4),
+                  child:pw.Text(note.toString(),
+                    style:pw.TextStyle(font:regular,fontSize:9))),
+          ],
+          if(message.chart!=null &&
+              message.chart!['series'] is List) ...[
+            pw.SizedBox(height:16),
+            pw.Text((message.chart!['title']??'Chart values').toString(),
+                style:pw.TextStyle(font:bold,fontSize:12)),
+            for(final series in (message.chart!['series'] as List)
+              .whereType<Map>().take(4))
+              for(final point in (series['data'] as List? ?? const [])
+                .whereType<Map>().take(25))
+                pw.Text('${series['name']??''} ${point['label']??''}: '
+                  '${point['value']??''}',
+                    style:pw.TextStyle(font:regular,fontSize:9)),
+          ],
+        ],
+      ));
+      await Printing.sharePdf(
+        bytes:await doc.save(),
+        filename:'SH_Owner_AI_Report.pdf',
+      );
+    }catch(_){
+      if(!mounted)return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(
+        OwnerL10n.tr(OwnerScope.of(context).language,
+          'Не удалось создать PDF. Попробуйте снова.'),
+      )));
+    }
+  }
+
   void _newConversation() {
     unawaited(_recognizer.stop());
     unawaited(_stopSpeech());
@@ -465,9 +568,14 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         OwnerChatBubble(
           role: message.role,
           text: message.text,
+          language:state.language,
           speaking: speaking && identical(_speakingMessage, message),
           onSpeak: message.role == 'assistant'
               ? () => _readAnswer(message) : null,
+          onCopy: message.role == 'assistant'
+              ? () => _copyAnswer(message.text) : null,
+          onPdf: message.role == 'assistant'
+              ? () => _shareAnswerPdf(message) : null,
         ),
         if (message.role == 'assistant' &&
             (message.chart != null || message.report != null))
@@ -499,11 +607,17 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           ])),
         const SizedBox(height: 8),
       ],
-      if (sending) const OwnerCard(child: Row(children: [
-        SizedBox(width: 18, height: 18,
-          child: CircularProgressIndicator(strokeWidth: 2)),
-        SizedBox(width: 12),
-        OwnerText('AI анализирует данные Smart Horeca…'),
+      if (sending) OwnerCard(child: Row(children: [
+        const SizedBox(width: 18,height:18,
+          child:CircularProgressIndicator(strokeWidth:2)),
+        const SizedBox(width: 12),
+        Expanded(child:Text(OwnerL10n.tr(state.language,
+          'AI анализирует данные Smart Horeca…'))),
+        TextButton.icon(
+          onPressed:_stopThinking,
+          icon:const Icon(Icons.stop_circle_outlined),
+          label:Text(OwnerL10n.tr(state.language,'Стоп')),
+        ),
       ])),
       if (error != null) ...[
         const SizedBox(height: 8),
@@ -518,8 +632,10 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         OwnerCard(child: Row(children: [
           const Icon(Icons.mic, color: Colors.redAccent),
           const SizedBox(width: 8),
-          const Expanded(child: Text('Слушаю… Нажми микрофон ещё раз, чтобы остановить.')),
-          TextButton(onPressed: _toggleListening, child: const Text('Стоп')),
+          Expanded(child: Text(OwnerL10n.tr(state.language,
+               'Слушаю… Нажми микрофон ещё раз, чтобы остановить.'))),
+          TextButton(onPressed: _toggleListening,
+               child:Text(OwnerL10n.tr(state.language,'Стоп'))),
         ])),
       ],
       const SizedBox(height: 12),
@@ -537,12 +653,13 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
                     : Icons.mic_none_rounded,
                     color: listening ? Colors.redAccent
                         : OwnerPalette.accent(context)),
-                tooltip: listening ? 'Остановить запись' : 'Голосовой вопрос',
+                tooltip: OwnerL10n.tr(state.language,
+                   listening ? 'Остановить запись' : 'Голосовой вопрос'),
                 onPressed: sending ? null : _toggleListening,
               ),
               IconButton(
                 icon: const Icon(Icons.send_rounded),
-                tooltip: 'Отправить',
+                tooltip: OwnerL10n.tr(state.language,'Отправить'),
                 onPressed: sending ? null : _send,
               ),
             ],

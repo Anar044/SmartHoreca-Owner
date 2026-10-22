@@ -16,6 +16,8 @@ dependencies:
   firebase_messaging: ^16.0.4
   speech_to_text: ^7.5.0
   flutter_tts: ^4.2.5
+  pdf: ^3.11.3
+  printing: ^5.14.2
 
 dev_dependencies:
   flutter_test:
