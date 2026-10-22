@@ -84,7 +84,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   @override
   void dispose() {
     final abort=_aiAbort;
-    if(abort!=null && !abort.isCompleted)abort.complete();
+    if(abort!=null && !abort.isCompleted){abort.complete();}
     ++_speechToken;
     unawaited(_recognizer.stop());
     unawaited(_tts.stop());
@@ -100,7 +100,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     final scope = '${owner.workspaceId}:${ids.join(',')}';
     if (_scopeKey != scope) {
       final abort=_aiAbort;
-      if(abort!=null && !abort.isCompleted)abort.complete();
+      if(abort!=null && !abort.isCompleted){abort.complete();}
       _aiAbort=null;
       _pendingQuestion=null;
       _scopeKey = scope;
@@ -348,7 +348,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
 
   void _newConversation() {
     final abort=_aiAbort;
-    if(abort!=null && !abort.isCompleted)abort.complete();
+    if(abort!=null && !abort.isCompleted){abort.complete();}
     _aiAbort=null;
     _pendingQuestion=null;
     unawaited(_recognizer.stop());
