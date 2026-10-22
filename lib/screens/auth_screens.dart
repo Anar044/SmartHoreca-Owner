@@ -265,7 +265,7 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
               )),
               const SizedBox(height: 10),
               if(visible.isEmpty) Padding(
-                padding:EdgeInsets.symmetric(vertical:14),
+                padding:const EdgeInsets.symmetric(vertical:14),
                 child:Text(tr('В этом фильтре подразделения не найдены.')),
               ),
               for (final restaurant in visible) ...[
