@@ -278,7 +278,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
                 const OwnerHeading('История диалогов'),
                 const SizedBox(height: 12),
                 if (chats.isEmpty)
-                  const Text('Пока нет сохранённых разговоров.'),
+                  OwnerText('Пока нет сохранённых разговоров.'),
                 for (final chat in chats)
                   ListTile(
                     leading: const Icon(Icons.chat_outlined),
@@ -616,8 +616,10 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         OwnerCard(child: Row(children: [
           const Icon(Icons.mic, color: Colors.redAccent),
           const SizedBox(width: 8),
-          const Expanded(child: Text('Слушаю… Нажми микрофон ещё раз, чтобы остановить.')),
-          TextButton(onPressed: _toggleListening, child: const Text('Стоп')),
+          Expanded(child:Text(OwnerL10n.tr(state.language,
+            'Слушаю… Нажми микрофон ещё раз, чтобы остановить.'))),
+          TextButton(onPressed: _toggleListening,
+            child:Text(OwnerL10n.tr(state.language,'Стоп'))),
         ])),
       ],
       const SizedBox(height: 12),
@@ -635,7 +637,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
                     : Icons.mic_none_rounded,
                     color: listening ? Colors.redAccent
                         : OwnerPalette.accent(context)),
-                tooltip: listening ? 'Остановить запись' : 'Голосовой вопрос',
+                tooltip: OwnerL10n.tr(state.language,
+                  listening ? 'Остановить запись' : 'Голосовой вопрос'),
                 onPressed: sending ? null : _toggleListening,
               ),
               IconButton(
