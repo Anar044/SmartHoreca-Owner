@@ -254,8 +254,8 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
                 contentPadding:EdgeInsets.zero,
                 title:Text(tr('Push от Smart Horeca Owner')), 
                 subtitle:Text(OwnerPushService.configured
-                  ?'Для ${state.restaurantIdsByName.length} доступных ресторанов'
-                  :'Ожидает настройки Firebase для Android'),
+                  ?'${tr('Все доступные рестораны')}: ${state.restaurantIdsByName.length}'
+                  :tr(OwnerPushService.platformSetupHint)),
                 value:pushEnabled,
                 onChanged:pushBusy||!OwnerPushService.configured
                   ?null:_togglePush,
