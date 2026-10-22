@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../core/owner_voice_locale.dart';
@@ -358,6 +361,43 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     ));
   }
 
+  Future<void> _shareAnswerPdf(_OwnerAssistantMessage message) async {
+    try {
+      // Noto Sans supports Cyrillic, Azerbaijani and English in one report.
+      final regular=await PdfGoogleFonts.notoSansRegular();
+      final bold=await PdfGoogleFonts.notoSansBold();
+      final doc=pw.Document();
+      doc.addPage(pw.MultiPage(
+        pageFormat:PdfPageFormat.a4,
+        margin:const pw.EdgeInsets.all(36),
+        theme:pw.ThemeData.withFont(base:regular,bold:bold),
+        build:(ctx)=>[
+          pw.Text('Smart Horeca Owner',style:pw.TextStyle(font:bold,fontSize:18)),
+          pw.SizedBox(height:6),
+          pw.Text('AI Smart Horeca Assistant',style:pw.TextStyle(fontSize:10)),
+          pw.SizedBox(height:16),
+          pw.Text(message.text,style:pw.TextStyle(font:regular,fontSize:11)),
+          if(message.report!=null) ...[
+            pw.SizedBox(height:18),
+            pw.Text('Report details',style:pw.TextStyle(font:bold)),
+            pw.Text(message.report.toString(),
+              style:pw.TextStyle(font:regular,fontSize:9)),
+          ],
+        ],
+      ));
+      await Printing.sharePdf(
+        bytes:await doc.save(),
+        filename:'SH_Owner_AI_Report.pdf',
+      );
+    }catch(_){
+      if(!mounted)return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(
+        OwnerL10n.tr(OwnerScope.of(context).language,
+          'Не удалось создать PDF. Попробуйте снова.'),
+      )));
+    }
+  }
+
   void _newConversation() {
     unawaited(_recognizer.stop());
     unawaited(_stopSpeech());
@@ -493,6 +533,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
               ? () => _readAnswer(message) : null,
           onCopy: message.role == 'assistant'
               ? () => _copyAnswer(message.text) : null,
+          onPdf: message.role == 'assistant'
+              ? () => _shareAnswerPdf(message) : null,
         ),
         if (message.role == 'assistant' &&
             (message.chart != null || message.report != null))
