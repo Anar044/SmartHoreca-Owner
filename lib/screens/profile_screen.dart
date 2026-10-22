@@ -161,7 +161,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
     try{
       if(enabled){
         await OwnerPushService.enable(
-          state.workspaceId!,state.selectedRestaurantIds);
+          state.workspaceId!,state.restaurantIdsByName.values);
       }else{
         await OwnerPushService.disable();
       }
@@ -191,7 +191,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
     setState(() { pushBusy = true; pushStatus = null; });
     try {
       final message = await OwnerPushService.checkConnection(
-        workspace, state.selectedRestaurantIds,
+        workspace, state.restaurantIdsByName.values,
       );
       if (mounted) setState(() => pushStatus = message);
     } catch (e) {
@@ -214,7 +214,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
     setState((){pushBusy=true;pushStatus=null;});
     try{
       await OwnerPushService.updateKinds(
-        workspace,state.selectedRestaurantIds,next);
+        workspace,state.restaurantIdsByName.values,next);
       if(!mounted)return;
       setState((){
         selectedKinds=next;
@@ -253,7 +253,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
                 contentPadding:EdgeInsets.zero,
                 title:const Text('Push от Smart Horeca Owner'),
                 subtitle:Text(OwnerPushService.configured
-                  ?'Для ${state.selectedRestaurantIds.length} выбранных ресторанов'
+                  ?'Для ${state.restaurantIdsByName.length} доступных ресторанов'
                   :'Ожидает настройки Firebase для Android'),
                 value:pushEnabled,
                 onChanged:pushBusy||!OwnerPushService.configured
