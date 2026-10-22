@@ -59,6 +59,10 @@ class OwnerPushService {
   static const _iosAppId=String.fromEnvironment('SH_FIREBASE_IOS_APP_ID');
   static const _iosBundleId=String.fromEnvironment('SH_FIREBASE_IOS_BUNDLE_ID');
 
+  static String get platformSetupHint => Platform.isIOS
+    ? 'Ожидает настройки Firebase и APNs для iOS'
+    : 'Ожидает настройки Firebase для Android';
+
   static bool get configured =>
     _senderId.isNotEmpty && _projectId.isNotEmpty &&
     ((Platform.isAndroid && _apiKey.isNotEmpty && _appId.isNotEmpty) ||
