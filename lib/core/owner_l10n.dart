@@ -8,6 +8,8 @@ class OwnerL10n {
 
   static const Map<String, Map<String, String>> _translations = {
     'Azərbaycan': {
+      'Не удалось создать PDF. Попробуйте снова.': 'PDF yaradıla bilmədi. Yenidən cəhd edin.',
+      'Экспорт в PDF': 'PDF-ə ixrac et',
       'Ответ скопирован': 'Cavab kopyalandı',
       'Стоп': 'Dayandır',
       'Копировать ответ': 'Cavabı kopyala',
@@ -249,6 +251,8 @@ class OwnerL10n {
       'открытых смен': 'açıq növbə',
     },
     'English': {
+      'Не удалось создать PDF. Попробуйте снова.': 'Could not create PDF. Try again.',
+      'Экспорт в PDF': 'Export to PDF',
       'Ответ скопирован': 'Answer copied',
       'Стоп': 'Stop',
       'Копировать ответ': 'Copy answer',
