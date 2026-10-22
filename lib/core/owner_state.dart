@@ -103,6 +103,7 @@ class OwnerState extends ChangeNotifier {
   bool activityLoading = false;
   String? activityWarning;
   bool activitySalesAvailable = false;
+  bool activityBulkSelectionSafe = false;
   int activityLookbackDays = 30;
   int _activityGeneration = 0;
 
@@ -260,6 +261,7 @@ class OwnerState extends ChangeNotifier {
     activityWarning = null;
     activityLoading = false;
     activitySalesAvailable = false;
+    activityBulkSelectionSafe = false;
     restaurantIdsByName = {};
     for (final restaurant in restaurants) {
       final id = restaurant['id'].toString();
@@ -324,7 +326,7 @@ class OwnerState extends ChangeNotifier {
       // Request only this authenticated organization's authorized IDs.
       final data=await OwnerBackend.getJson(
         '/api/mobile/v1/restaurant-activity',
-        workspaceId:ws,departmentIds:restaurantIdsByName.values,
+        workspaceId:ws,departmentIds:selectedRestaurantIds,
       );
       if(generation!=_activityGeneration || workspaceId!=ws) return;
       final allowed=restaurantIdsByName.values.toSet();
@@ -336,15 +338,23 @@ class OwnerState extends ChangeNotifier {
       }
       departmentEvidence=next;
       activitySalesAvailable=data['sourceStatus']=='VERIFIED';
+      final topology=(data['topology'] as Map?)??const {};
+      final shiftChecks=(data['shiftChecks'] as Map?)??const {};
+      activityBulkSelectionSafe=activitySalesAvailable &&
+        topology['groupsKnown']==true &&
+        topology['cashKnown']==true &&
+        shiftChecks['incomplete']==false;
       activityLookbackDays=(data['lookbackDays'] is int)
         ? data['lookbackDays'] as int : 30;
-      if(!activitySalesAvailable) {
-        activityWarning=
-          'Продажи за последние 30 дней пока не удалось проверить. '
-          'Группы и кассы показаны по доступной конфигурации.';
+      if(!activityBulkSelectionSafe) {
+        activityWarning='Часть источников не подтверждена: '
+          'непроверенные группы/кассы или продажи/смены отмечены «—». '
+          'Быстрый выбор рабочих ресторанов пока недоступен — '
+          'можно оставить или снять галочки вручную.';
       }
     } catch (_) {
       if(generation!=_activityGeneration || workspaceId!=ws)return;
+      activityBulkSelectionSafe=false;
       activityWarning='Не удалось проверить активность подразделений. '
         'Список доступных ресторанов остаётся без изменений.';
     } finally {
@@ -356,7 +366,7 @@ class OwnerState extends ChangeNotifier {
   }
 
   void selectRestaurantsWithEvidence() {
-    if (departmentEvidence.isEmpty) return;
+    if (!activityBulkSelectionSafe || departmentEvidence.isEmpty) return;
     final working=restaurantIdsByName.entries.where((entry)=>
       departmentEvidence[entry.value]?.evidenceOfWork==true)
       .map((entry)=>entry.key).toSet();
@@ -500,6 +510,7 @@ class OwnerState extends ChangeNotifier {
     departmentEvidence={};
     activityWarning=null;
     activitySalesAvailable=false;
+    activityBulkSelectionSafe=false;
     activityLoading=false;
     ++_summaryGeneration;
     live = false;
