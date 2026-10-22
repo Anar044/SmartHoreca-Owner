@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../core/owner_voice_locale.dart';
@@ -335,6 +336,28 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     }
   }
 
+  // Cancel the local wait without replaying or modifying restaurant data.
+  // A started server request may still finish on the backend; obsolete
+  // responses cannot replace this conversation after generation changes.
+  void _stopThinking() {
+    if (!sending) return;
+    ++_generation;
+    setState(() {
+      sending=false;
+      error=null;
+    });
+  }
+
+  Future<void> _copyAnswer(String text) async {
+    await Clipboard.setData(ClipboardData(text:text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content:Text(OwnerL10n.tr(OwnerScope.of(context).language,
+          'Ответ скопирован')),
+      duration:const Duration(seconds:2),
+    ));
+  }
+
   void _newConversation() {
     unawaited(_recognizer.stop());
     unawaited(_stopSpeech());
@@ -468,6 +491,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           speaking: speaking && identical(_speakingMessage, message),
           onSpeak: message.role == 'assistant'
               ? () => _readAnswer(message) : null,
+          onCopy: message.role == 'assistant'
+              ? () => _copyAnswer(message.text) : null,
         ),
         if (message.role == 'assistant' &&
             (message.chart != null || message.report != null))
@@ -499,11 +524,17 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           ])),
         const SizedBox(height: 8),
       ],
-      if (sending) const OwnerCard(child: Row(children: [
-        SizedBox(width: 18, height: 18,
-          child: CircularProgressIndicator(strokeWidth: 2)),
-        SizedBox(width: 12),
-        OwnerText('AI анализирует данные Smart Horeca…'),
+      if (sending) OwnerCard(child: Row(children: [
+        const SizedBox(width: 18,height:18,
+          child:CircularProgressIndicator(strokeWidth:2)),
+        const SizedBox(width: 12),
+        Expanded(child:Text(OwnerL10n.tr(state.language,
+          'AI анализирует данные Smart Horeca…'))),
+        TextButton.icon(
+          onPressed:_stopThinking,
+          icon:const Icon(Icons.stop_circle_outlined),
+          label:Text(OwnerL10n.tr(state.language,'Стоп')),
+        ),
       ])),
       if (error != null) ...[
         const SizedBox(height: 8),
