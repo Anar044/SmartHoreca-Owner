@@ -10,12 +10,14 @@ class OwnerChatBubble extends StatelessWidget {
     required this.role,
     required this.text,
     this.onSpeak,
+    this.onCopy,
     this.speaking = false,
   });
 
   final String role;
   final String text;
   final VoidCallback? onSpeak;
+  final VoidCallback? onCopy;
   final bool speaking;
 
   bool get fromUser => role == 'user';
@@ -80,11 +82,18 @@ class OwnerChatBubble extends StatelessWidget {
                     color: foreground,
                   ),
                 ),
-                if (!fromUser && onSpeak != null) ...[
+                if (!fromUser && (onSpeak != null || onCopy != null)) ...[
                   const SizedBox(height: 4),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: IconButton(
+                    child: Row(mainAxisSize:MainAxisSize.min,children:[
+                      if (onCopy != null) IconButton(
+                        tooltip:'Копировать ответ',
+                        visualDensity:VisualDensity.compact,
+                        icon:const Icon(Icons.copy_rounded,size:20),
+                        onPressed:onCopy,
+                      ),
+                      if (onSpeak != null) IconButton(
                       tooltip: speaking
                           ? 'Остановить озвучивание'
                           : 'Озвучить ответ',
@@ -96,6 +105,7 @@ class OwnerChatBubble extends StatelessWidget {
                       ),
                       onPressed: onSpeak,
                     ),
+                    ]),
                   ),
                 ],
               ],
