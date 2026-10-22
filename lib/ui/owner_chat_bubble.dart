@@ -11,6 +11,7 @@ class OwnerChatBubble extends StatelessWidget {
     required this.text,
     this.onSpeak,
     this.onCopy,
+    this.onPdf,
     this.speaking = false,
   });
 
@@ -18,6 +19,7 @@ class OwnerChatBubble extends StatelessWidget {
   final String text;
   final VoidCallback? onSpeak;
   final VoidCallback? onCopy;
+  final VoidCallback? onPdf;
   final bool speaking;
 
   bool get fromUser => role == 'user';
@@ -82,7 +84,7 @@ class OwnerChatBubble extends StatelessWidget {
                     color: foreground,
                   ),
                 ),
-                if (!fromUser && (onSpeak != null || onCopy != null)) ...[
+                if (!fromUser && (onSpeak != null || onCopy != null || onPdf != null)) ...[
                   const SizedBox(height: 4),
                   Align(
                     alignment: Alignment.centerRight,
@@ -92,6 +94,12 @@ class OwnerChatBubble extends StatelessWidget {
                         visualDensity:VisualDensity.compact,
                         icon:const Icon(Icons.copy_rounded,size:20),
                         onPressed:onCopy,
+                      ),
+                      if (onPdf != null) IconButton(
+                        tooltip:'Экспорт в PDF',
+                        visualDensity:VisualDensity.compact,
+                        icon:const Icon(Icons.picture_as_pdf_outlined,size:20),
+                        onPressed:onPdf,
                       ),
                       if (onSpeak != null) IconButton(
                       tooltip: speaking
