@@ -125,6 +125,26 @@ class OwnerPushService {
     }
   }
 
+  // On iPhone FCM cannot issue a usable registration token until APNs has
+  // registered the device. iOS may need a short moment after permission.
+  static Future<String?> _readyFcmToken() async {
+    if (Platform.isIOS) {
+      String? apns;
+      for (var attempt=0;attempt<8;attempt++) {
+        apns=await FirebaseMessaging.instance.getAPNSToken();
+        if (apns!=null && apns.isNotEmpty) break;
+        await Future<void>.delayed(const Duration(milliseconds:500));
+      }
+      if(apns==null||apns.isEmpty) {
+        throw const OwnerApiException('APNS_TOKEN_UNAVAILABLE',
+          'iPhone не зарегистрирован в APNs. Проверьте Push Notifications '
+          'в Apple Developer, APNs Key в Firebase и разрешение уведомлений.',
+          503);
+      }
+    }
+    return FirebaseMessaging.instance.getToken();
+  }
+
   static String get _optInKey {
     final userId=OwnerBackend.hasSession
         ?OwnerBackend.client.auth.currentUser?.id??''
@@ -190,7 +210,7 @@ class OwnerPushService {
         throw const OwnerApiException('FIREBASE_UNAVAILABLE',
           'Firebase сейчас недоступен. Попробуйте позже.',503);
       }
-      final token=await FirebaseMessaging.instance.getToken();
+      final token=await _readyFcmToken();
       if (token == null || token.isEmpty) {
         throw const OwnerApiException('FCM_TOKEN_UNAVAILABLE',
           'Не удалось получить токен для обновления подписки.',503);
@@ -206,7 +226,10 @@ class OwnerPushService {
   static Future<String> checkConnection(
       String workspace, Iterable<String> restaurants) async {
     if (!configured) {
-      return 'Firebase не настроен для этого устройства.';
+      return Platform.isIOS
+        ?'Для iPhone не настроена Firebase iOS App. Проверьте GitHub '
+          'SH_FIREBASE_IOS_API_KEY, SH_FIREBASE_IOS_APP_ID и Apple Bundle ID.'
+        :'Firebase не настроен для этого устройства.';
     }
     await initialize();
     if (!_initialized) {
@@ -219,7 +242,12 @@ class OwnerPushService {
     if (ids.isEmpty) {
       return 'Сначала выберите хотя бы один ресторан.';
     }
-    final token = await FirebaseMessaging.instance.getToken();
+    String? token;
+    try {
+      token=await _readyFcmToken();
+    } on OwnerApiException catch(e) {
+      return e.message;
+    }
     if (token == null || token.isEmpty) {
       return 'Firebase не выдал токен этому телефону.';
     }
@@ -263,7 +291,7 @@ class OwnerPushService {
     if(!_initialized)return;
     _enabled=await isEnabled();
     if(!_enabled||_departments.isEmpty||!OwnerBackend.hasSession)return;
-    final token=await FirebaseMessaging.instance.getToken();
+    final token=await _readyFcmToken();
     if(token!=null){
       await _registerToken(token,workspace,_departments);
     }
@@ -289,7 +317,7 @@ class OwnerPushService {
       throw const OwnerApiException('PUSH_PERMISSION_DENIED',
         'Разрешите уведомления SH Owner в настройках телефона.',403);
     }
-    final token=await FirebaseMessaging.instance.getToken();
+    final token=await _readyFcmToken();
     if(token==null||token.isEmpty){
       throw const OwnerApiException('FCM_TOKEN_UNAVAILABLE',
         'Не удалось получить токен уведомлений. Повторите позднее.',503);
@@ -315,7 +343,7 @@ class OwnerPushService {
       return;
     }
     final workspace=_workspace;
-    final token=await FirebaseMessaging.instance.getToken();
+    final token=await _readyFcmToken();
     if(workspace!=null&&token!=null&&OwnerBackend.hasSession){
       try{
         await OwnerBackend.postJson('/api/mobile/v1/push-subscriptions',
