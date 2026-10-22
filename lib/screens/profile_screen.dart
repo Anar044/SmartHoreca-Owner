@@ -274,7 +274,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
               const SizedBox(height:8),
               const Divider(),
               Text(tr('Какие события отправляются'),
-                style:TextStyle(fontWeight:FontWeight.bold)),
+                style:const TextStyle(fontWeight:FontWeight.bold)),
               const SizedBox(height:8),
               for(final event in const [
                 ('DISCOUNT_APPLIED','Применена скидка'),
