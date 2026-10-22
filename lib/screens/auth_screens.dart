@@ -212,7 +212,7 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
                       color: OwnerPalette.muted(context)),
                   )),
                   IconButton(
-                    tooltip: 'Обновить признаки работы',
+                    tooltip: tr('Обновить признаки работы'),
                     onPressed: state.activityLoading
                       ? null : () => state.loadRestaurantActivity(),
                     icon: const Icon(Icons.refresh_rounded),
@@ -229,19 +229,19 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
                   onChanged:(v)=>setState(()=>_query=v.trim()),
                   decoration:const InputDecoration(
                     prefixIcon:Icon(Icons.search_rounded),
-                    hintText:'Найти подразделение',
+                    hintText:tr('Найти подразделение'),
                     isDense:true,
                   ),
                 ),
                 const SizedBox(height: 10),
                 Wrap(spacing:7,runSpacing:7,children:[
-                  ChoiceChip(label:const Text('Все'),
+                  ChoiceChip(label:Text(tr('Все')),
                     selected:_filter=='all',showCheckmark:false,
                     onSelected:(_)=>setState(()=>_filter='all')),
-                  ChoiceChip(label:const Text('С признаками работы'),
+                  ChoiceChip(label:Text(tr('С признаками работы')),
                     selected:_filter=='working',showCheckmark:false,
                     onSelected:(_)=>setState(()=>_filter='working')),
-                  ChoiceChip(label:const Text('Без подтверждения'),
+                  ChoiceChip(label:Text(tr('Без подтверждения')),
                     selected:_filter=='unverified',showCheckmark:false,
                     onSelected:(_)=>setState(()=>_filter='unverified')),
                 ]),
@@ -251,7 +251,7 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
                       onPressed:state.activityBulkSelectionSafe
                         ? state.selectRestaurantsWithEvidence : null,
                       icon:const Icon(Icons.done_all_rounded,size:17),
-                      label:const Text('Выбрать с признаками работы'),
+                      label:Text(tr('Выбрать с признаками работы')),
                     )),
               ],
               const SizedBox(height: 12),
@@ -266,7 +266,7 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
               const SizedBox(height: 10),
               if(visible.isEmpty) const Padding(
                 padding:EdgeInsets.symmetric(vertical:14),
-                child:Text('В этом фильтре подразделения не найдены.'),
+                child:Text(tr('В этом фильтре подразделения не найдены.')),
               ),
               for (final restaurant in visible) ...[
                 Builder(builder:(context) {
@@ -289,17 +289,17 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
                       child:Column(
                         crossAxisAlignment:CrossAxisAlignment.start,
                         children:[
-                          Text(info.shortStatus,
+                          Text(tr(info.shortStatus),
                             style:const TextStyle(fontSize:12)),
-                          Text(info.topologySummary,
+                          Text(info.topologySummaryFor(state.language),
                             style:TextStyle(fontSize:11,
                               color:OwnerPalette.muted(context))),
                           if(info.shiftSummary!=null)
-                            Text(info.shiftSummary!,
+                            Text(tr(info.shiftSummary!),
                               style:TextStyle(fontSize:11,
                                 color:OwnerPalette.muted(context))),
                           if(info.recentRevenue!=null)
-                            Text('Выручка за 30 дней: '
+                            Text('${tr('Выручка за 30 дней')}: '
                               '${info.recentRevenue!.toStringAsFixed(2)} AZN',
                               style:TextStyle(fontSize:11,
                                 color:OwnerPalette.muted(context))),
