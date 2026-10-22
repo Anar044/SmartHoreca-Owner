@@ -379,9 +379,49 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           pw.Text(message.text,style:pw.TextStyle(font:regular,fontSize:11)),
           if(message.report!=null) ...[
             pw.SizedBox(height:18),
-            pw.Text('Report details',style:pw.TextStyle(font:bold)),
-            pw.Text(message.report.toString(),
-              style:pw.TextStyle(font:regular,fontSize:9)),
+            pw.Text((message.report!['title']??'AI Report').toString(),
+                style:pw.TextStyle(font:bold,fontSize:14)),
+            if(message.report!['subtitle']!=null)
+              pw.Text(message.report!['subtitle'].toString(),
+                  style:pw.TextStyle(font:regular,fontSize:10)),
+            for(final k in (message.report!['kpis'] as List? ?? const [])
+                .whereType<Map>().take(8))
+              pw.Padding(padding:const pw.EdgeInsets.only(top:5),
+                child:pw.Text('${k['label']??''}: ${k['value']??''}',
+                    style:pw.TextStyle(font:regular,fontSize:10))),
+            if(message.report!['columns'] is List &&
+                message.report!['rows'] is List)
+              pw.TableHelper.fromTextArray(
+                headerStyle:pw.TextStyle(font:bold,fontSize:9),
+                cellStyle:pw.TextStyle(font:regular,fontSize:8),
+                headers:(message.report!['columns'] as List).take(8)
+                  .map((c)=>c is Map?(c['label']??'').toString():c.toString())
+                  .toList(),
+                data:(message.report!['rows'] as List).take(50)
+                  .whereType<List>()
+                  .map((r)=>List<String>.generate(
+                      (message.report!['columns'] as List).take(8).length,
+                      (i)=>i<r.length?r[i].toString():''))
+                  .toList(),
+              ),
+            for(final note in (message.report!['notes'] as List? ?? const [])
+                .take(5))
+              pw.Padding(padding:const pw.EdgeInsets.only(top:4),
+                  child:pw.Text(note.toString(),
+                    style:pw.TextStyle(font:regular,fontSize:9))),
+          ],
+          if(message.chart!=null &&
+              message.chart!['series'] is List) ...[
+            pw.SizedBox(height:16),
+            pw.Text((message.chart!['title']??'Chart values').toString(),
+                style:pw.TextStyle(font:bold,fontSize:12)),
+            for(final series in (message.chart!['series'] as List)
+              .whereType<Map>().take(4))
+              for(final point in (series['data'] as List? ?? const [])
+                .whereType<Map>().take(25))
+                pw.Text('${series['name']??''} ${point['label']??''}: '
+                  '${point['value']??''}',
+                    style:pw.TextStyle(font:regular,fontSize:9)),
           ],
         ],
       ));
