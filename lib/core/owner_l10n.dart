@@ -8,6 +8,18 @@ class OwnerL10n {
 
   static const Map<String, Map<String, String>> _translations = {
     'Azərbaycan': {
+      'Вы': 'Siz',
+      'Остановить озвучивание': 'Səsləndirməni dayandır',
+      'Озвучить ответ': 'Cavabı səsləndir',
+      'Остановить запись': 'Yazını dayandır',
+      'Голосовой вопрос': 'Səsli sual',
+      'Слушаю… Нажми микрофон ещё раз, чтобы остановить.': 'Dinləyirəm… Dayandırmaq üçün mikrofona yenidən basın.',
+      'Новый чат': 'Yeni söhbət',
+      'Пока нет сохранённых разговоров.': 'Hələ yadda saxlanmış söhbət yoxdur.',
+      'Какая выручка сегодня по выбранным ресторанам?': 'Seçilmiş restoranların bugünkü satış gəliri nə qədərdir?',
+      'Сравни выручку ресторанов за 7 дней и покажи график': 'Restoranların 7 günlük satış gəlirlərini müqayisə et və qrafik göstər',
+      'Покажи топ-5 блюд по выручке за сегодня': 'Bu gün gəlirə görə ilk 5 yeməyi göstər',
+
       'Не удалось создать PDF. Попробуйте снова.': 'PDF yaradıla bilmədi. Yenidən cəhd edin.',
       'Экспорт в PDF': 'PDF-ə ixrac et',
       'Ответ скопирован': 'Cavab kopyalandı',
@@ -251,6 +263,18 @@ class OwnerL10n {
       'открытых смен': 'açıq növbə',
     },
     'English': {
+      'Вы': 'You',
+      'Остановить озвучивание': 'Stop speech',
+      'Озвучить ответ': 'Read answer aloud',
+      'Остановить запись': 'Stop recording',
+      'Голосовой вопрос': 'Voice question',
+      'Слушаю… Нажми микрофон ещё раз, чтобы остановить.': 'Listening… Tap the microphone again to stop.',
+      'Новый чат': 'New chat',
+      'Пока нет сохранённых разговоров.': 'No conversations saved yet.',
+      'Какая выручка сегодня по выбранным ресторанам?': 'What is today\'s revenue for selected restaurants?',
+      'Сравни выручку ресторанов за 7 дней и покажи график': 'Compare restaurant revenue over 7 days and show a chart',
+      'Покажи топ-5 блюд по выручке за сегодня': 'Show today\'s top 5 dishes by revenue',
+
       'Не удалось создать PDF. Попробуйте снова.': 'Could not create PDF. Try again.',
       'Экспорт в PDF': 'Export to PDF',
       'Ответ скопирован': 'Answer copied',
