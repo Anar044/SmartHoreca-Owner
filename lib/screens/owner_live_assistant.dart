@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
+import '../core/owner_ai_export.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../core/owner_voice_locale.dart';
@@ -46,6 +49,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   String? conversationId;
   String _scopeKey = '';
   int _generation = 0;
+  Completer<void>? _aiAbort;
+  String? _pendingQuestion;
 
   @override
   void initState() {
@@ -78,6 +83,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
 
   @override
   void dispose() {
+    final abort=_aiAbort;
+    if(abort!=null && !abort.isCompleted){abort.complete();}
     ++_speechToken;
     unawaited(_recognizer.stop());
     unawaited(_tts.stop());
@@ -92,6 +99,10 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     final ids = owner.selectedRestaurantIds.toList()..sort();
     final scope = '${owner.workspaceId}:${ids.join(',')}';
     if (_scopeKey != scope) {
+      final abort=_aiAbort;
+      if(abort!=null && !abort.isCompleted){abort.complete();}
+      _aiAbort=null;
+      _pendingQuestion=null;
       _scopeKey = scope;
       ++_generation;
       conversation.clear();
@@ -267,7 +278,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
                 const OwnerHeading('История диалогов'),
                 const SizedBox(height: 12),
                 if (chats.isEmpty)
-                  const Text('Пока нет сохранённых разговоров.'),
+                  const OwnerText('Пока нет сохранённых разговоров.'),
                 for (final chat in chats)
                   ListTile(
                     leading: const Icon(Icons.chat_outlined),
@@ -336,6 +347,10 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   }
 
   void _newConversation() {
+    final abort=_aiAbort;
+    if(abort!=null && !abort.isCompleted){abort.complete();}
+    _aiAbort=null;
+    _pendingQuestion=null;
     unawaited(_recognizer.stop());
     unawaited(_stopSpeech());
     ++_generation;
@@ -348,6 +363,63 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       speaking = false;
       _speakingMessage = null;
     });
+  }
+
+  void _stopThinking() {
+    if (!sending) return;
+    final abort=_aiAbort;
+    if(abort!=null&&!abort.isCompleted){abort.complete();}
+    _aiAbort=null;
+    final draft=_pendingQuestion;
+    _pendingQuestion=null;
+    ++_generation; // Ignore every response from the abandoned request.
+    setState(() {
+      sending=false;
+      error=null;
+      // The server may have processed an already-sent request despite HTTP
+      // cancellation. The next question starts a fresh conversation to avoid
+      // mixing the abandoned result into its history.
+      conversationId=null;
+      conversation.clear();
+      if(draft!=null) {
+        controller.text=draft;
+        controller.selection=TextSelection.collapsed(
+          offset:controller.text.length);
+      }
+    });
+  }
+
+  Future<void> _copyAnswer(String answer) async {
+    await Clipboard.setData(ClipboardData(text:answer));
+    if(!mounted)return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content:Text(OwnerL10n.tr(
+        OwnerScope.of(context).language,'Ответ скопирован'))));
+  }
+
+  Future<void> _shareAnswer(String answer) async {
+    try {
+      await SharePlus.instance.share(ShareParams(
+        text:answer,subject:'SH Owner — AI'));
+    } catch (_) {
+      if(mounted) {
+        setState(()=>error=OwnerL10n.tr(
+          OwnerScope.of(context).language,'Не удалось поделиться ответом.'));
+      }
+    }
+  }
+
+  Future<void> _exportAnswer(_OwnerAssistantMessage message) async {
+    try {
+      await OwnerAiExport.sharePdf(answer:message.text,
+        chart:message.chart,report:message.report);
+    } catch (_) {
+      if(mounted) {
+        setState(()=>error=OwnerL10n.tr(
+          OwnerScope.of(context).language,
+          'Не удалось создать PDF. Проверьте подключение и повторите.'));
+      }
+    }
   }
 
   Future<void> _send([String? preset]) async {
@@ -366,6 +438,9 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     final current = _generation;
     final workspaceId = owner.workspaceId!;
     final restaurantIds = owner.selectedRestaurantIds.toList();
+    final abort=Completer<void>();
+    _aiAbort=abort;
+    _pendingQuestion=message;
     setState(() {
       conversation.add(_OwnerAssistantMessage('user', message));
       controller.clear();
@@ -382,6 +457,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           'message': message,
           if (conversationId != null) 'conversationId': conversationId,
         },
+        abortTrigger:abort.future,
       );
       if (!mounted || current != _generation) return;
       setState(() {
@@ -405,6 +481,10 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           ? '${e.message} (${e.code})'
           : 'Не удалось получить ответ AI Smart Horeca Assistant.');
     } finally {
+      if(identical(_aiAbort,abort)){
+        _aiAbort=null;
+        _pendingQuestion=null;
+      }
       if (mounted && current == _generation) {
         setState(() => sending = false);
       }
@@ -468,6 +548,18 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           speaking: speaking && identical(_speakingMessage, message),
           onSpeak: message.role == 'assistant'
               ? () => _readAnswer(message) : null,
+          onCopy: message.role == 'assistant'
+              ? () => _copyAnswer(message.text) : null,
+          onShare: message.role == 'assistant'
+              ? () => _shareAnswer(message.text) : null,
+          onPdf: message.role == 'assistant'
+              ? () => _exportAnswer(message) : null,
+          userLabel:OwnerL10n.tr(state.language,'Вы'),
+          copyTooltip:OwnerL10n.tr(state.language,'Копировать'),
+          shareTooltip:OwnerL10n.tr(state.language,'Поделиться'),
+          pdfTooltip:OwnerL10n.tr(state.language,'Экспорт в PDF'),
+          speakTooltip:OwnerL10n.tr(state.language,'Озвучить ответ'),
+          stopSpeakTooltip:OwnerL10n.tr(state.language,'Остановить озвучивание'),
         ),
         if (message.role == 'assistant' &&
             (message.chart != null || message.report != null))
@@ -499,11 +591,17 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           ])),
         const SizedBox(height: 8),
       ],
-      if (sending) const OwnerCard(child: Row(children: [
-        SizedBox(width: 18, height: 18,
+      if (sending) OwnerCard(child: Row(children: [
+        const SizedBox(width: 18, height: 18,
           child: CircularProgressIndicator(strokeWidth: 2)),
-        SizedBox(width: 12),
-        OwnerText('AI анализирует данные Smart Horeca…'),
+        const SizedBox(width: 12),
+        Expanded(child:Text(OwnerL10n.tr(state.language,
+          'AI анализирует данные Smart Horeca…'))),
+        TextButton.icon(
+          onPressed:_stopThinking,
+          icon:const Icon(Icons.stop_circle_outlined),
+          label:Text(OwnerL10n.tr(state.language,'Стоп')),
+        ),
       ])),
       if (error != null) ...[
         const SizedBox(height: 8),
@@ -518,8 +616,10 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         OwnerCard(child: Row(children: [
           const Icon(Icons.mic, color: Colors.redAccent),
           const SizedBox(width: 8),
-          const Expanded(child: Text('Слушаю… Нажми микрофон ещё раз, чтобы остановить.')),
-          TextButton(onPressed: _toggleListening, child: const Text('Стоп')),
+          Expanded(child:Text(OwnerL10n.tr(state.language,
+            'Слушаю… Нажми микрофон ещё раз, чтобы остановить.'))),
+          TextButton(onPressed: _toggleListening,
+            child:Text(OwnerL10n.tr(state.language,'Стоп'))),
         ])),
       ],
       const SizedBox(height: 12),
@@ -537,13 +637,16 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
                     : Icons.mic_none_rounded,
                     color: listening ? Colors.redAccent
                         : OwnerPalette.accent(context)),
-                tooltip: listening ? 'Остановить запись' : 'Голосовой вопрос',
+                tooltip: OwnerL10n.tr(state.language,
+                  listening ? 'Остановить запись' : 'Голосовой вопрос'),
                 onPressed: sending ? null : _toggleListening,
               ),
               IconButton(
-                icon: const Icon(Icons.send_rounded),
-                tooltip: 'Отправить',
-                onPressed: sending ? null : _send,
+                icon: Icon(sending?Icons.stop_circle_outlined:
+                  Icons.send_rounded),
+                tooltip: OwnerL10n.tr(state.language,
+                  sending?'Остановить ответ AI':'Отправить'),
+                onPressed: sending ? _stopThinking : _send,
               ),
             ],
           ),

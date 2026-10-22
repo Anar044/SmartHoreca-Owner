@@ -10,12 +10,30 @@ class OwnerChatBubble extends StatelessWidget {
     required this.role,
     required this.text,
     this.onSpeak,
+    this.onCopy,
+    this.onShare,
+    this.onPdf,
+    this.copyTooltip = 'Копировать',
+    this.shareTooltip = 'Поделиться',
+    this.pdfTooltip = 'Экспорт в PDF',
+    this.userLabel = 'Вы',
+    this.speakTooltip = 'Озвучить ответ',
+    this.stopSpeakTooltip = 'Остановить озвучивание',
     this.speaking = false,
   });
 
   final String role;
   final String text;
   final VoidCallback? onSpeak;
+  final VoidCallback? onCopy;
+  final VoidCallback? onShare;
+  final VoidCallback? onPdf;
+  final String copyTooltip;
+  final String shareTooltip;
+  final String pdfTooltip;
+  final String userLabel;
+  final String speakTooltip;
+  final String stopSpeakTooltip;
   final bool speaking;
 
   bool get fromUser => role == 'user';
@@ -62,7 +80,7 @@ class OwnerChatBubble extends StatelessWidget {
                   ),
                   const SizedBox(width: 7),
                   Text(
-                    fromUser ? 'Вы' : 'AI Smart Horeca',
+                    fromUser ? userLabel : 'AI Smart Horeca',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -80,23 +98,41 @@ class OwnerChatBubble extends StatelessWidget {
                     color: foreground,
                   ),
                 ),
-                if (!fromUser && onSpeak != null) ...[
+                if (!fromUser) ...[
                   const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: IconButton(
-                      tooltip: speaking
-                          ? 'Остановить озвучивание'
-                          : 'Озвучить ответ',
-                      visualDensity: VisualDensity.compact,
-                      icon: Icon(
-                        speaking ? Icons.stop_circle_outlined
-                            : Icons.volume_up_outlined,
-                        size: 21,
-                      ),
-                      onPressed: onSpeak,
-                    ),
-                  ),
+                  Align(alignment:Alignment.centerRight,
+                    child:Wrap(spacing:0,children:[
+                      if(onCopy!=null)
+                        IconButton(
+                          tooltip:copyTooltip,
+                          visualDensity:VisualDensity.compact,
+                          icon:const Icon(Icons.copy_rounded,size:20),
+                          onPressed:onCopy,
+                        ),
+                      if(onShare!=null)
+                        IconButton(
+                          tooltip:shareTooltip,
+                          visualDensity:VisualDensity.compact,
+                          icon:const Icon(Icons.ios_share_rounded,size:20),
+                          onPressed:onShare,
+                        ),
+                      if(onPdf!=null)
+                        IconButton(
+                          tooltip:pdfTooltip,
+                          visualDensity:VisualDensity.compact,
+                          icon:const Icon(Icons.picture_as_pdf_outlined,size:20),
+                          onPressed:onPdf,
+                        ),
+                      if(onSpeak!=null)
+                        IconButton(
+                          tooltip:speaking?stopSpeakTooltip:speakTooltip,
+                          visualDensity:VisualDensity.compact,
+                          icon:Icon(
+                            speaking?Icons.stop_circle_outlined:
+                              Icons.volume_up_outlined,size:21),
+                          onPressed:onSpeak,
+                        )
+                    ])),
                 ],
               ],
             ),

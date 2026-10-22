@@ -161,7 +161,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
     try{
       if(enabled){
         await OwnerPushService.enable(
-          state.workspaceId!,state.selectedRestaurantIds);
+          state.workspaceId!,state.restaurantIdsByName.values);
       }else{
         await OwnerPushService.disable();
       }
@@ -191,7 +191,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
     setState(() { pushBusy = true; pushStatus = null; });
     try {
       final message = await OwnerPushService.checkConnection(
-        workspace, state.selectedRestaurantIds,
+        workspace, state.restaurantIdsByName.values,
       );
       if (mounted) setState(() => pushStatus = message);
     } catch (e) {
@@ -214,7 +214,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
     setState((){pushBusy=true;pushStatus=null;});
     try{
       await OwnerPushService.updateKinds(
-        workspace,state.selectedRestaurantIds,next);
+        workspace,state.restaurantIdsByName.values,next);
       if(!mounted)return;
       setState((){
         selectedKinds=next;
@@ -239,9 +239,10 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final state=OwnerScope.of(context);
+    String tr(String value)=>OwnerL10n.tr(state.language,value);
     if(state.live){
       return Scaffold(
-        appBar:AppBar(title:const Text('Уведомления')),
+        appBar:AppBar(title:Text(tr('Уведомления'))),
         body:OwnerScreenFrame(children:[
           const OwnerHeading('События касс',
             caption:'Push на экран телефона, включая закрытое приложение'),
@@ -251,10 +252,10 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
             children:[
               SwitchListTile(
                 contentPadding:EdgeInsets.zero,
-                title:const Text('Push от Smart Horeca Owner'),
+                title:Text(tr('Push от Smart Horeca Owner')), 
                 subtitle:Text(OwnerPushService.configured
-                  ?'Для ${state.selectedRestaurantIds.length} выбранных ресторанов'
-                  :'Ожидает настройки Firebase для Android'),
+                  ?'${tr('Все доступные рестораны')}: ${state.restaurantIdsByName.length}'
+                  :tr(OwnerPushService.platformSetupHint)),
                 value:pushEnabled,
                 onChanged:pushBusy||!OwnerPushService.configured
                   ?null:_togglePush,
@@ -262,7 +263,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
               OutlinedButton.icon(
                 onPressed: pushBusy ? null : _checkPushConnection,
                 icon: const Icon(Icons.verified_outlined, size: 18),
-                label: const Text('Проверить подключение push'),
+                label: Text(tr('Проверить подключение push')), 
               ),
               if(pushBusy)const LinearProgressIndicator(),
               if(pushStatus!=null)...[
@@ -272,8 +273,8 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
               ],
               const SizedBox(height:8),
               const Divider(),
-              const Text('Какие события отправляются',
-                style:TextStyle(fontWeight:FontWeight.bold)),
+              Text(tr('Какие события отправляются'),
+                style:const TextStyle(fontWeight:FontWeight.bold)),
               const SizedBox(height:8),
               for(final event in const [
                 ('DISCOUNT_APPLIED','Применена скидка'),
@@ -286,17 +287,16 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
                   dense:true,
                   contentPadding:EdgeInsets.zero,
                   controlAffinity:ListTileControlAffinity.leading,
-                  title:Text(event.$2),
+                  title:Text(tr(event.$2)), 
                   subtitle:Text(selectedKinds.contains(event.$1)
-                    ?'Получать уведомления'
-                    :'Не уведомлять'),
+                    ?tr('Получать уведомления')
+                    :tr('Не уведомлять')), 
                   value:selectedKinds.contains(event.$1),
                   onChanged:pushBusy?null:(value)=>
                     _toggleKind(event.$1,value==true),
                 ),
               const SizedBox(height:8),
-              Text('События должны поступать из кассового плагина. '
-                'Приложение не создаёт уведомления по догадкам.',
+              Text(tr('События должны поступать из кассового плагина. Приложение не создаёт уведомления по догадкам.'),
                 style:TextStyle(fontSize:11,
                   color:OwnerPalette.muted(context))),
             ],

@@ -301,7 +301,7 @@ class OwnerState extends ChangeNotifier {
     unawaited(loadRestaurantActivity());
     if (stage == OwnerStage.shell) {
       unawaited(loadSummary());
-      unawaited(OwnerPushService.syncScope(id,selectedRestaurantIds)
+      unawaited(OwnerPushService.syncScope(id,restaurantIdsByName.values)
         .catchError((Object _) {}));
     }
   }
@@ -375,7 +375,7 @@ class OwnerState extends ChangeNotifier {
     if (live && workspaceId != null) {
       unawaited(_prefs.setStringList(
         'sh_owner_depts_$workspaceId',selectedRestaurantIds.toList()));
-      unawaited(OwnerPushService.syncScope(workspaceId!,selectedRestaurantIds)
+      unawaited(OwnerPushService.syncScope(workspaceId!,restaurantIdsByName.values)
         .catchError((Object _) {}));
     }
     notifyListeners();
@@ -416,7 +416,7 @@ class OwnerState extends ChangeNotifier {
     }
     notifyListeners();
     if(live && workspaceId!=null && selectedRestaurantIds.isNotEmpty){
-      unawaited(OwnerPushService.syncScope(workspaceId!,selectedRestaurantIds)
+      unawaited(OwnerPushService.syncScope(workspaceId!,restaurantIdsByName.values)
         .catchError((Object _) {}));
     }
     if (live && stage == OwnerStage.shell && tabIndex == 0 &&
@@ -434,7 +434,7 @@ class OwnerState extends ChangeNotifier {
     }
     notifyListeners();
     if(live && workspaceId!=null && selectedRestaurantIds.isNotEmpty){
-      unawaited(OwnerPushService.syncScope(workspaceId!,selectedRestaurantIds)
+      unawaited(OwnerPushService.syncScope(workspaceId!,restaurantIdsByName.values)
         .catchError((Object _) {}));
     }
     if (live && stage == OwnerStage.shell && tabIndex == 0 &&

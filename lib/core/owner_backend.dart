@@ -161,6 +161,7 @@ class OwnerBackend {
     required String workspaceId,
     required Iterable<String> departmentIds,
     required Map<String, dynamic> payload,
+    Future<void>? abortTrigger,
   }) async {
     if (!configured) {
       throw const OwnerApiException('NOT_CONFIGURED',
@@ -173,13 +174,36 @@ class OwnerBackend {
           'HTTPS_REQUIRED', 'Требуется защищённое соединение HTTPS.', 400);
     }
     try {
-      final result = await http.post(uri, headers: {
+      final headers = <String, String>{
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',
         'X-SH-Workspace-Id': workspaceId,
         'X-SH-Department-Ids': (departmentIds.toList()..sort()).join(','),
-      }, body: jsonEncode(payload)).timeout(const Duration(seconds: 120));
+      };
+      // Only the explicit AI action is abortable. Cancellation stops the
+      // phone waiting immediately; it does not guarantee server-side work
+      // is rolled back. Never retry a non-idempotent AI message.
+      late final http.Response result;
+      if (abortTrigger == null) {
+        result = await http.post(uri,
+          headers: headers, body: jsonEncode(payload))
+          .timeout(const Duration(seconds: 120));
+      } else {
+        final client = http.Client();
+        try {
+          final request = http.AbortableRequest('POST', uri,
+              abortTrigger: abortTrigger)
+            ..headers.addAll(headers)
+            ..body = jsonEncode(payload);
+          final streamed = await client.send(request)
+              .timeout(const Duration(seconds: 120));
+          result = await http.Response.fromStream(streamed)
+              .timeout(const Duration(seconds: 120));
+        } finally {
+          client.close();
+        }
+      }
       // AI POST is not retried automatically: resending could create duplicate
       // messages if the server processed the first request.
       return _decodeResponse(result);
