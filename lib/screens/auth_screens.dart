@@ -206,8 +206,8 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
                 const SizedBox(height: 9),
                 Row(children: [
                   Expanded(child: Text(
-                    'Признаки работы: продажи за последние 30 дней, '
-                    'группы и кассы.',
+                    'Признаки работы: продажи за 30 дней, '
+                    'актуальные группы и кассы, подтверждённые смены.',
                     style: TextStyle(fontSize: 12,
                       color: OwnerPalette.muted(context)),
                   )),
@@ -248,7 +248,8 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
                 if(state.departmentEvidence.values.any((x)=>x.evidenceOfWork))
                   Align(alignment:Alignment.centerRight,
                     child:TextButton.icon(
-                      onPressed:state.selectRestaurantsWithEvidence,
+                      onPressed:state.activityBulkSelectionSafe
+                        ? state.selectRestaurantsWithEvidence : null,
                       icon:const Icon(Icons.done_all_rounded,size:17),
                       label:const Text('Выбрать с признаками работы'),
                     )),
@@ -293,6 +294,10 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
                           Text(info.topologySummary,
                             style:TextStyle(fontSize:11,
                               color:OwnerPalette.muted(context))),
+                          if(info.shiftSummary!=null)
+                            Text(info.shiftSummary!,
+                              style:TextStyle(fontSize:11,
+                                color:OwnerPalette.muted(context))),
                           if(info.recentRevenue!=null)
                             Text('Выручка за 30 дней: '
                               '${info.recentRevenue!.toStringAsFixed(2)} AZN',
