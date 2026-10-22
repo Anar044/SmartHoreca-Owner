@@ -368,7 +368,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   void _stopThinking() {
     if (!sending) return;
     final abort=_aiAbort;
-    if(abort!=null&&!abort.isCompleted)abort.complete();
+    if(abort!=null&&!abort.isCompleted){abort.complete();}
     _aiAbort=null;
     final draft=_pendingQuestion;
     _pendingQuestion=null;
