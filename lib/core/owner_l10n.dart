@@ -8,6 +8,10 @@ class OwnerL10n {
 
   static const Map<String, Map<String, String>> _translations = {
     'Azərbaycan': {
+      'Ответ скопирован': 'Cavab kopyalandı',
+      'Стоп': 'Dayandır',
+      'Копировать ответ': 'Cavabı kopyala',
+
       'Главная': 'Ana səhifə',
       'Кассы': 'Kassalar',
       'Отчёты': 'Hesabatlar',
@@ -245,6 +249,10 @@ class OwnerL10n {
       'открытых смен': 'açıq növbə',
     },
     'English': {
+      'Ответ скопирован': 'Answer copied',
+      'Стоп': 'Stop',
+      'Копировать ответ': 'Copy answer',
+
       'Главная': 'Home',
       'Кассы': 'Registers',
       'Отчёты': 'Reports',
