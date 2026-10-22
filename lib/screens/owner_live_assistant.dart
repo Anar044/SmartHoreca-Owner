@@ -374,7 +374,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         build:(ctx)=>[
           pw.Text('Smart Horeca Owner',style:pw.TextStyle(font:bold,fontSize:18)),
           pw.SizedBox(height:6),
-          pw.Text('AI Smart Horeca Assistant',style:pw.TextStyle(fontSize:10)),
+          pw.Text('AI Smart Horeca Assistant',style:const pw.TextStyle(fontSize:10)),
           pw.SizedBox(height:16),
           pw.Text(message.text,style:pw.TextStyle(font:regular,fontSize:11)),
           if(message.report!=null) ...[
