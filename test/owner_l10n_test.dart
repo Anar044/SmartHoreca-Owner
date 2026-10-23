@@ -73,4 +73,32 @@ void main() {
   test('untranslated business terms are not replaced with fake translations', () {
     expect(OwnerL10n.tr('English', 'Новый отчёт iiko'), 'Новый отчёт iiko');
   });
+  test('release notifications and live screens have AZ and EN labels', () {
+    for (final locale in ['Azərbaycan', 'English']) {
+      for (final label in [
+        'Уведомления SH Owner',
+        'События касс',
+        'Применена скидка',
+        'Удалена скидка',
+        'Отменён пречек',
+        'Удалено блюдо',
+        'Сторнирован чек',
+        'Удалено напечатанное блюдо',
+        'Добавлена наценка',
+        'Удалена наценка',
+        'Получать уведомления',
+        'Не уведомлять',
+        'Уведомления временно недоступны',
+        'Часть данных недоступна. Повторите запрос позже.',
+        'Сервис временно недоступен. Попробуйте позже.',
+        'Загружаем отчёт…',
+        'Получаем данные подключённых касс…',
+        'Данные ещё не загружены.',
+      ]) {
+        expect(OwnerL10n.hasTranslation(locale, label), isTrue,
+          reason: 'Missing $locale release label: $label');
+      }
+    }
+  });
+
 }

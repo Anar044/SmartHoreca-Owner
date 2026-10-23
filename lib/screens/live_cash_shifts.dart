@@ -259,9 +259,6 @@ class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
             const SizedBox(height: 9),
           ],
         const SizedBox(height: 10),
-        Text('Источник: ${data?['source'] ?? 'SH Cash Shifts'}'
-          ' • Обновлено: ${data?['updatedAt'] ?? '—'}',
-          style: TextStyle(color: OwnerPalette.muted(context), fontSize: 11)),
       ],
     ]);
   }

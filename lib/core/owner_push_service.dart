@@ -32,7 +32,8 @@ class OwnerPushOrderTarget {
     final kind = (data['kind'] ?? '').toString().trim();
     const validKinds = <String>{
       'DISCOUNT_APPLIED', 'DISCOUNT_REMOVED', 'PRECHECK_CANCELLED',
-      'ITEM_REMOVED', 'RECEIPT_STORNO'
+      'ITEM_REMOVED', 'RECEIPT_STORNO',
+      'SURCHARGE_APPLIED', 'SURCHARGE_REMOVED'
     };
     final id = RegExp(r'^[0-9a-fA-F-]{36}$');
     if (!id.hasMatch(departmentId) || !id.hasMatch(pluginId) ||
@@ -86,6 +87,7 @@ class OwnerPushService {
   static const kinds=<String>[
     'DISCOUNT_APPLIED','DISCOUNT_REMOVED','PRECHECK_CANCELLED',
     'ITEM_REMOVED','RECEIPT_STORNO',
+    'SURCHARGE_APPLIED','SURCHARGE_REMOVED',
   ];
 
   static Future<void> initialize() async {
@@ -148,7 +150,19 @@ class OwnerPushService {
     final saved=await SharedPreferencesAsync().getStringList(
       _kindsKey(workspace));
     if (saved == null) return kinds.toSet();
-    return saved.where(kinds.contains).toSet();
+    final selected=saved.where(kinds.contains).toSet();
+    // People who previously selected every one of the five available
+    // alerts receive the two new surcharge choices by default. Preserve
+    // custom selections and explicit opt-outs without switching on push.
+    const previousKinds=<String>{
+      'DISCOUNT_APPLIED','DISCOUNT_REMOVED','PRECHECK_CANCELLED',
+      'ITEM_REMOVED','RECEIPT_STORNO',
+    };
+    if (selected.length==previousKinds.length &&
+        selected.containsAll(previousKinds)) {
+      selected.addAll(const ['SURCHARGE_APPLIED','SURCHARGE_REMOVED']);
+    }
+    return selected;
   }
 
   static Future<void> _registerToken(

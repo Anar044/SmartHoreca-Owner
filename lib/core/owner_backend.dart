@@ -131,25 +131,28 @@ class OwnerBackend {
       throw OwnerApiException(
         'HTTP_$status',
         status >= 500
-            ? 'Сервер Smart Horeca временно недоступен (HTTP $status). '
+            ? 'Сервис Smart Horeca временно недоступен. '
               'Повторите запрос позже.'
-            : 'Сервер Smart Horeca вернул неверный ответ (HTTP $status).',
+            : 'Не удалось получить данные. Попробуйте позже.',
         status,
       );
     }
     if (status >= 400 || data['success'] != true) {
       final serverMessage = (data['message'] ?? '').toString().trim();
       final fallback = _transient(status)
-          ? 'Smart Horeca API временно недоступен (HTTP $status). '
+          ? 'Сервис Smart Horeca временно недоступен. '
             'Попробуйте обновить данные.'
           : status == 401
             ? 'Сессия истекла. Войдите в аккаунт заново.'
             : status == 403
               ? 'Нет доступа к выбранной организации или операции.'
-              : 'Ошибка запроса Smart Horeca (HTTP $status).';
+              : 'Не удалось выполнить запрос. Попробуйте позже.';
       throw OwnerApiException(
         (data['code'] ?? 'HTTP_$status').toString(),
-        serverMessage.isNotEmpty ? serverMessage : fallback,
+        serverMessage.isNotEmpty &&
+        !RegExp(r'HTTP|REST_API|Supabase|Cloudflare|D1|Exception|traceback|stacktrace|sql|endpoint', caseSensitive: false)
+          .hasMatch(serverMessage)
+            ? serverMessage : fallback,
         status,
       );
     }

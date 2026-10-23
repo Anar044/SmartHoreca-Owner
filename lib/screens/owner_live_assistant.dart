@@ -267,7 +267,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
                 const OwnerHeading('История диалогов'),
                 const SizedBox(height: 12),
                 if (chats.isEmpty)
-                  const Text('Пока нет сохранённых разговоров.'),
+                  const OwnerText('Пока нет сохранённых разговоров.'),
                 for (final chat in chats)
                   ListTile(
                     leading: const Icon(Icons.chat_outlined),
@@ -481,11 +481,9 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
                 color: OwnerPalette.warning, size: 17),
               const SizedBox(width: 8),
               Expanded(child: Text(
-                '${message.sourceWarnings.map((item) =>
-                  (item['code'] ?? 'SOURCE_UNAVAILABLE').toString()).toSet().join(', ')}'
-                ' — источник не вернул полный отчёт. '
-                'Попробуйте повторить вопрос позже.',
-                style: TextStyle(fontSize: 12,
+                 OwnerL10n.tr(state.language,
+                   'Часть данных недоступна. Повторите запрос позже.'),
+                 style: TextStyle(fontSize: 12,
                   color: OwnerPalette.muted(context)),
               )),
             ]),
@@ -518,8 +516,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         OwnerCard(child: Row(children: [
           const Icon(Icons.mic, color: Colors.redAccent),
           const SizedBox(width: 8),
-          const Expanded(child: Text('Слушаю… Нажми микрофон ещё раз, чтобы остановить.')),
-          TextButton(onPressed: _toggleListening, child: const Text('Стоп')),
+          const Expanded(child: OwnerText('Слушаю… Нажми микрофон ещё раз, чтобы остановить.')),
+          TextButton(onPressed: _toggleListening, child: const OwnerText('Стоп')),
         ])),
       ],
       const SizedBox(height: 12),

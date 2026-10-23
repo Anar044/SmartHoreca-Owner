@@ -46,4 +46,29 @@ void main() {
       'orderNum': '',
     }), isNull);
   });
+
+  test('all seven distinct approved risk events support scoped order navigation', () {
+    const approvedKinds = <String>{
+      'DISCOUNT_APPLIED','DISCOUNT_REMOVED',
+      'ITEM_REMOVED','PRECHECK_CANCELLED','RECEIPT_STORNO',
+      'SURCHARGE_APPLIED','SURCHARGE_REMOVED',
+    };
+    expect(OwnerPushService.kinds.toSet(), approvedKinds);
+    expect(OwnerPushService.kinds.length, 7);
+    for (final kind in approvedKinds) {
+      final target = OwnerPushOrderTarget.fromData({
+        'kind': kind,
+        'departmentId': department,
+        'pluginId': plugin,
+        'orderNum': '45',
+      });
+      expect(target, isNotNull, reason: kind);
+      expect(target!.kind, kind);
+      expect(target.departmentId, department);
+    }
+    expect(OwnerPushOrderTarget.fromData(const {
+      'kind':'addingSurcharge',
+      'departmentId':department,'pluginId':plugin,'orderNum':'45',
+    }), isNull);
+  });
 }

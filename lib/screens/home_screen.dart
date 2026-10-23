@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../ui/owner_text.dart';
 import '../ui/owner_components.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
@@ -41,7 +42,7 @@ class OwnerHomeScreen extends StatelessWidget {
       const OwnerPeriodPicker(),
       if (state.live && state.period == 'Вчера') ...[
         const SizedBox(height: 7),
-        Text('Вчера — календарные продажи. Смена, открытая вчера и '
+        OwnerText('Вчера — календарные продажи. Смена, открытая вчера и '
           'продолжившаяся после полуночи, учитывается в «Сегодня» '
           'по кассовым сменам.',
           style: TextStyle(fontSize: 11,
@@ -49,7 +50,7 @@ class OwnerHomeScreen extends StatelessWidget {
       ],
       if (state.live && data?['noSalesForPeriod'] == true) ...[
         const SizedBox(height: 7),
-        Text('SH OLAP подтвердил отсутствие продаж в выбранном '
+        OwnerText('Подтверждено отсутствие продаж в выбранном '
           'календарном периоде.',
           style: TextStyle(fontSize: 12,
             color: OwnerPalette.muted(context))),
@@ -92,7 +93,7 @@ class OwnerHomeScreen extends StatelessWidget {
             child: Column(children: [
               CircularProgressIndicator(),
               SizedBox(height: 14),
-              Text('Получаем данные Smart Horeca OLAP…'),
+              OwnerText('Загружаем отчёт…'),
             ]),
           )))
         else if (state.dashboardError != null) ...[
@@ -102,7 +103,7 @@ class OwnerHomeScreen extends StatelessWidget {
             Text(state.dashboardError!, textAlign: TextAlign.center),
             const SizedBox(height: 10),
             FilledButton.icon(onPressed: state.loadSummary,
-              icon: const Icon(Icons.refresh), label: const Text('Повторить')),
+              icon: const Icon(Icons.refresh), label: const OwnerText('Повторить')),
           ])),
         ] else if (data != null) ...[
           Row(children: [
@@ -163,18 +164,11 @@ class OwnerHomeScreen extends StatelessWidget {
                   valueLabels: daily.map((e) =>
                     (e['revenue'] as num).toStringAsFixed(0)).toList(),
                 )
-              else const Text('Нет подтверждённых данных для диаграммы за выбранный период.'),
+              else const OwnerText('Нет подтверждённых данных для диаграммы за выбранный период.'),
             ],
           )),
           const SizedBox(height: 12),
-          Text('Источник: ${data['source'] ?? 'SH OLAP'} • '
-            'Загрузка: ${state.lastDashboardLoadSeconds?.toStringAsFixed(1) ?? '—'} с • '
-            'Обновлено: ${data['updatedAt'] ?? '—'}',
-            style: TextStyle(color: OwnerPalette.muted(context), fontSize: 11)),
-          const SizedBox(height: 16),
-          const OwnerCard(child: Text('Показатели по отдельным ресторанам и топ блюд '
-              'будут доступны после подключения соответствующих серверных отчётов.')),
-        ] else const OwnerCard(child: Text('Данные ещё не загружены.')),
+        ] else const OwnerCard(child: OwnerText('Данные ещё не загружены.')),
       ] else ...[
         Row(children: [
           Expanded(child: OwnerMetric('Выручка',
