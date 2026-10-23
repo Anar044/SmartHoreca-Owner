@@ -225,15 +225,15 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
     children:[
       const Icon(Icons.sort,size:18),
       const SizedBox(width:8),
-      const Text('Сортировка по сумме'),
+      const OwnerText('Сортировка по сумме'),
       const Spacer(),
       PopupMenuButton<bool>(
         tooltip:'Порядок суммы',
         initialValue:amountDescending,
         onSelected:(next)=>setState(()=>amountDescending=next),
         itemBuilder:(context)=>const [
-          PopupMenuItem(value:true,child:Text('Сначала большие ↓')),
-          PopupMenuItem(value:false,child:Text('Сначала меньшие ↑')),
+          PopupMenuItem(value:true,child:OwnerText('Сначала большие ↓')),
+          PopupMenuItem(value:false,child:OwnerText('Сначала меньшие ↑')),
         ],
         child:Row(mainAxisSize:MainAxisSize.min,children:[
           Text(amountDescending?'↓ По убыванию':'↑ По возрастанию',
@@ -1177,7 +1177,7 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
             SizedBox(height:17,width:17,
               child:CircularProgressIndicator(strokeWidth:2)),
             SizedBox(width:10),
-            Expanded(child:Text('Получаем историю действий с кассы…')),
+            Expanded(child:OwnerText('Получаем историю действий с кассы…')),
           ]))
         else if(historyError!=null && auditEvents.isEmpty)
           OwnerCard(child:Column(
@@ -1186,7 +1186,7 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
               const SizedBox(height:7),
               TextButton.icon(onPressed:_loadHistory,
                 icon:const Icon(Icons.refresh),
-                label:const Text('Повторить загрузку истории')),
+                label:const OwnerText('Повторить загрузку истории')),
             ],
           ))
         else if(auditEvents.isEmpty)
@@ -1244,7 +1244,7 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
           ],
           if(historyLoading)
             const Padding(padding:EdgeInsets.only(bottom:8),
-              child:Text('Обновляем историю заказа…')),
+              child:OwnerText('Обновляем историю заказа…')),
           if(historyNote?.isNotEmpty==true)
             Text(historyNote!,style:TextStyle(fontSize:11,
               color:OwnerPalette.muted(context))),
@@ -1352,7 +1352,7 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
           OwnerCard(child:Column(
             crossAxisAlignment:CrossAxisAlignment.start,
             children:[
-              const Text('Офлайн • последнее сохранённое состояние',
+              const OwnerText('Офлайн • последнее сохранённое состояние',
                 style:TextStyle(fontWeight:FontWeight.w700)),
               const SizedBox(height:8),
               for(final item in info) ...[
@@ -1367,7 +1367,7 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
                 const SizedBox(height:5),
               ],
               const SizedBox(height:6),
-              const Text('Состав и новые операции кассы сейчас недоступны. '
+              const OwnerText('Состав и новые операции кассы сейчас недоступны. '
                 'История ниже загружается отдельно из журнала POS.'),
             ],
           )),
@@ -1378,7 +1378,7 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
             child:Center(child:CircularProgressIndicator()))),
         if(error!=null)
           OwnerCard(child:Column(children:[
-            const Text('Не удалось обновить состав заказа с кассы.',
+            const OwnerText('Не удалось обновить состав заказа с кассы.',
               style:TextStyle(fontWeight:FontWeight.w700),
               textAlign:TextAlign.center),
             const SizedBox(height:8),
@@ -1392,10 +1392,10 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
           OwnerCard(child:Column(
             crossAxisAlignment:CrossAxisAlignment.start,
             children:[
-              const Text('Последние подтверждённые сведения из списка кассы',
+              const OwnerText('Последние подтверждённые сведения из списка кассы',
                 style:TextStyle(fontWeight:FontWeight.w700)),
               const SizedBox(height:5),
-              const Text('Это не обновлённый состав заказа. '
+              const OwnerText('Это не обновлённый состав заказа. '
                 'Список блюд и оплат требует ответа кассы.',
                 style:TextStyle(fontSize:12)),
               const SizedBox(height:8),
