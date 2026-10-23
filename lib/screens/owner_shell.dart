@@ -40,7 +40,7 @@ class _OwnerShellState extends State<OwnerShell> {
           Expanded(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Smart Horeca Owner', style: TextStyle(
+              const Text('SH Owner', style: TextStyle(
                 fontSize: 17, fontWeight: FontWeight.w800)),
               Text(OwnerL10n.tr(state.language, 'Ваш бизнес под контролем'),
                 style: const TextStyle(fontSize: 11,
