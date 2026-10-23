@@ -78,7 +78,7 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
                 ),
                 if (state.error != null) ...[
                   const SizedBox(height: 12),
-                  Text(state.error!, style: const TextStyle(color: OwnerPalette.error)),
+                  Text(OwnerL10n.tr(state.language,state.error!), style: const TextStyle(color: OwnerPalette.error)),
                   if (OwnerBackend.hasSession) ...[
                     const SizedBox(height: 8),
                     TextButton.icon(
@@ -145,7 +145,7 @@ class OwnerWorkspaceSelectScreen extends StatelessWidget {
         const SizedBox(height: 13),
         if (state.error != null)
           Padding(padding: const EdgeInsets.only(bottom: 12),
-              child: Text(state.error!,
+              child: Text(OwnerL10n.tr(state.language,state.error!),
                   style: const TextStyle(color: OwnerPalette.error))),
         for (final w in state.workspaces) ...[
           OwnerCard(
@@ -222,7 +222,7 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
                 if(state.activityLoading) const LinearProgressIndicator(),
                 if(state.activityWarning!=null)
                   Padding(padding:const EdgeInsets.symmetric(vertical:7),
-                    child:Text(state.activityWarning!,
+                    child:Text(OwnerL10n.tr(state.language,state.activityWarning!),
                       style:TextStyle(fontSize:12,
                         color:OwnerPalette.muted(context)))),
                 const SizedBox(height: 7),
