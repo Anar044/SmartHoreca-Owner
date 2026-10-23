@@ -146,10 +146,13 @@ class OwnerBackend {
             ? 'Сессия истекла. Войдите в аккаунт заново.'
             : status == 403
               ? 'Нет доступа к выбранной организации или операции.'
-              : 'Ошибка запроса Smart Horeca (HTTP $status).';
+              : 'Не удалось выполнить запрос. Попробуйте позже.';
       throw OwnerApiException(
         (data['code'] ?? 'HTTP_$status').toString(),
-        serverMessage.isNotEmpty ? serverMessage : fallback,
+        serverMessage.isNotEmpty &&
+        !RegExp(r'HTTP|REST_API|Supabase|Cloudflare|D1|Exception|traceback|stacktrace|sql|endpoint', caseSensitive: false)
+          .hasMatch(serverMessage)
+            ? serverMessage : fallback,
         status,
       );
     }
