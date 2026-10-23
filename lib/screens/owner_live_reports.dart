@@ -673,13 +673,13 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
       final caption=byRegister
         ?'Разбивка по кассам'
         :byRestaurant
-          ?'Разбивка по ресторанам: тип не передан SH OLAP'
-          :'Разбивка по типам из SH OLAP';
+          ?'Разбивка по ресторанам'
+          :'Разбивка по типам';
       return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         OwnerHeading(title,caption:caption),
         const SizedBox(height:8),
         if(!available)
-          OwnerCard(child:Text(reason ?? 'Источник не предоставил этот показатель.'))
+          OwnerCard(child:Text('Нет данных для этого раздела.'))
         else if(rows.isEmpty)
           const OwnerCard(child:OwnerText('Нет данных за выбранный период.'))
         else for(final row in rows) ...[
@@ -719,8 +719,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
           Icon(Icons.info_outline,color:OwnerPalette.warning),
           SizedBox(width:9),
           Expanded(child:OwnerText(
-            'SH OLAP не предоставил один из показателей. '
-            'Отсутствующая сумма не заменяется нулём.')),
+            'Некоторые суммы сейчас недоступны. Они не учитываются как нулевые.')),
         ])),
         const SizedBox(height:14),
       ],
@@ -777,7 +776,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         .where((e) => e['belowMin'] == true ||
           ((e['quantity'] as num?) ?? 0) < 0).toList();
     return Column(children: [
-      const OwnerCard(child: OwnerText('Текущие складские предупреждения. Push-уведомления ещё не подключены.')),
+      const OwnerCard(child: OwnerText('Складские предупреждения по текущим остаткам.')),
       const SizedBox(height: 12),
       if (rows.isEmpty)
         const OwnerCard(child: OwnerText('По текущим остаткам предупреждений нет.')),
@@ -926,7 +925,7 @@ class _OwnerLiveOrderScreenState extends State<OwnerLiveOrderScreen> {
     }catch(e){
       if(!mounted)return;
       setState((){loading=false;error=e is OwnerApiException
-        ? '${e.message} (${e.code})' : 'Не удалось получить состав чека.';});
+        ? 'Не удалось получить состав чека.' : 'Не удалось получить состав чека.';});
     }
   }
 
@@ -942,7 +941,7 @@ class _OwnerLiveOrderScreenState extends State<OwnerLiveOrderScreen> {
       appBar: AppBar(title: Text('${OwnerL10n.tr(OwnerScope.of(context).language, 'Чек')} ${order['number']}')),
       body: OwnerScreenFrame(onRefresh: _load, children: [
         OwnerHeading('${OwnerL10n.tr(OwnerScope.of(context).language, 'Чек')} ${order['number']}',
-          caption:'Данные SH OLAP только для просмотра'),
+          caption:'Просмотр данных чека'),
         const SizedBox(height:12),
         OwnerCard(child:Column(children:[
           ListTile(title:const OwnerText('Дата'),
@@ -966,8 +965,7 @@ class _OwnerLiveOrderScreenState extends State<OwnerLiveOrderScreen> {
         const SizedBox(height:12),
         if(order['detailsAvailable'] != true)
           const OwnerCard(child:OwnerText(
-            'SH OLAP не предоставил уникальный идентификатор чека '
-            'или кассовой смены. Состав заказа нельзя показать достоверно.'))
+            'Не хватает данных, чтобы надёжно показать состав чека.'))
         else if(loading)
           const OwnerCard(child:Padding(
             padding:EdgeInsets.all(24),
@@ -1023,7 +1021,7 @@ class _OwnerLiveOrderScreenState extends State<OwnerLiveOrderScreen> {
             ]
           else
             OwnerCard(child:Text((details?['paymentNote'] ??
-              'Способы оплаты не подтверждены SH Server.').toString())),
+              'Информация о способах оплаты недоступна.').toString())),
         ],
       ]),
     );
@@ -1157,8 +1155,8 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
             'подтверждённые события; повторите загрузку позже.';
         }else{
           historyError=e is OwnerApiException
-            ?'${e.message} (${e.code})'
-            :'Не удалось получить историю событий POS.';
+            ?'Не удалось получить историю операций кассы.'
+            :'Не удалось получить историю операций кассы.';
         }
       });
     }
@@ -1308,7 +1306,7 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
         loading=false;
         showVerifiedSummaryOnError=mayShowVerifiedSummary;
         error=e is OwnerApiException
-          ?'${e.message} (${e.code})'
+          ?'Не удалось загрузить информацию о заказе.'
           :'Не удалось загрузить информацию о заказе.';
       });
     }
@@ -1368,7 +1366,7 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
               ],
               const SizedBox(height:6),
               const OwnerText('Состав и новые операции кассы сейчас недоступны. '
-                'История ниже загружается отдельно из журнала POS.'),
+                'История ниже загружается отдельно из журнала кассы.'),
             ],
           )),
         ],
@@ -1429,7 +1427,7 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
           const SizedBox(height:9),
           if(items.isEmpty)
             const OwnerCard(child:OwnerText(
-              'Касса не предоставила позиции этого заказа. Обновите экран или проверьте доступность детализации в POS.')),
+              'Касса не предоставила позиции этого заказа. Обновите экран или проверьте соединение с кассой.')),
           for(final item in items) ...[
             OwnerCard(child:Column(
               crossAxisAlignment:CrossAxisAlignment.start,
