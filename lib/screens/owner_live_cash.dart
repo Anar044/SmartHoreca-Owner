@@ -268,9 +268,6 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
           ])),
           const SizedBox(height: 9),
         ],
-        Text('Источник: ${data?['source'] ?? 'SH POS Plugin'}'
-            '${lastLoadSeconds == null ? '' : ' • Загрузка: ${lastLoadSeconds!.toStringAsFixed(1)} с'}',
-          style: TextStyle(fontSize: 11, color: OwnerPalette.muted(context))),
       ],
     ]);
   }
