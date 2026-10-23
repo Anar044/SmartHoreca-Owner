@@ -481,11 +481,9 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
                 color: OwnerPalette.warning, size: 17),
               const SizedBox(width: 8),
               Expanded(child: Text(
-                '${message.sourceWarnings.map((item) =>
-                  (item['code'] ?? 'SOURCE_UNAVAILABLE').toString()).toSet().join(', ')}'
-                ' — источник не вернул полный отчёт. '
-                'Попробуйте повторить вопрос позже.',
-                style: TextStyle(fontSize: 12,
+                 OwnerL10n.tr(state.language,
+                   'Часть данных недоступна. Повторите запрос позже.'),
+                 style: TextStyle(fontSize: 12,
                   color: OwnerPalette.muted(context)),
               )),
             ]),
