@@ -167,13 +167,6 @@ class OwnerHomeScreen extends StatelessWidget {
             ],
           )),
           const SizedBox(height: 12),
-          Text('Источник: ${data['source'] ?? 'SH OLAP'} • '
-            'Загрузка: ${state.lastDashboardLoadSeconds?.toStringAsFixed(1) ?? '—'} с • '
-            'Обновлено: ${data['updatedAt'] ?? '—'}',
-            style: TextStyle(color: OwnerPalette.muted(context), fontSize: 11)),
-          const SizedBox(height: 16),
-          const OwnerCard(child: Text('Показатели по отдельным ресторанам и топ блюд '
-              'будут доступны после подключения соответствующих серверных отчётов.')),
         ] else const OwnerCard(child: Text('Данные ещё не загружены.')),
       ] else ...[
         Row(children: [
