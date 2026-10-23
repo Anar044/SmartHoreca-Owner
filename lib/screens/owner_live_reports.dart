@@ -679,7 +679,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         OwnerHeading(title,caption:caption),
         const SizedBox(height:8),
         if(!available)
-          OwnerCard(child:const OwnerText('Нет данных для этого раздела.'))
+          const OwnerCard(child:OwnerText('Нет данных для этого раздела.'))
         else if(rows.isEmpty)
           const OwnerCard(child:OwnerText('Нет данных за выбранный период.'))
         else for(final row in rows) ...[
