@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../ui/owner_text.dart';
 import '../core/owner_backend.dart';
 import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
@@ -83,7 +84,7 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
                     TextButton.icon(
                       onPressed: state.busy ? null : state.loadWorkspaces,
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Повторить загрузку организаций'),
+                      label: const OwnerText('Повторить загрузку организаций'),
                     ),
                   ],
                 ],
@@ -94,7 +95,7 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
                     onPressed: state.busy ? null : () {
                       if (email.text.trim().isEmpty || password.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Введите email и пароль')));
+                          const SnackBar(content: OwnerText('Введите email и пароль')));
                         return;
                       }
                       state.signIn(email.text, password.text);
@@ -137,7 +138,7 @@ class OwnerWorkspaceSelectScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = OwnerScope.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Мои организации')),
+      appBar: AppBar(title: const OwnerText('Мои организации')),
       body: OwnerScreenFrame(children: [
         const OwnerHeading('Выберите организацию',
             caption: 'Доступны только организации вашего аккаунта.'),
@@ -205,7 +206,7 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
               if (state.live) ...[
                 const SizedBox(height: 9),
                 Row(children: [
-                  Expanded(child: Text(
+                  Expanded(child: OwnerText(
                     'Признаки работы: продажи за 30 дней, '
                     'актуальные группы и кассы, подтверждённые смены.',
                     style: TextStyle(fontSize: 12,
@@ -235,13 +236,13 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
                 ),
                 const SizedBox(height: 10),
                 Wrap(spacing:7,runSpacing:7,children:[
-                  ChoiceChip(label:const Text('Все'),
+                  ChoiceChip(label:const OwnerText('Все'),
                     selected:_filter=='all',showCheckmark:false,
                     onSelected:(_)=>setState(()=>_filter='all')),
-                  ChoiceChip(label:const Text('С признаками работы'),
+                  ChoiceChip(label:const OwnerText('С признаками работы'),
                     selected:_filter=='working',showCheckmark:false,
                     onSelected:(_)=>setState(()=>_filter='working')),
-                  ChoiceChip(label:const Text('Без подтверждения'),
+                  ChoiceChip(label:const OwnerText('Без подтверждения'),
                     selected:_filter=='unverified',showCheckmark:false,
                     onSelected:(_)=>setState(()=>_filter='unverified')),
                 ]),
@@ -251,7 +252,7 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
                       onPressed:state.activityBulkSelectionSafe
                         ? state.selectRestaurantsWithEvidence : null,
                       icon:const Icon(Icons.done_all_rounded,size:17),
-                      label:const Text('Выбрать с признаками работы'),
+                      label:const OwnerText('Выбрать с признаками работы'),
                     )),
               ],
               const SizedBox(height: 12),
@@ -266,7 +267,7 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
               const SizedBox(height: 10),
               if(visible.isEmpty) const Padding(
                 padding:EdgeInsets.symmetric(vertical:14),
-                child:Text('В этом фильтре подразделения не найдены.'),
+                child:OwnerText('В этом фильтре подразделения не найдены.'),
               ),
               for (final restaurant in visible) ...[
                 Builder(builder:(context) {
