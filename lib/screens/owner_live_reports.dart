@@ -203,15 +203,8 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
   String _amount(dynamic amount, String unit) => amount is num
       ? '${amount.toStringAsFixed(3)} $unit' : '—';
 
-  Widget _source(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 14),
-    child: Text(
-      'Источник: ${data?['source'] ?? 'Smart Horeca'}'
-      '${lastLoadSeconds == null ? '' : ' • Загрузка: ${lastLoadSeconds!.toStringAsFixed(1)} с'}'
-      ' • Обновление: потянуть вниз',
-      style: TextStyle(color: OwnerPalette.muted(context), fontSize: 11),
-    ),
-  );
+  // Preserve existing report layouts without exposing internal source IDs.
+  Widget _source(BuildContext context) => const SizedBox.shrink();
 
   List<Map<String, dynamic>> _sortedByAmount(
       List<Map<String, dynamic>> original, {String field='value'}) {
