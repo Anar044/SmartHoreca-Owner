@@ -348,6 +348,9 @@ class OwnerL10n {
       'Не удалось выполнить запрос. Попробуйте позже.': 'Sorğunu yerinə yetirmək mümkün olmadı. Daha sonra yenidən cəhd edin.',
       'Сессия истекла. Войдите в аккаунт заново.': 'Sessiya başa çatıb. Hesabınıza yenidən daxil olun.',
       'Нет доступа к выбранной организации или операции.': 'Seçilmiş təşkilata və ya əməliyyata giriş icazəniz yoxdur.',
+      'Не удалось войти. Проверьте подключение и повторите попытку.': 'Daxil olmaq mümkün olmadı. Bağlantını yoxlayın və yenidən cəhd edin.',
+      'Часть источников не подтверждена: непроверенные группы/кассы или продажи/смены отмечены «—». Быстрый выбор рабочих ресторанов пока недоступен — можно оставить или снять галочки вручную.': 'Bəzi göstəricilər təsdiqlənməyib: yoxlanılmamış qruplar, kassalar, satışlar və növbələr «—» kimi göstərilir. Restoranları əl ilə seçə bilərsiniz.',
+      'Не удалось проверить активность подразделений. Список доступных ресторанов остаётся без изменений.': 'Bölmələrin fəaliyyətini yoxlamaq mümkün olmadı. Restoran siyahısı dəyişməyib.',
     },
     'English': {
       'Главная': 'Home',
@@ -690,6 +693,9 @@ class OwnerL10n {
       'Не удалось выполнить запрос. Попробуйте позже.': 'Could not complete the request. Please try again later.',
       'Сессия истекла. Войдите в аккаунт заново.': 'Your session has expired. Please sign in again.',
       'Нет доступа к выбранной организации или операции.': 'You do not have access to this organization or action.',
+      'Не удалось войти. Проверьте подключение и повторите попытку.': 'Could not sign in. Check your connection and try again.',
+      'Часть источников не подтверждена: непроверенные группы/кассы или продажи/смены отмечены «—». Быстрый выбор рабочих ресторанов пока недоступен — можно оставить или снять галочки вручную.': 'Some activity indicators are not verified and appear as “—”. You can still select restaurants manually.',
+      'Не удалось проверить активность подразделений. Список доступных ресторанов остаётся без изменений.': 'Could not verify department activity. Your restaurant list has not changed.',
     },
   };
 
