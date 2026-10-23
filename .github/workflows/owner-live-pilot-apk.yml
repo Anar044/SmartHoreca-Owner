@@ -1,0 +1,102 @@
+name: SH Owner Android Live Pilot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/owner-live-pilot-apk.yml'
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - 'scripts/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sh-owner-android-live-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live_apk:
+    name: Real-data Android APK (Firebase push)
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      SH_PILOT_ORIGIN: https://feature-owner-mobile-readonl.smarthoreca.pages.dev
+      SH_FIREBASE_ANDROID_API_KEY: ${{ vars.SH_FIREBASE_ANDROID_API_KEY }}
+      SH_FIREBASE_ANDROID_APP_ID: ${{ vars.SH_FIREBASE_ANDROID_APP_ID }}
+      SH_FIREBASE_SENDER_ID: ${{ vars.SH_FIREBASE_SENDER_ID }}
+      SH_FIREBASE_PROJECT_ID: ${{ vars.SH_FIREBASE_PROJECT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify configured Firebase and live Owner Preview API
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SH_FIREBASE_ANDROID_API_KEY SH_FIREBASE_ANDROID_APP_ID SH_FIREBASE_SENDER_ID SH_FIREBASE_PROJECT_ID; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing GitHub variable $name; refusing to produce a push-disabled live APK."
+              exit 1
+            fi
+          done
+          curl --fail --silent --show-error --location --retry 2 --max-time 20             "$SH_PILOT_ORIGIN/api/mobile/v1/health" -o /tmp/sh_owner_health.json
+          node -e "const h=require('/tmp/sh_owner_health.json'); if(h.success!==true || h.service!=='Smart Horeca Owner Mobile API') { console.error('::error::Live Owner API health is invalid'); process.exit(1) }"
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate Android runner and SH Owner label
+        run: |
+          flutter create . --platforms=android
+          python3 scripts/configure_native_brand.py
+          flutter pub get
+      - name: Generate app icon and splash
+        run: |
+          python3 -m pip install --quiet Pillow
+          python3 - <<'PY'
+          from PIL import Image
+          path = 'assets/brand/smart-horeca-logo.jpg'
+          with Image.open(path) as im:
+              im.convert('RGB').save(path, format='JPEG', quality=92, optimize=False, progressive=False, subsampling=0)
+          PY
+          dart run flutter_launcher_icons
+          dart run flutter_native_splash:create
+      - name: Validate Flutter code and widget tests
+        run: |
+          flutter analyze
+          flutter test
+      - name: Prepare public client configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 2 --max-time 20             https://raw.githubusercontent.com/Anar044/anarsystem/main/auth-config.js             -o /tmp/sh_owner_public_auth.js
+          node - <<'NODE'
+          const fs=require('fs');
+          const txt=fs.readFileSync('/tmp/sh_owner_public_auth.js','utf8');
+          const url=txt.match(/url:\s*["'](https:\/\/[^"']+)["']/)?.[1];
+          const key=txt.match(/publishableKey:\s*["'](sb_publishable_[^"']+)["']/)?.[1];
+          if(!url||!key)throw new Error('Public Supabase auth config unavailable');
+          const env=process.env;
+          fs.writeFileSync('/tmp/sh_owner_live_defines.json',JSON.stringify({
+            SH_ENABLE_DEMO:'false',
+            SH_API_BASE_URL:env.SH_PILOT_ORIGIN,
+            SH_SUPABASE_URL:url,
+            SH_SUPABASE_PUBLISHABLE_KEY:key,
+            SH_FIREBASE_ANDROID_API_KEY:env.SH_FIREBASE_ANDROID_API_KEY,
+            SH_FIREBASE_ANDROID_APP_ID:env.SH_FIREBASE_ANDROID_APP_ID,
+            SH_FIREBASE_SENDER_ID:env.SH_FIREBASE_SENDER_ID,
+            SH_FIREBASE_PROJECT_ID:env.SH_FIREBASE_PROJECT_ID
+          }));
+          NODE
+      - name: Build installable Android Live Pilot APK
+        run: flutter build apk --debug --dart-define-from-file=/tmp/sh_owner_live_defines.json
+      - name: Upload Android Live Pilot APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SH-Owner-Android-Live-Pilot
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
