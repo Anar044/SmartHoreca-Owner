@@ -107,7 +107,7 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
                 ),
                 const SizedBox(height: 12),
                 if (!OwnerBackend.configured)
-                  const Text('Для настоящего входа требуются настройки Supabase.',
+                  Text(tr('Сервис временно недоступен. Попробуйте позже.'),
                     textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
                 if (_allowPreview) ...[
                   const SizedBox(height: 10),
