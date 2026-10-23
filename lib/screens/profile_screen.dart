@@ -273,8 +273,10 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
                 ('DISCOUNT_APPLIED','Применена скидка'),
                 ('DISCOUNT_REMOVED','Удалена скидка'),
                 ('PRECHECK_CANCELLED','Отменён пречек'),
-                ('ITEM_REMOVED','Удалено блюдо'),
+                ('ITEM_REMOVED','Удалено напечатанное блюдо'),
                 ('RECEIPT_STORNO','Сторнирован чек'),
+                ('SURCHARGE_APPLIED','Добавлена наценка'),
+                ('SURCHARGE_REMOVED','Удалена наценка'),
               ])
                 CheckboxListTile(
                   dense:true,
