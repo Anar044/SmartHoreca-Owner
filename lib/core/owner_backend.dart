@@ -131,16 +131,16 @@ class OwnerBackend {
       throw OwnerApiException(
         'HTTP_$status',
         status >= 500
-            ? 'Сервер Smart Horeca временно недоступен (HTTP $status). '
+            ? 'Сервис Smart Horeca временно недоступен. '
               'Повторите запрос позже.'
-            : 'Сервер Smart Horeca вернул неверный ответ (HTTP $status).',
+            : 'Не удалось получить данные. Попробуйте позже.',
         status,
       );
     }
     if (status >= 400 || data['success'] != true) {
       final serverMessage = (data['message'] ?? '').toString().trim();
       final fallback = _transient(status)
-          ? 'Smart Horeca API временно недоступен (HTTP $status). '
+          ? 'Сервис Smart Horeca временно недоступен. '
             'Попробуйте обновить данные.'
           : status == 401
             ? 'Сессия истекла. Войдите в аккаунт заново.'
