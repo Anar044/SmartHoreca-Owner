@@ -175,7 +175,8 @@ class OwnerState extends ChangeNotifier {
       await OwnerBackend.signIn(email, password);
       await _loadWorkspacesAfterSignIn();
     } catch (e) {
-      error = e is OwnerApiException ? e.message : 'Не удалось войти: $e';
+      error = e is OwnerApiException ? e.message :
+        'Не удалось войти. Проверьте подключение и повторите попытку.';
     } finally {
       busy = false;
       notifyListeners();
