@@ -215,17 +215,17 @@ class OwnerState extends ChangeNotifier {
       final accessStatus = (data['accessStatus'] ?? '').toString();
       final message = switch (accessStatus) {
         'NO_MEMBERSHIPS_IN_THIS_ENVIRONMENT' =>
-          'В тестовом окружении не найдена ваша организация. '
-          'Проверьте подключение Cloudflare Preview к D1 и членство в организации.',
+          'Ваша организация не найдена. '
+          'Обратитесь к администратору Smart Horeca.',
         'NO_ACTIVE_MEMBERSHIPS' =>
-          'В тестовом окружении ваша организация или учётная запись '
+          'Ваша организация или учётная запись '
           'неактивна. Проверьте её статус в Smart Horeca.',
         'OWNER_OR_SYSADMIN_ROLE_REQUIRED' =>
-          'У аккаунта нет роли владельца или SYSADMIN (ADMIN) '
-          'в активной организации. Проверьте назначенные права.',
+          'Для входа необходим доступ владельца '
+          'в активной организации. Обратитесь к администратору.',
         _ =>
           'Нет доступной организации владельца. Проверьте роль '
-          'и настройки тестовой базы Smart Horeca.',
+          'и обратитесь к администратору Smart Horeca.',
       };
       throw OwnerApiException('OWNER_ACCESS_REQUIRED', message, 403);
     }
