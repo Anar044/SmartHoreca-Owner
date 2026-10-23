@@ -2,6 +2,13 @@ name: SH Owner Upload to TestFlight
 
 on:
   workflow_dispatch:
+  # One-time beta request: this push trigger is limited to this release branch
+  # AND changes to this workflow file; it is not added to main.
+  push:
+    branches:
+      - release/testflight-owner-seven-alerts-20261023
+    paths:
+      - '.github/workflows/testflight-release.yml'
 
 permissions:
   contents: read
@@ -30,7 +37,7 @@ jobs:
           ASC_P8: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          for name in SH_OWNER_IOS_BUNDLE_ID APPSTORE_TEAM_ID APPSTORE_ISSUER_ID APPSTORE_API_KEY_ID; do
+          for name in SH_OWNER_IOS_BUNDLE_ID APPSTORE_TEAM_ID APPSTORE_ISSUER_ID APPSTORE_API_KEY_ID SH_FIREBASE_IOS_API_KEY SH_FIREBASE_IOS_APP_ID SH_FIREBASE_PROJECT_ID SH_FIREBASE_SENDER_ID; do
             if [[ -z "${!name:-}" ]]; then
               echo "::error::Set GitHub Actions variable $name first."
               exit 1
@@ -140,5 +147,5 @@ jobs:
           api-key-id: ${{ vars.APPSTORE_API_KEY_ID }}
           api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
 
-# Manual workflow only. It will not upload anything until the user has
-# explicitly set Apple signing credentials and run this workflow.
+# One-time internal TestFlight run from release/testflight-owner-seven-alerts-20261023.
+# This push trigger is NOT part of main; future beta builds remain manual.
