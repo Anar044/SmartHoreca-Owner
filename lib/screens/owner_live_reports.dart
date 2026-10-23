@@ -679,7 +679,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         OwnerHeading(title,caption:caption),
         const SizedBox(height:8),
         if(!available)
-          OwnerCard(child:Text('Нет данных для этого раздела.'))
+          OwnerCard(child:const OwnerText('Нет данных для этого раздела.'))
         else if(rows.isEmpty)
           const OwnerCard(child:OwnerText('Нет данных за выбранный период.'))
         else for(final row in rows) ...[
@@ -972,7 +972,7 @@ class _OwnerLiveOrderScreenState extends State<OwnerLiveOrderScreen> {
             child:Center(child:CircularProgressIndicator())))
         else if(error != null)
           OwnerCard(child:Column(children:[
-            Text(error!,textAlign:TextAlign.center),
+            Text(OwnerL10n.tr(OwnerScope.of(context).language,error!),textAlign:TextAlign.center),
             const SizedBox(height:10),
             FilledButton.tonalIcon(onPressed:_load,
               icon:const Icon(Icons.refresh),
