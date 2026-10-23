@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_l10n.dart';
@@ -88,24 +89,11 @@ class OwnerProfileScreen extends StatelessWidget {
               ),
           ]),
         )),
-        if (state.language != 'Русский') ...[
-          const SizedBox(height: 7),
-          Text(tr('Перевод остальных разделов находится в разработке'),
-            style: TextStyle(fontSize: 11,
-              color: OwnerPalette.muted(context))),
-        ],
         const SizedBox(height: 12),
         OwnerCard(
           onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const OwnerNotificationsScreen())),
           child: ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.notifications_outlined), title: Text(tr('Уведомления')), trailing: const Icon(Icons.chevron_right)),
         ),
-        const SizedBox(height: 9),
-        OwnerCard(child: ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.shield_outlined),
-          title: Text(tr('Безопасность')),
-          subtitle: Text(tr('Авторизация и биометрия подключаются отдельно')),
-        )),
         const SizedBox(height: 15),
         OutlinedButton.icon(
           onPressed: () {
@@ -176,7 +164,9 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
       if(!mounted)return;
       setState((){
         pushStatus=e is OwnerApiException
-          ?e.message
+          ?(e.code == 'PUSH_PERMISSION_DENIED'
+            ? 'Разрешите уведомления в настройках телефона.'
+            : 'Не удалось изменить настройки уведомлений.')
           :'Не удалось изменить настройки уведомлений.';
       });
     }finally{
@@ -229,7 +219,10 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
       if(!mounted)return;
       setState((){
         pushStatus=e is OwnerApiException
-          ?e.message:'Не удалось сохранить выбранные события.';
+          ?(e.code == 'PUSH_PERMISSION_DENIED'
+            ? 'Разрешите уведомления в настройках телефона.'
+            : 'Не удалось сохранить выбранные события.')
+          :'Не удалось сохранить выбранные события.';
       });
     }finally{
       if(mounted)setState(()=>pushBusy=false);
@@ -239,9 +232,10 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final state=OwnerScope.of(context);
+    String tr(String value)=>OwnerL10n.tr(state.language,value);
     if(state.live){
       return Scaffold(
-        appBar:AppBar(title:const Text('Уведомления')),
+        appBar:AppBar(title:Text(tr('Уведомления'))),
         body:OwnerScreenFrame(children:[
           const OwnerHeading('События касс',
             caption:'Push на экран телефона, включая закрытое приложение'),
@@ -251,29 +245,29 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
             children:[
               SwitchListTile(
                 contentPadding:EdgeInsets.zero,
-                title:const Text('Push от Smart Horeca Owner'),
+                title:Text(tr('Уведомления SH Owner')),
                 subtitle:Text(OwnerPushService.configured
-                  ?'Для ${state.selectedRestaurantIds.length} выбранных ресторанов'
-                  :'Ожидает настройки Firebase для Android'),
+                  ?'${tr('Выбрано ресторанов')}: ${state.selectedRestaurantIds.length}'
+                  :tr('Уведомления временно недоступны')),
                 value:pushEnabled,
                 onChanged:pushBusy||!OwnerPushService.configured
                   ?null:_togglePush,
               ),
-              OutlinedButton.icon(
+              if (kDebugMode) OutlinedButton.icon(
                 onPressed: pushBusy ? null : _checkPushConnection,
                 icon: const Icon(Icons.verified_outlined, size: 18),
-                label: const Text('Проверить подключение push'),
+                label: Text(tr('Проверить подключение push')),
               ),
               if(pushBusy)const LinearProgressIndicator(),
               if(pushStatus!=null)...[
                 const SizedBox(height:8),
-                Text(pushStatus!,style:TextStyle(fontSize:12,
+                Text(tr(pushStatus!),style:TextStyle(fontSize:12,
                   color:OwnerPalette.muted(context))),
               ],
               const SizedBox(height:8),
               const Divider(),
-              const Text('Какие события отправляются',
-                style:TextStyle(fontWeight:FontWeight.bold)),
+              Text(tr('Какие события отправляются'),
+                style:const TextStyle(fontWeight:FontWeight.bold)),
               const SizedBox(height:8),
               for(final event in const [
                 ('DISCOUNT_APPLIED','Применена скидка'),
@@ -286,17 +280,16 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
                   dense:true,
                   contentPadding:EdgeInsets.zero,
                   controlAffinity:ListTileControlAffinity.leading,
-                  title:Text(event.$2),
-                  subtitle:Text(selectedKinds.contains(event.$1)
+                  title:Text(tr(event.$2)),
+                  subtitle:Text(tr(selectedKinds.contains(event.$1)
                     ?'Получать уведомления'
-                    :'Не уведомлять'),
+                    :'Не уведомлять')),
                   value:selectedKinds.contains(event.$1),
                   onChanged:pushBusy?null:(value)=>
                     _toggleKind(event.$1,value==true),
                 ),
               const SizedBox(height:8),
-              Text('События должны поступать из кассового плагина. '
-                'Приложение не создаёт уведомления по догадкам.',
+              Text(tr('Выберите события, о которых хотите получать уведомления.'),
                 style:TextStyle(fontSize:11,
                   color:OwnerPalette.muted(context))),
             ],
@@ -307,11 +300,11 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
               builder:(_)=>const OwnerLiveReportScreen(
                 title:'Складские предупреждения',
                 kind:'notifications'))),
-            child:const ListTile(
+            child:ListTile(
               contentPadding:EdgeInsets.zero,
-              leading:Icon(Icons.inventory_2_outlined),
-              title:Text('Складские предупреждения'),
-              trailing:Icon(Icons.chevron_right),
+              leading:const Icon(Icons.inventory_2_outlined),
+              title:Text(tr('Складские предупреждения')),
+              trailing:const Icon(Icons.chevron_right),
             )),
         ]),
       );
