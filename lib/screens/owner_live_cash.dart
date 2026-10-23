@@ -132,7 +132,7 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
           child: Column(children: [
             Center(child: CircularProgressIndicator()),
             SizedBox(height: 10),
-            Text('Получаем данные подключённых касс…'),
+            OwnerText('Получаем данные подключённых касс…'),
           ]),
         ))
       else if (error != null && data == null)
@@ -149,12 +149,12 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
         if (loading) ...[
           const LinearProgressIndicator(),
           const SizedBox(height: 8),
-          const Text('Обновляем данные подключённых касс…',
+          const OwnerText('Обновляем данные подключённых касс…',
             style: TextStyle(fontSize: 12)),
           const SizedBox(height: 12),
         ],
         if (error != null) ...[
-          const OwnerCard(child: Text('Не удалось обновить данные. '
+          const OwnerCard(child: OwnerText('Не удалось обновить данные. '
             'Ниже оставлены результаты последнего успешного запроса.',
             style: TextStyle(color: OwnerPalette.warning))),
           const SizedBox(height: 12),
@@ -221,7 +221,7 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
                       Text(restaurants[register['departmentId']?.toString()] ?? '—',
                         style:TextStyle(fontSize:12,color:OwnerPalette.muted(context))),
                       if(offline) ...[
-                        const Text('● Офлайн · сохранённые показатели',
+                        const OwnerText('● Офлайн · сохранённые показатели',
                           style:TextStyle(fontSize:11,color:OwnerPalette.warning)),
                         Text('Последняя связь: $lastSeenTime',
                           style:TextStyle(fontSize:11,color:OwnerPalette.muted(context))),
@@ -329,7 +329,7 @@ class _RegisterDetailState extends State<_RegisterDetail> {
               Text('Последняя связь: ${_OwnerLiveCashScreenState.lastSeen(widget.register['lastSeenAt'])}',
                 style:const TextStyle(fontWeight:FontWeight.w700)),
               const SizedBox(height:6),
-              const Text('Значения и заказы сохранены с последнего '
+              const OwnerText('Значения и заказы сохранены с последнего '
                 'успешного ответа кассы. Новые операции не учитываются.'),
               if(widget.register['ordersTruncated']==true)
                 Text('Показаны последние ${orders.length} сохранённых записей '
@@ -363,7 +363,7 @@ class _RegisterDetailState extends State<_RegisterDetail> {
               onSelected: (_) => setState(() => filter = entry.$2)),
         ]),
         const SizedBox(height: 12),
-        if (orders.isEmpty) const OwnerCard(child: Text('Заказы не найдены.')),
+        if (orders.isEmpty) const OwnerCard(child: OwnerText('Заказы не найдены.')),
         for (final order in orders)
           Padding(padding: const EdgeInsets.only(bottom: 8),
             child: OwnerCard(
