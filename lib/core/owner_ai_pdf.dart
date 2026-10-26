@@ -54,12 +54,14 @@ class OwnerAiPdf {
       widgets.add(pw.Text(report['subtitle'].toString(),style:pw.TextStyle(font:regular,fontSize:10)));
     }
     final kpis=report['kpis'];
-    if(kpis is List)for(final item in kpis.take(8)){
+    if(kpis is List){
+      for(final item in kpis.take(8)){
       if(item is! Map)continue;
       widgets.add(pw.Padding(padding:const pw.EdgeInsets.only(top:5),child:pw.Row(children:[
         pw.Expanded(child:pw.Text((item['label']??'').toString(),style:pw.TextStyle(font:regular,fontSize:10))),
         pw.Text((item['value']??'').toString(),style:pw.TextStyle(font:bold,fontSize:10))
       ])));
+    }
     }
     final cols=report['columns'];
     final rows=report['rows'];
@@ -83,9 +85,11 @@ class OwnerAiPdf {
       ));
     }
     final notes=report['notes'];
-    if(notes is List)for(final note in notes.take(6)){
+    if(notes is List){
+      for(final note in notes.take(6)){
       widgets.add(pw.Padding(padding:const pw.EdgeInsets.only(top:5),
         child:pw.Text(note.toString(),style:pw.TextStyle(font:regular,fontSize:9,color:PdfColors.blueGrey700))));
+    }
     }
     return widgets;
   }
