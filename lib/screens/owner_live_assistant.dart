@@ -45,6 +45,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   bool _cloudRecording = false;
   bool _transcribing = false;
   bool _exportingPdf = false;
+  // Owners may speak Azerbaijani while the app interface remains in Russian.
+  String _voiceLanguage = 'az';
   int _voiceGeneration = 0;
   final FlutterTts _tts = FlutterTts();
   final List<_OwnerAssistantMessage> conversation = [];
@@ -240,8 +242,9 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
 
   Future<void> _toggleListening() async {
     if (sending || _transcribing) return;
-    final selectedLanguage = OwnerScope.of(context).language;
-    if(OwnerVoiceLocale.languageCode(selectedLanguage)=='az'){
+    final selectedLanguage = _voiceLanguage == 'az'
+        ? 'Azərbaycan' : _voiceLanguage == 'en' ? 'English' : 'Русский';
+    if(_voiceLanguage=='az'){
       await _toggleAzerbaijaniRecording();
       return;
     }
@@ -558,7 +561,30 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       OwnerScreenFrame(onRefresh: _refreshCurrentConversation, children: [
       const OwnerRestaurantPicker(),
       const SizedBox(height: 12),
-      const OwnerHeading('AI Smart Horeca Assistant'),
+      Row(children: [
+        const Expanded(child: OwnerHeading('AI Smart Horeca Assistant')),
+        PopupMenuButton<String>(
+          tooltip: OwnerL10n.tr(state.language, 'Язык голосового ввода'),
+          initialValue: _voiceLanguage,
+          enabled: !listening && !sending && !_transcribing,
+          onSelected: (value) => setState(() => _voiceLanguage=value),
+          itemBuilder: (context) => const [
+            PopupMenuItem(value:'az', child: Text('AZ · Azərbaycan')),
+            PopupMenuItem(value:'ru', child: Text('RU · Русский')),
+            PopupMenuItem(value:'en', child: Text('EN · English')),
+          ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal:8,vertical:8),
+            child: Row(mainAxisSize:MainAxisSize.min,children:[
+              const Icon(Icons.language,size:18),
+              const SizedBox(width:5),
+              Text(_voiceLanguage.toUpperCase(),
+                style:const TextStyle(fontWeight:FontWeight.bold,fontSize:12)),
+              const Icon(Icons.arrow_drop_down,size:17),
+            ]),
+          ),
+        ),
+      ]),
       const SizedBox(height: 10),
       Row(children: [
         Expanded(
