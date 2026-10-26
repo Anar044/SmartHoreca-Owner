@@ -8,6 +8,13 @@ class OwnerL10n {
 
   static const Map<String, Map<String, String>> _translations = {
     'Azərbaycan': {
+      'Копировать ответ': 'Cavabı kopyala',
+      'Экспорт в PDF': 'PDF kimi ixrac et',
+      'Ответ скопирован': 'Cavab kopyalandı',
+      'Не удалось создать PDF. Проверьте подключение и повторите.': 'PDF yaradıla bilmədi. İnternet bağlantısını yoxlayın və yenidən cəhd edin.',
+      'Записываю азербайджанский голос. Нажмите Стоп.': 'Azərbaycan dilində səs yazılır. Dayandır düyməsinə basın.',
+      'Стоп': 'Dayandır',
+
       'Главная': 'Ana səhifə',
       'Кассы': 'Kassalar',
       'Отчёты': 'Hesabatlar',
@@ -356,6 +363,13 @@ class OwnerL10n {
       'Не удалось проверить активность подразделений. Список доступных ресторанов остаётся без изменений.': 'Bölmələrin fəaliyyətini yoxlamaq mümkün olmadı. Restoran siyahısı dəyişməyib.',
     },
     'English': {
+      'Копировать ответ': 'Copy answer',
+      'Экспорт в PDF': 'Export PDF',
+      'Ответ скопирован': 'Answer copied',
+      'Не удалось создать PDF. Проверьте подключение и повторите.': 'Could not create PDF. Check your connection and try again.',
+      'Записываю азербайджанский голос. Нажмите Стоп.': 'Recording Azerbaijani speech. Tap Stop.',
+      'Стоп': 'Stop',
+
       'Главная': 'Home',
       'Кассы': 'Registers',
       'Отчёты': 'Reports',
