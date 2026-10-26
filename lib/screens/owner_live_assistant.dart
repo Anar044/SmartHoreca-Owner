@@ -135,12 +135,14 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     if(_cloudRecording){
       _recordingLimit?.cancel();
       final generation=_voiceGeneration;
-      if(mounted)setState((){
+      if(mounted){
+        setState((){
         _cloudRecording=false;
         listening=false;
         _transcribing=true;
         error=null;
       });
+      }
       String? path;
       try{
         path=await _cloudRecorder.stop();
@@ -164,7 +166,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         }
       } finally {
         if(path!=null&&path.isNotEmpty){
-          try{await File(path).delete()}catch(_){}
+          try{await File(path).delete();}catch(_){}
         }
         if(mounted&&generation==_voiceGeneration)setState(()=>_transcribing=false);
       }
@@ -199,11 +201,13 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         if(mounted&&_cloudRecording)unawaited(_toggleAzerbaijaniRecording());
       });
     }catch(_){
-      if(mounted)setState((){
+      if(mounted){
+        setState((){
         listening=false;
         _cloudRecording=false;
         error='Не удалось записать голос. Проверьте разрешение на микрофон.';
       });
+      }
     }
   }
 
@@ -222,11 +226,15 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     try{
       await OwnerAiPdf.share(answer:message.text,chart:message.chart,report:message.report);
     }catch(_){
-      if(mounted)setState(()=>error=OwnerL10n.tr(
+      if(mounted){
+        setState(()=>error=OwnerL10n.tr(
         OwnerScope.of(context).language,
         'Не удалось создать PDF. Проверьте подключение и повторите.'));
+      }
     }finally{
-      if(mounted)setState(()=>_exportingPdf=false);
+      if(mounted){
+        setState(()=>_exportingPdf=false);
+      }
     }
   }
 
