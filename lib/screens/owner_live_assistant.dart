@@ -478,7 +478,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   }
 
   Future<void> _send([String? preset]) async {
-    if (sending) return;
+    if (sending || _cloudRecording || _transcribing) return;
     final owner = OwnerScope.of(context);
     await _stopSpeech();
     await _recognizer.stop();
@@ -595,6 +595,12 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           speaking: speaking && identical(_speakingMessage, message),
           onSpeak: message.role == 'assistant'
               ? () => _readAnswer(message) : null,
+          onCopy: message.role == 'assistant'
+              ? () => _copyAnswer(message) : null,
+          onPdf: message.role == 'assistant' && !_exportingPdf
+              ? () => _shareAnswerPdf(message) : null,
+          copyLabel: OwnerL10n.tr(state.language, 'Копировать ответ'),
+          pdfLabel: OwnerL10n.tr(state.language, 'Экспорт в PDF'),
         ),
         if (message.role == 'assistant' &&
             (message.chart != null || message.report != null))
@@ -643,12 +649,22 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         OwnerCard(child: Row(children: [
           const Icon(Icons.mic, color: Colors.redAccent),
           const SizedBox(width: 8),
-          const Expanded(child: OwnerText('Слушаю… Нажми микрофон ещё раз, чтобы остановить.')),
-          TextButton(onPressed: _toggleListening, child: const OwnerText('Стоп')),
+          Expanded(child: Text(OwnerL10n.tr(state.language,
+             _cloudRecording
+               ? 'Записываю азербайджанский голос. Нажмите Стоп.'
+               : 'Слушаю… Нажми микрофон ещё раз, чтобы остановить.'))),
+          TextButton(onPressed: _toggleListening,
+             child: Text(OwnerL10n.tr(state.language,'Стоп'))),
         ])),
       ],
       const SizedBox(height: 12),
-      TextField(
+      if (_transcribing) const OwnerCard(child: Row(children: [
+         SizedBox(width:18,height:18,
+           child:CircularProgressIndicator(strokeWidth:2)),
+         SizedBox(width:12),
+         Expanded(child:Text('Распознаю азербайджанский голос через OpenAI…')),
+       ])),
+       TextField(
         controller: controller,
         minLines: 1, maxLines: 5,
         decoration: InputDecoration(
@@ -663,17 +679,18 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
                     color: listening ? Colors.redAccent
                         : OwnerPalette.accent(context)),
                 tooltip: listening ? 'Остановить запись' : 'Голосовой вопрос',
-                onPressed: sending ? null : _toggleListening,
+                onPressed: (sending || _transcribing) ? null : _toggleListening,
               ),
               IconButton(
                 icon: const Icon(Icons.send_rounded),
                 tooltip: 'Отправить',
-                onPressed: sending ? null : _send,
+                onPressed: (sending || _transcribing || _cloudRecording) ? null : _send,
               ),
             ],
           ),
         ),
-        onSubmitted: sending ? null : (value) => _send(value),
+        onSubmitted: (sending || _transcribing || _cloudRecording)
+           ? null : (value) => _send(value),
       ),
       const SizedBox(height: 6),
       OwnerText('Только аналитика. Изменение документов и настроек через AI запрещено.',
