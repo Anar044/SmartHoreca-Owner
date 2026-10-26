@@ -1,8 +1,13 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/services.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../core/owner_voice_locale.dart';
+import '../core/owner_ai_pdf.dart';
 import 'owner_assistant_visuals.dart';
 import '../ui/owner_text.dart';
 import '../core/owner_backend.dart';
@@ -35,6 +40,12 @@ class OwnerLiveAssistantScreen extends StatefulWidget {
 class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   final controller = TextEditingController();
   final stt.SpeechToText _recognizer = stt.SpeechToText();
+  final AudioRecorder _cloudRecorder = AudioRecorder();
+  Timer? _recordingLimit;
+  bool _cloudRecording = false;
+  bool _transcribing = false;
+  bool _exportingPdf = false;
+  int _voiceGeneration = 0;
   final FlutterTts _tts = FlutterTts();
   final List<_OwnerAssistantMessage> conversation = [];
   bool listening = false;
@@ -81,6 +92,9 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     ++_speechToken;
     unawaited(_recognizer.stop());
     unawaited(_tts.stop());
+    _recordingLimit?.cancel();
+    unawaited(_cloudRecorder.cancel());
+    unawaited(_cloudRecorder.dispose());
     controller.dispose();
     super.dispose();
   }
@@ -99,6 +113,11 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       error = null;
       sending = false;
       listening = false;
+      _recordingLimit?.cancel();
+      ++_voiceGeneration;
+      _cloudRecording = false;
+      _transcribing = false;
+      unawaited(_cloudRecorder.cancel());
       speaking = false;
       _speakingMessage = null;
       ++_speechToken;
@@ -107,9 +126,117 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     }
   }
 
+  /// Azerbaijani is recorded locally and sent only after Stop is tapped.
+  /// Native iOS recognition does not always include az-AZ; never silently
+  /// substitute a Russian or English recognizer for Azerbaijani speech.
+  Future<void> _toggleAzerbaijaniRecording() async {
+    if (sending || _transcribing) return;
+    final owner=OwnerScope.of(context);
+    if(_cloudRecording){
+      _recordingLimit?.cancel();
+      final generation=_voiceGeneration;
+      if(mounted)setState((){
+        _cloudRecording=false;
+        listening=false;
+        _transcribing=true;
+        error=null;
+      });
+      String? path;
+      try{
+        path=await _cloudRecorder.stop();
+        if(path==null || path.isEmpty)throw Exception('EMPTY_RECORDING');
+        if(owner.workspaceId==null)throw Exception('WORKSPACE_MISSING');
+        final text=await OwnerBackend.transcribeAudio(
+          workspaceId:owner.workspaceId!,
+          departmentIds:owner.selectedRestaurantIds,
+          audio:File(path),
+          language:'az',
+        );
+        if(!mounted||generation!=_voiceGeneration)return;
+        // The owner reviews or edits the text before pressing Send.
+        controller.text=text;
+        controller.selection=TextSelection.collapsed(offset:controller.text.length);
+      } catch(e){
+        if(mounted&&generation==_voiceGeneration){
+          setState(()=>error=e is OwnerApiException
+            ? '${e.message} (${e.code})'
+            : 'Не удалось распознать азербайджанский голос. Повторите запись.');
+        }
+      } finally {
+        if(path!=null&&path.isNotEmpty){
+          try{await File(path).delete()}catch(_){}
+        }
+        if(mounted&&generation==_voiceGeneration)setState(()=>_transcribing=false);
+      }
+      return;
+    }
+    if(owner.workspaceId==null){
+      setState(()=>error='Выберите организацию для голосового вопроса.');
+      return;
+    }
+    await _stopSpeech();
+    try{
+      await _recognizer.stop();
+      if(!await _cloudRecorder.hasPermission()){
+        if(mounted)setState(()=>error='Разрешите доступ к микрофону в настройках iPhone.');
+        return;
+      }
+      final temp=await getTemporaryDirectory();
+      final path='${temp.path}/sh_owner_voice_${DateTime.now().microsecondsSinceEpoch}.m4a';
+      await _cloudRecorder.start(
+        const RecordConfig(encoder:AudioEncoder.aacLc,bitRate:64000,
+          sampleRate:24000,numChannels:1),
+        path:path,
+      );
+      if(!mounted){await _cloudRecorder.cancel();return;}
+      setState((){
+        error=null;
+        listening=true;
+        _cloudRecording=true;
+      });
+      _recordingLimit?.cancel();
+      _recordingLimit=Timer(const Duration(seconds:45),(){
+        if(mounted&&_cloudRecording)unawaited(_toggleAzerbaijaniRecording());
+      });
+    }catch(_){
+      if(mounted)setState((){
+        listening=false;
+        _cloudRecording=false;
+        error='Не удалось записать голос. Проверьте разрешение на микрофон.';
+      });
+    }
+  }
+
+  Future<void> _copyAnswer(_OwnerAssistantMessage message) async {
+    await Clipboard.setData(ClipboardData(text:message.text));
+    if(!mounted)return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content:Text(OwnerL10n.tr(OwnerScope.of(context).language,
+        'Ответ скопирован')),
+    ));
+  }
+
+  Future<void> _shareAnswerPdf(_OwnerAssistantMessage message) async {
+    if(_exportingPdf)return;
+    setState(()=>_exportingPdf=true);
+    try{
+      await OwnerAiPdf.share(answer:message.text,chart:message.chart,report:message.report);
+    }catch(_){
+      if(mounted)setState(()=>error=OwnerL10n.tr(
+        OwnerScope.of(context).language,
+        'Не удалось создать PDF. Проверьте подключение и повторите.'));
+    }finally{
+      if(mounted)setState(()=>_exportingPdf=false);
+    }
+  }
+
   Future<void> _toggleListening() async {
-    if (sending) return;
+    if (sending || _transcribing) return;
     final selectedLanguage = OwnerScope.of(context).language;
+    if(OwnerVoiceLocale.languageCode(selectedLanguage)=='az'){
+      await _toggleAzerbaijaniRecording();
+      return;
+    }
     if (listening) {
       await _recognizer.stop();
       if (mounted) setState(() => listening = false);
