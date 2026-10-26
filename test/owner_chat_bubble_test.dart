@@ -11,12 +11,16 @@ void main() {
         role: 'assistant',
         text: 'Проверяю продажи за октябрь.',
         onSpeak: () {},
+        onCopy: () {},
+        onPdf: () {},
       ),
     ]))));
     expect(find.text('Вы'), findsOneWidget);
     expect(find.text('AI Smart Horeca'), findsOneWidget);
     expect(find.byType(SelectableText), findsNWidgets(2));
     expect(find.byIcon(Icons.volume_up_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.copy_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.picture_as_pdf_outlined), findsOneWidget);
     expect(find.byIcon(Icons.person_outline_rounded), findsOneWidget);
     expect(find.byIcon(Icons.smart_toy_outlined), findsOneWidget);
   });

@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'package:http_parser/http_parser.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'owner_session_policy.dart';
@@ -193,6 +195,67 @@ class OwnerBackend {
     } on http.ClientException {
       throw const OwnerApiException('NETWORK_UNAVAILABLE',
         'Не удалось подключиться к Smart Horeca. Проверьте сеть.', 503);
+    }
+  }
+
+  /// Upload an explicit microphone recording for Owner-only cloud
+  /// transcription. The mobile API validates the workspace and role; no iiko
+  /// request is involved. Never log audio or include tokens in error messages.
+  static Future<String> transcribeAudio({
+    required String workspaceId,
+    required Iterable<String> departmentIds,
+    required File audio,
+    required String language,
+  }) async {
+    if (!configured) {
+      throw const OwnerApiException('NOT_CONFIGURED',
+          'Не настроено подключение приложения.', 503);
+    }
+    if (language != 'az' && language != 'ru' && language != 'en') {
+      throw const OwnerApiException('VOICE_LANGUAGE_INVALID',
+          'Неизвестный язык записи.',400);
+    }
+    final size=await audio.length();
+    if(size<1 || size>15*1024*1024){
+      throw const OwnerApiException('VOICE_SIZE_INVALID',
+        'Запись пуста или превышает 15 МБ.',413);
+    }
+    final token=await freshAccessToken();
+    final uri=Uri.parse('$apiBase/api/mobile/v1/transcribe');
+    if(uri.scheme!='https'){
+      throw const OwnerApiException('HTTPS_REQUIRED',
+        'Голосовую запись можно отправлять только по HTTPS.',400);
+    }
+    try {
+      final upload=http.MultipartRequest('POST',uri)
+        ..headers.addAll({
+          'Authorization':'Bearer $token',
+          'Accept':'application/json',
+          'X-SH-Workspace-Id':workspaceId,
+          'X-SH-Department-Ids':(departmentIds.toList()..sort()).join(','),
+          'X-SH-Voice-Language':language,
+        });
+      upload.files.add(await http.MultipartFile.fromPath(
+        'audio',audio.path,
+        filename:'owner-question.m4a',
+        contentType:MediaType('audio','mp4'),
+      ));
+      final stream=await upload.send().timeout(const Duration(seconds:70));
+      final result=await http.Response.fromStream(stream)
+        .timeout(const Duration(seconds:70));
+      final data=_decodeResponse(result);
+      final text=(data['text']??'').toString().trim();
+      if(text.isEmpty){
+        throw const OwnerApiException('VOICE_EMPTY_TRANSCRIPT',
+          'Речь не распознана. Попробуйте ещё раз.',422);
+      }
+      return text;
+    } on TimeoutException {
+      throw const OwnerApiException('VOICE_TIMEOUT',
+        'Распознавание голоса не завершилось. Повторите запись.',504);
+    } on http.ClientException {
+      throw const OwnerApiException('VOICE_NETWORK_ERROR',
+        'Не удалось отправить голосовую запись. Проверьте сеть.',503);
     }
   }
 

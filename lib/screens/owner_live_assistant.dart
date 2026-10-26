@@ -1,8 +1,13 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/services.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../core/owner_voice_locale.dart';
+import '../core/owner_ai_pdf.dart';
 import 'owner_assistant_visuals.dart';
 import '../ui/owner_text.dart';
 import '../core/owner_backend.dart';
@@ -35,6 +40,14 @@ class OwnerLiveAssistantScreen extends StatefulWidget {
 class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   final controller = TextEditingController();
   final stt.SpeechToText _recognizer = stt.SpeechToText();
+  final AudioRecorder _cloudRecorder = AudioRecorder();
+  Timer? _recordingLimit;
+  bool _cloudRecording = false;
+  bool _transcribing = false;
+  bool _exportingPdf = false;
+  // Owners may speak Azerbaijani while the app interface remains in Russian.
+  String _voiceLanguage = 'az';
+  int _voiceGeneration = 0;
   final FlutterTts _tts = FlutterTts();
   final List<_OwnerAssistantMessage> conversation = [];
   bool listening = false;
@@ -81,6 +94,9 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     ++_speechToken;
     unawaited(_recognizer.stop());
     unawaited(_tts.stop());
+    _recordingLimit?.cancel();
+    unawaited(_cloudRecorder.cancel());
+    unawaited(_cloudRecorder.dispose());
     controller.dispose();
     super.dispose();
   }
@@ -99,6 +115,11 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       error = null;
       sending = false;
       listening = false;
+      _recordingLimit?.cancel();
+      ++_voiceGeneration;
+      _cloudRecording = false;
+      _transcribing = false;
+      unawaited(_cloudRecorder.cancel());
       speaking = false;
       _speakingMessage = null;
       ++_speechToken;
@@ -107,9 +128,126 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     }
   }
 
+  /// Azerbaijani is recorded locally and sent only after Stop is tapped.
+  /// Native iOS recognition does not always include az-AZ; never silently
+  /// substitute a Russian or English recognizer for Azerbaijani speech.
+  Future<void> _toggleAzerbaijaniRecording() async {
+    if (sending || _transcribing) return;
+    final owner=OwnerScope.of(context);
+    if(_cloudRecording){
+      _recordingLimit?.cancel();
+      final generation=_voiceGeneration;
+      if(mounted){
+        setState((){
+        _cloudRecording=false;
+        listening=false;
+        _transcribing=true;
+        error=null;
+      });
+      }
+      String? path;
+      try{
+        path=await _cloudRecorder.stop();
+        if(path==null || path.isEmpty)throw Exception('EMPTY_RECORDING');
+        if(owner.workspaceId==null)throw Exception('WORKSPACE_MISSING');
+        final text=await OwnerBackend.transcribeAudio(
+          workspaceId:owner.workspaceId!,
+          departmentIds:owner.selectedRestaurantIds,
+          audio:File(path),
+          language:'az',
+        );
+        if(!mounted||generation!=_voiceGeneration)return;
+        // The owner reviews or edits the text before pressing Send.
+        controller.text=text;
+        controller.selection=TextSelection.collapsed(offset:controller.text.length);
+      } catch(e){
+        if(mounted&&generation==_voiceGeneration){
+          setState(()=>error=e is OwnerApiException
+            ? '${e.message} (${e.code})'
+            : 'Не удалось распознать азербайджанский голос. Повторите запись.');
+        }
+      } finally {
+        if(path!=null&&path.isNotEmpty){
+          try{await File(path).delete();}catch(_){}
+        }
+        if(mounted&&generation==_voiceGeneration)setState(()=>_transcribing=false);
+      }
+      return;
+    }
+    if(owner.workspaceId==null){
+      setState(()=>error='Выберите организацию для голосового вопроса.');
+      return;
+    }
+    await _stopSpeech();
+    try{
+      await _recognizer.stop();
+      if(!await _cloudRecorder.hasPermission()){
+        if(mounted)setState(()=>error='Разрешите доступ к микрофону в настройках iPhone.');
+        return;
+      }
+      final temp=await getTemporaryDirectory();
+      final path='${temp.path}/sh_owner_voice_${DateTime.now().microsecondsSinceEpoch}.m4a';
+      await _cloudRecorder.start(
+        const RecordConfig(encoder:AudioEncoder.aacLc,bitRate:64000,
+          sampleRate:24000,numChannels:1),
+        path:path,
+      );
+      if(!mounted){await _cloudRecorder.cancel();return;}
+      setState((){
+        error=null;
+        listening=true;
+        _cloudRecording=true;
+      });
+      _recordingLimit?.cancel();
+      _recordingLimit=Timer(const Duration(seconds:45),(){
+        if(mounted&&_cloudRecording)unawaited(_toggleAzerbaijaniRecording());
+      });
+    }catch(_){
+      if(mounted){
+        setState((){
+        listening=false;
+        _cloudRecording=false;
+        error='Не удалось записать голос. Проверьте разрешение на микрофон.';
+      });
+      }
+    }
+  }
+
+  Future<void> _copyAnswer(_OwnerAssistantMessage message) async {
+    await Clipboard.setData(ClipboardData(text:message.text));
+    if(!mounted)return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content:Text(OwnerL10n.tr(OwnerScope.of(context).language,
+        'Ответ скопирован')),
+    ));
+  }
+
+  Future<void> _shareAnswerPdf(_OwnerAssistantMessage message) async {
+    if(_exportingPdf)return;
+    setState(()=>_exportingPdf=true);
+    try{
+      await OwnerAiPdf.share(answer:message.text,chart:message.chart,report:message.report);
+    }catch(_){
+      if(mounted){
+        setState(()=>error=OwnerL10n.tr(
+        OwnerScope.of(context).language,
+        'Не удалось создать PDF. Проверьте подключение и повторите.'));
+      }
+    }finally{
+      if(mounted){
+        setState(()=>_exportingPdf=false);
+      }
+    }
+  }
+
   Future<void> _toggleListening() async {
-    if (sending) return;
-    final selectedLanguage = OwnerScope.of(context).language;
+    if (sending || _transcribing) return;
+    final selectedLanguage = _voiceLanguage == 'az'
+        ? 'Azərbaycan' : _voiceLanguage == 'en' ? 'English' : 'Русский';
+    if(_voiceLanguage=='az'){
+      await _toggleAzerbaijaniRecording();
+      return;
+    }
     if (listening) {
       await _recognizer.stop();
       if (mounted) setState(() => listening = false);
@@ -336,6 +474,11 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   }
 
   void _newConversation() {
+    _recordingLimit?.cancel();
+    ++_voiceGeneration;
+    unawaited(_cloudRecorder.cancel());
+    _cloudRecording=false;
+    _transcribing=false;
     unawaited(_recognizer.stop());
     unawaited(_stopSpeech());
     ++_generation;
@@ -351,7 +494,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   }
 
   Future<void> _send([String? preset]) async {
-    if (sending) return;
+    if (sending || _cloudRecording || _transcribing) return;
     final owner = OwnerScope.of(context);
     await _stopSpeech();
     await _recognizer.stop();
@@ -418,7 +561,30 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       OwnerScreenFrame(onRefresh: _refreshCurrentConversation, children: [
       const OwnerRestaurantPicker(),
       const SizedBox(height: 12),
-      const OwnerHeading('AI Smart Horeca Assistant'),
+      Row(children: [
+        const Expanded(child: OwnerHeading('AI Smart Horeca Assistant')),
+        PopupMenuButton<String>(
+          tooltip: OwnerL10n.tr(state.language, 'Язык голосового ввода'),
+          initialValue: _voiceLanguage,
+          enabled: !listening && !sending && !_transcribing,
+          onSelected: (value) => setState(() => _voiceLanguage=value),
+          itemBuilder: (context) => const [
+            PopupMenuItem(value:'az', child: Text('AZ · Azərbaycan')),
+            PopupMenuItem(value:'ru', child: Text('RU · Русский')),
+            PopupMenuItem(value:'en', child: Text('EN · English')),
+          ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal:8,vertical:8),
+            child: Row(mainAxisSize:MainAxisSize.min,children:[
+              const Icon(Icons.language,size:18),
+              const SizedBox(width:5),
+              Text(_voiceLanguage.toUpperCase(),
+                style:const TextStyle(fontWeight:FontWeight.bold,fontSize:12)),
+              const Icon(Icons.arrow_drop_down,size:17),
+            ]),
+          ),
+        ),
+      ]),
       const SizedBox(height: 10),
       Row(children: [
         Expanded(
@@ -468,6 +634,12 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           speaking: speaking && identical(_speakingMessage, message),
           onSpeak: message.role == 'assistant'
               ? () => _readAnswer(message) : null,
+          onCopy: message.role == 'assistant'
+              ? () => _copyAnswer(message) : null,
+          onPdf: message.role == 'assistant' && !_exportingPdf
+              ? () => _shareAnswerPdf(message) : null,
+          copyLabel: OwnerL10n.tr(state.language, 'Копировать ответ'),
+          pdfLabel: OwnerL10n.tr(state.language, 'Экспорт в PDF'),
         ),
         if (message.role == 'assistant' &&
             (message.chart != null || message.report != null))
@@ -516,12 +688,22 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         OwnerCard(child: Row(children: [
           const Icon(Icons.mic, color: Colors.redAccent),
           const SizedBox(width: 8),
-          const Expanded(child: OwnerText('Слушаю… Нажми микрофон ещё раз, чтобы остановить.')),
-          TextButton(onPressed: _toggleListening, child: const OwnerText('Стоп')),
+          Expanded(child: Text(OwnerL10n.tr(state.language,
+             _cloudRecording
+               ? 'Записываю азербайджанский голос. Нажмите Стоп.'
+               : 'Слушаю… Нажми микрофон ещё раз, чтобы остановить.'))),
+          TextButton(onPressed: _toggleListening,
+             child: Text(OwnerL10n.tr(state.language,'Стоп'))),
         ])),
       ],
       const SizedBox(height: 12),
-      TextField(
+      if (_transcribing) const OwnerCard(child: Row(children: [
+         SizedBox(width:18,height:18,
+           child:CircularProgressIndicator(strokeWidth:2)),
+         SizedBox(width:12),
+         Expanded(child:Text('Распознаю азербайджанский голос через OpenAI…')),
+       ])),
+       TextField(
         controller: controller,
         minLines: 1, maxLines: 5,
         decoration: InputDecoration(
@@ -536,17 +718,18 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
                     color: listening ? Colors.redAccent
                         : OwnerPalette.accent(context)),
                 tooltip: listening ? 'Остановить запись' : 'Голосовой вопрос',
-                onPressed: sending ? null : _toggleListening,
+                onPressed: (sending || _transcribing) ? null : _toggleListening,
               ),
               IconButton(
                 icon: const Icon(Icons.send_rounded),
                 tooltip: 'Отправить',
-                onPressed: sending ? null : _send,
+                onPressed: (sending || _transcribing || _cloudRecording) ? null : _send,
               ),
             ],
           ),
         ),
-        onSubmitted: sending ? null : (value) => _send(value),
+        onSubmitted: (sending || _transcribing || _cloudRecording)
+           ? null : (value) => _send(value),
       ),
       const SizedBox(height: 6),
       OwnerText('Только аналитика. Изменение документов и настроек через AI запрещено.',
