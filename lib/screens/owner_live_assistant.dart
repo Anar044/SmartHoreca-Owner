@@ -463,6 +463,11 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   }
 
   void _newConversation() {
+    _recordingLimit?.cancel();
+    ++_voiceGeneration;
+    unawaited(_cloudRecorder.cancel());
+    _cloudRecording=false;
+    _transcribing=false;
     unawaited(_recognizer.stop());
     unawaited(_stopSpeech());
     ++_generation;
