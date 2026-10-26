@@ -13,7 +13,6 @@ class OwnerL10n {
       'Ответ скопирован': 'Cavab kopyalandı',
       'Не удалось создать PDF. Проверьте подключение и повторите.': 'PDF yaradıla bilmədi. İnternet bağlantısını yoxlayın və yenidən cəhd edin.',
       'Записываю азербайджанский голос. Нажмите Стоп.': 'Azərbaycan dilində səs yazılır. Dayandır düyməsinə basın.',
-      'Стоп': 'Dayandır',
 
       'Главная': 'Ana səhifə',
       'Кассы': 'Kassalar',
@@ -368,7 +367,6 @@ class OwnerL10n {
       'Ответ скопирован': 'Answer copied',
       'Не удалось создать PDF. Проверьте подключение и повторите.': 'Could not create PDF. Check your connection and try again.',
       'Записываю азербайджанский голос. Нажмите Стоп.': 'Recording Azerbaijani speech. Tap Stop.',
-      'Стоп': 'Stop',
 
       'Главная': 'Home',
       'Кассы': 'Registers',
