@@ -8,6 +8,7 @@ class OwnerL10n {
 
   static const Map<String, Map<String, String>> _translations = {
     'Azərbaycan': {
+      'Язык голосового ввода': 'Səsli sualın dili',
       'Копировать ответ': 'Cavabı kopyala',
       'Экспорт в PDF': 'PDF kimi ixrac et',
       'Ответ скопирован': 'Cavab kopyalandı',
@@ -362,6 +363,7 @@ class OwnerL10n {
       'Не удалось проверить активность подразделений. Список доступных ресторанов остаётся без изменений.': 'Bölmələrin fəaliyyətini yoxlamaq mümkün olmadı. Restoran siyahısı dəyişməyib.',
     },
     'English': {
+      'Язык голосового ввода': 'Voice input language',
       'Копировать ответ': 'Copy answer',
       'Экспорт в PDF': 'Export PDF',
       'Ответ скопирован': 'Answer copied',
