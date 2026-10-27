@@ -6,8 +6,11 @@ import '../ui/owner_components.dart';
 /// authenticated AI response. No data is parsed or invented from prose.
 class OwnerAssistantVisuals extends StatelessWidget {
   final Map<String, dynamic>? chart;
+  final List<Map<String, dynamic>> charts;
   final Map<String, dynamic>? report;
-  const OwnerAssistantVisuals({super.key, this.chart, this.report});
+  const OwnerAssistantVisuals({
+    super.key, this.chart, this.charts = const [], this.report,
+  });
 
   static Map<String, dynamic>? structured(dynamic value) {
     if (value is! Map) return null;
@@ -15,16 +18,21 @@ class OwnerAssistantVisuals extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Column(children: [
-    if (chart != null) ...[
+  Widget build(BuildContext context) {
+    final visibleCharts = charts.isNotEmpty
+        ? charts.take(3).toList()
+        : chart == null ? <Map<String, dynamic>>[] : [chart!];
+    return Column(children: [
+    for (final graph in visibleCharts) ...[
       const SizedBox(height: 9),
-      OwnerCard(child: _OwnerChart(chart!, showNotes: report == null)),
+      OwnerCard(child: _OwnerChart(graph, showNotes: report == null)),
     ],
     if (report != null) ...[
       const SizedBox(height: 9),
       OwnerCard(child: _OwnerReport(report!)),
     ],
   ]);
+  }
 }
 
 class _PlotPoint {

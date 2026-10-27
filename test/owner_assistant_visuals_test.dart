@@ -31,6 +31,36 @@ void main() {
     expect(find.text('Источник: SH OLAP'), findsOneWidget);
   });
 
+  testWidgets('renders every returned chart in charts rather than losing them',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(body: SingleChildScrollView(
+        child: OwnerAssistantVisuals(charts: [
+          {
+            'title': 'Satışlar',
+            'series': [
+              {'name': 'AZN', 'data': [
+                {'label': 'TEST', 'value': 2304},
+                {'label': 'RMS 1 KASSA', 'value': 114},
+              ]}
+            ],
+          },
+          {
+            'title': 'Müqayisə',
+            'series': [
+              {'name': 'AZN', 'data': [
+                {'label': 'Restoran A', 'value': 20},
+              ]}
+            ],
+          },
+        ]),
+      ))),
+    );
+    expect(find.text('Satışlar'), findsOneWidget);
+    expect(find.text('Müqayisə'), findsOneWidget);
+    expect(find.text('TEST'), findsOneWidget);
+  });
+
   testWidgets('renders structured AI report with actual cells',
       (tester) async {
     await tester.pumpWidget(const MaterialApp(
