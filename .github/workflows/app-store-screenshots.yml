@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - release/remove-demo-copy-store-assets-20261027
     paths:
       - 'test/app_store_screenshots_test.dart'
@@ -28,6 +29,10 @@ jobs:
         run: flutter pub get
       - name: Validate capture test
         run: flutter analyze test/app_store_screenshots_test.dart
+      - name: Assert signed App Store UI contains no beta/demo labels
+        run: |
+          flutter test test/owner_app_store_release_test.dart \
+            --dart-define=SH_ENABLE_DEMO=false
       - name: Capture real Flutter UI at 1320x2868
         run: |
           flutter test test/app_store_screenshots_test.dart \
