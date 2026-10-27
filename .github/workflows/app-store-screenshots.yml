@@ -1,0 +1,62 @@
+name: SH Owner App Store Screenshot Pack
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - release/remove-demo-copy-store-assets-20261027
+    paths:
+      - 'test/app_store_screenshots_test.dart'
+      - '.github/workflows/app-store-screenshots.yml'
+      - 'lib/ui/owner_components.dart'
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Fetch Dart/Flutter dependencies
+        run: flutter pub get
+      - name: Validate capture test
+        run: flutter analyze test/app_store_screenshots_test.dart
+      - name: Capture real Flutter UI at 1320x2868
+        run: |
+          flutter test test/app_store_screenshots_test.dart \
+            --dart-define=SH_STORE_CAPTURE=true \
+            --reporter expanded
+      - name: Verify all eight full-resolution opaque PNGs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+          files=sorted(Path('build/app_store_screenshots').glob('*.png'))
+          assert len(files)==8, f'Expected 8 PNGs, got {len(files)}'
+          for path in files:
+              data=path.read_bytes()
+              assert data[:8]==b'\x89PNG\r\n\x1a\n', path
+              width,height=struct.unpack('>II',data[16:24])
+              assert (width,height)==(1320,2868), (path,width,height)
+              # PNG color type 6 is RGBA; App Store PNG must be opaque:
+              # check that alpha bytes represent opaque values only.
+              from PIL import Image
+              with Image.open(path) as im:
+                  assert im.size==(1320,2868)
+                  if im.mode in ('RGBA','LA'):
+                      assert im.getchannel('A').getextrema()==(255,255), path
+              print(path, (width,height))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SH-Owner-App-Store-iPhone-1320x2868-EN-RU
+          path: build/app_store_screenshots/*.png
+          if-no-files-found: error
+          retention-days: 30
