@@ -15,7 +15,6 @@ import 'package:smart_horeca_owner/ui/owner_components.dart';
 /// never compiled into the signed release and never calls production APIs.
 const captureEnabled = bool.fromEnvironment('SH_STORE_CAPTURE', defaultValue: false);
 const captureKey = ValueKey<String>('app-store-capture');
-const sampleDataNotice = 'Illustrative figures — not customer data';
 
 String label(bool ru, String en, String russian) => ru ? russian : en;
 
