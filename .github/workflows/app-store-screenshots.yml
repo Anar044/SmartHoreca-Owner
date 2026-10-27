@@ -40,6 +40,10 @@ jobs:
             'https://raw.githubusercontent.com/google/fonts/main/ofl/spacegrotesk/SpaceGrotesk%5Bwght%5D.ttf' \
             --output build/store_font/SpaceGrotesk.ttf
           test -s build/store_font/SpaceGrotesk.ttf
+          curl --fail --location --silent --show-error --retry 3 \
+            'https://raw.githubusercontent.com/google/fonts/main/ofl/notosans/NotoSans%5Bwdth%2Cwght%5D.ttf' \
+            --output build/store_font/NotoSans.ttf
+          test -s build/store_font/NotoSans.ttf
           echo "Flutter SDK: $FLUTTER_ROOT"
           ICON_FONT="$(find "$FLUTTER_ROOT/bin/cache" -type f \
             -name 'MaterialIcons-Regular.otf' -print -quit)"
