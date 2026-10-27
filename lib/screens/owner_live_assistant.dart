@@ -4,8 +4,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../core/owner_voice_locale.dart';
+import '../core/owner_voice_recording.dart';
 import '../core/owner_assistant_language.dart';
 import '../core/owner_ai_export.dart';
 import 'owner_assistant_visuals.dart';
@@ -39,11 +39,11 @@ class OwnerLiveAssistantScreen extends StatefulWidget {
 
 class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   final controller = TextEditingController();
-  final stt.SpeechToText _recognizer = stt.SpeechToText();
   final FlutterTts _tts = FlutterTts();
   final AudioRecorder _cloudRecorder = AudioRecorder();
   bool _usingCloudRecorder = false;
   bool _transcribing = false;
+  DateTime? _recordingStartedAt;
   final List<_OwnerAssistantMessage> conversation = [];
   bool listening = false;
   bool speaking = false;
@@ -87,7 +87,6 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   @override
   void dispose() {
     ++_speechToken;
-    unawaited(_recognizer.stop());
     unawaited(_tts.stop());
     unawaited(_closeCloudRecorder());
     controller.dispose();
@@ -117,15 +116,16 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       }
       final dir = await getTemporaryDirectory();
       final path = '${dir.path}/sh-owner-voice-'
-          '${DateTime.now().microsecondsSinceEpoch}.m4a';
+          '${DateTime.now().microsecondsSinceEpoch}.wav';
       await _cloudRecorder.start(
         const RecordConfig(
-          encoder: AudioEncoder.aacLc,
+          encoder: AudioEncoder.wav,
           sampleRate: 16000,
           numChannels: 1,
         ),
         path: path,
       );
+      _recordingStartedAt = DateTime.now();
       if (!mounted || generation != _generation) {
         await _cancelCloudRecording();
         return;
@@ -156,8 +156,21 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     });
     String? path;
     try {
+      final startedAt = _recordingStartedAt;
+      _recordingStartedAt = null;
+      if (startedAt == null ||
+          DateTime.now().difference(startedAt) <
+              OwnerVoiceRecording.minDuration) {
+        await _cancelCloudRecording();
+        throw const OwnerApiException('VOICE_TOO_SHORT',
+          'Слишком короткая запись. Говорите не менее одной секунды.', 422);
+      }
+      // AVAudioRecorder/Android must finalize the RIFF/WAV header before upload.
       path = await _cloudRecorder.stop();
-      if (path == null) throw StateError('Audio recording is empty');
+      if (path == null || !await OwnerVoiceRecording.hasValidWavFile(path)) {
+        throw const OwnerApiException('VOICE_INVALID_WAV',
+          'Не удалось сохранить голосовой вопрос. Попробуйте ещё раз.', 422);
+      }
       final transcript = await OwnerBackend.transcribeVoice(path);
       if (!mounted || generation != _generation) return;
       setState(() {
@@ -221,94 +234,26 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       listening = false;
       _usingCloudRecorder = false;
       _transcribing = false;
+      _recordingStartedAt = null;
       unawaited(_cancelCloudRecording());
       speaking = false;
       _speakingMessage = null;
       ++_speechToken;
-      unawaited(_recognizer.stop());
-      unawaited(_tts.stop());
+        unawaited(_tts.stop());
     }
   }
 
   Future<void> _toggleListening() async {
     if (sending || _transcribing) return;
-    final selectedLanguage = OwnerScope.of(context).language;
     if (listening) {
-      if (_usingCloudRecorder) {
-        await _finishCloudListening();
-        return;
-      }
-      await _recognizer.stop();
-      if (mounted) setState(() => listening = false);
+      await _finishCloudListening();
       return;
     }
     await _stopSpeech();
     if (!mounted) return;
-    try {
-      final ready = await _recognizer.initialize(
-        onStatus: (status) {
-          if (!mounted || _usingCloudRecorder) return;
-          if (status == 'done' || status == 'notListening') {
-            setState(() => listening = false);
-          }
-        },
-        onError: (e) {
-          if (mounted && !_usingCloudRecorder) {
-            setState(() {
-              listening = false;
-              error = '${OwnerL10n.tr(OwnerScope.of(context).language, 'Не удалось распознать речь.')} ${e.errorMsg}';
-            });
-          }
-        },
-      );
-      if (!ready && OwnerVoiceLocale.languageCode(selectedLanguage) == 'az') {
-        await _startCloudListening();
-        return;
-      }
-      if (!ready) {
-        if (mounted) {
-          setState(() =>
-            error = 'Распознавание речи недоступно. Проверь разрешения микрофона и речи в настройках iPhone.');
-        }
-        return;
-      }
-      final locales = await _recognizer.locales();
-      final locale = OwnerVoiceLocale.availableSpeechLocale(
-        selectedLanguage, locales.map((l) => l.localeId));
-      if (!mounted) return;
-      if (OwnerVoiceLocale.languageCode(selectedLanguage) == 'az' &&
-          locale == null) {
-        await _startCloudListening();
-        return;
-      }
-      setState(() {
-        error = null;
-        listening = true;
-      });
-      await _recognizer.listen(
-        listenOptions: stt.SpeechListenOptions(
-          localeId: locale,
-          partialResults: true,
-          cancelOnError: true,
-        ),
-        onResult: (result) {
-          if (!mounted) return;
-          controller.text = result.recognizedWords;
-          controller.selection = TextSelection.collapsed(
-            offset: controller.text.length);
-          if (result.finalResult) {
-            setState(() => listening = false);
-          }
-        },
-      );
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          listening = false;
-          error = 'Не удалось включить микрофон. Проверь разрешения в настройках устройства.';
-        });
-      }
-    }
+    // Always use one multilingual transcription pipeline. Neither the app
+    // language nor the iPhone/Android speech locale selects the input language.
+    await _startCloudListening();
   }
 
   Future<void> _readAnswer(_OwnerAssistantMessage message) async {
@@ -330,7 +275,6 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
 
     bool stillCurrent() => mounted && requestToken == _speechToken;
     try {
-      await _recognizer.stop();
       if (!stillCurrent()) return;
       final installed = await _tts.isLanguageAvailable(locale);
       if (!stillCurrent()) return;
@@ -476,7 +420,6 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   }
 
   void _newConversation() {
-    unawaited(_recognizer.stop());
     unawaited(_cancelCloudRecording());
     unawaited(_stopSpeech());
     ++_generation;
@@ -488,16 +431,16 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       listening = false;
       _usingCloudRecorder = false;
       _transcribing = false;
+      _recordingStartedAt = null;
       speaking = false;
       _speakingMessage = null;
     });
   }
 
   Future<void> _send([String? preset]) async {
-    if (sending || _transcribing || listening && _usingCloudRecorder) return;
+    if (sending || _transcribing || listening) return;
     final owner = OwnerScope.of(context);
     await _stopSpeech();
-    await _recognizer.stop();
     if (!mounted) return;
     setState(() => listening = false);
     final message = (preset ?? controller.text).trim();
@@ -524,9 +467,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           'action': 'message',
           'message': OwnerAssistantLanguage.messageForServer(
             message, owner.language),
-          'language': OwnerAssistantLanguage.languageCode(owner.language),
-          'responseLanguage': OwnerAssistantLanguage.responseLocale(
-            owner.language),
+          'language': 'auto',
+          'responseLanguage': 'auto',
           if (conversationId != null) 'conversationId': conversationId,
         },
       );
