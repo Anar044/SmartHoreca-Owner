@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_horeca_owner/core/owner_state.dart';
@@ -309,6 +310,21 @@ Future<void> saveScreenshot(WidgetTester tester, String filename) async {
   });
 }
 
+bool _storeFontLoaded = false;
+
+Future<void> ensureStoreFont(WidgetTester tester) async {
+  if (_storeFontLoaded) return;
+  await tester.runAsync(() async {
+    final bytes = await File('build/store_font/SpaceGrotesk.ttf').readAsBytes();
+    final loader = FontLoader('StoreSpaceGrotesk')
+      ..addFont(Future.value(
+        ByteData.sublistView(bytes),
+      ));
+    await loader.load();
+    _storeFontLoaded = true;
+  });
+}
+
 void main() {
   final pages = ['01-home', '02-cash', '03-reports', '04-ai'];
   for (final language in ['en', 'ru']) {
@@ -322,11 +338,19 @@ void main() {
         final state = OwnerState();
         state.language = language == 'ru' ? 'Русский' : 'English';
         addTearDown(state.dispose);
+        if (captureEnabled) await ensureStoreFont(tester);
         await tester.pumpWidget(OwnerScope(
           state: state,
           child: MaterialApp(
             debugShowCheckedModeBanner:false,
-            theme: OwnerPalette.light,
+            theme: ThemeData(
+              useMaterial3: true,
+              brightness: Brightness.light,
+              scaffoldBackgroundColor: const Color(0xFFF3F6FC),
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: const Color(0xFF2563EB)),
+              fontFamily: 'StoreSpaceGrotesk',
+            ),
             home: RepaintBoundary(
               key:captureKey,
               child: StorePage(page:page, russian:language=='ru'),
