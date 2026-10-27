@@ -30,6 +30,7 @@ jobs:
       - name: Normalize brand image for Android icon generators
         run: |
           python3 -m pip install --quiet Pillow
+          python3 scripts/prepare_owner_logo.py
           python3 - <<'PY'
           from PIL import Image
           path = 'assets/brand/smart-horeca-logo.jpg'
