@@ -11,6 +11,29 @@ class OwnerAssistantCharts {
 
   static bool wantsChart(String question) => _request.hasMatch(question);
 
+  /// Only unqualified requests such as "qrafik üzrə göstər" can reuse the
+  /// previous report. A requested new period, category or restaurant always
+  /// goes back to the authorized AI endpoint for fresh verified data.
+  static bool isPreviousReportChartRequest(String question) {
+    if (!wantsChart(question) || question.length > 100) return false;
+    final cleaned = question.toLowerCase()
+      .replaceAll(RegExp(
+        r'qrafik|qrafiq|grafik|diaqram|diagram|chart|graph|plot|'
+        r'график(?:е|ом)?|диаграмм(?:у|е|ой|ы)?',
+        caseSensitive: false,
+      ), ' ')
+      .replaceAll(RegExp(
+        r'göstər(?:in)?|goster(?:in)?|gostər(?:in)?|'
+        r'üzrə|uzre|görünüşündə|sekilde|şəklində|'
+        r'покажи|показать|выведи|отобрази|построй|'
+        r'show|display|draw|make|create|please|'
+        r'в|на|виде|это|его|bunu|kimi|as|a|the|it|me',
+        caseSensitive: false,
+      ), ' ')
+      .replaceAll(RegExp(r'[\s.,!?;:—–-]+'), '');
+    return cleaned.isEmpty;
+  }
+
   /// Safely copy up to three structured charts from the verified API.
   static List<Map<String, dynamic>> fromApi(dynamic charts, dynamic chart) {
     final list = <Map<String, dynamic>>[];
