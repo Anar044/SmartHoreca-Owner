@@ -41,7 +41,6 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   final controller = TextEditingController();
   final FlutterTts _tts = FlutterTts();
   final AudioRecorder _cloudRecorder = AudioRecorder();
-  bool _usingCloudRecorder = false;
   bool _transcribing = false;
   DateTime? _recordingStartedAt;
   final List<_OwnerAssistantMessage> conversation = [];
@@ -102,8 +101,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     await _cloudRecorder.dispose();
   }
 
-  /// Cloud fallback is activated only when Azerbaijani native recognition
-  /// is missing. Audio is uploaded only after explicit microphone use.
+  /// Always record explicitly into a well-formed WAV for language-agnostic
+  /// transcription. No phone or app locale is used for speech recognition.
   Future<void> _startCloudListening() async {
     final generation = _generation;
     try {
@@ -133,15 +132,13 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       setState(() {
         error = null;
         listening = true;
-        _usingCloudRecorder = true;
       });
     } catch (_) {
       if (mounted) {
         setState(() {
           listening = false;
-          _usingCloudRecorder = false;
-        error = OwnerL10n.tr(OwnerScope.of(context).language,
-            'Не удалось начать запись голоса.');
+          error = OwnerL10n.tr(OwnerScope.of(context).language,
+              'Не удалось начать запись голоса.');
         });
       }
     }
@@ -151,7 +148,6 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     final generation = _generation;
     setState(() {
       listening = false;
-      _usingCloudRecorder = false;
       _transcribing = true;
     });
     String? path;
@@ -181,9 +177,11 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       });
     } catch (e) {
       if (mounted && generation == _generation) {
+        final language = OwnerScope.of(context).language;
         setState(() => error = e is OwnerApiException
-          ? e.message : OwnerL10n.tr(OwnerScope.of(context).language,
-            'Не удалось распознать голосовой вопрос.'));
+          ? OwnerL10n.tr(language, e.message)
+          : OwnerL10n.tr(language,
+              'Не удалось распознать голосовой вопрос.'));
       }
     } finally {
       if (path != null) {
@@ -232,14 +230,13 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       error = null;
       sending = false;
       listening = false;
-      _usingCloudRecorder = false;
       _transcribing = false;
       _recordingStartedAt = null;
       unawaited(_cancelCloudRecording());
       speaking = false;
       _speakingMessage = null;
       ++_speechToken;
-        unawaited(_tts.stop());
+      unawaited(_tts.stop());
     }
   }
 
@@ -429,7 +426,6 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       error = null;
       sending = false;
       listening = false;
-      _usingCloudRecorder = false;
       _transcribing = false;
       _recordingStartedAt = null;
       speaking = false;
