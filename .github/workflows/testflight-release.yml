@@ -1,6 +1,12 @@
 name: SH Owner Upload to TestFlight
 
 on:
+  # One-time TestFlight upload when the verified release PR reaches main.
+  # Future source-code pushes do not auto-publish new iOS builds.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/testflight-release.yml'
   workflow_dispatch:
 
 permissions:
