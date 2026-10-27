@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class OwnerPalette {
   static const blue = Color(0xFF2563EB);
@@ -65,9 +66,11 @@ class OwnerPalette {
           borderSide: BorderSide.none,
         ),
       ),
-      textTheme: ThemeData(brightness: brightness).textTheme.apply(
-        bodyColor: ink,
-        displayColor: ink,
+      textTheme: GoogleFonts.spaceGroteskTextTheme(
+        ThemeData(brightness: brightness).textTheme.apply(
+          bodyColor: ink,
+          displayColor: ink,
+        ),
       ),
     );
   }

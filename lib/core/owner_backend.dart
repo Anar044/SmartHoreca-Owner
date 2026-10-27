@@ -196,6 +196,45 @@ class OwnerBackend {
     }
   }
 
+  /// Cloud speech transcription is only used with the user's microphone
+  /// permission, when native recognition lacks Azerbaijani support.
+  /// Audio is sent to the authenticated Smart Horeca transcription endpoint.
+  static Future<String> transcribeVoice(String audioPath) async {
+    if (!configured) {
+      throw const OwnerApiException('NOT_CONFIGURED',
+        'Не настроено подключение приложения.', 503);
+    }
+    final uri = Uri.parse('$apiBase/api/ai-assistant-transcribe');
+    if (uri.scheme != 'https') {
+      throw const OwnerApiException(
+        'HTTPS_REQUIRED', 'Требуется защищённое соединение HTTPS.', 400);
+    }
+    final token = await freshAccessToken();
+    try {
+      final request = http.MultipartRequest('POST', uri);
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(await http.MultipartFile.fromPath(
+        'audio', audioPath, filename: 'owner-question.m4a'));
+      final streamed = await request.send()
+        .timeout(const Duration(seconds: 65));
+      final response = await http.Response.fromStream(streamed);
+      final data = _decodeResponse(response);
+      final text = (data['text'] ?? '').toString().trim();
+      if (text.isEmpty) {
+        throw const OwnerApiException('EMPTY_TRANSCRIPT',
+          'Голосовой вопрос не распознан. Попробуйте ещё раз.', 422);
+      }
+      return text;
+    } on TimeoutException {
+      throw const OwnerApiException('TRANSCRIBE_TIMEOUT',
+        'Распознавание речи заняло слишком много времени. Попробуйте ещё раз.',
+        504);
+    } on http.ClientException {
+      throw const OwnerApiException('TRANSCRIBE_NETWORK',
+        'Не удалось отправить аудио для распознавания. Проверьте сеть.', 503);
+    }
+  }
+
   static Future<Map<String, dynamic>> getJson(
     String path, {
     String? workspaceId,

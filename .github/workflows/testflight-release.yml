@@ -1,6 +1,12 @@
 name: SH Owner Upload to TestFlight
 
 on:
+  # One-time TestFlight upload when the verified release PR reaches main.
+  # Future source-code pushes do not auto-publish new iOS builds.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/testflight-release.yml'
   workflow_dispatch:
 
 permissions:
@@ -54,6 +60,9 @@ jobs:
         run: |
           flutter create . --platforms=ios,android
           python3 scripts/configure_native_brand.py
+          python3 -m venv /tmp/sh-owner-icon-venv
+          /tmp/sh-owner-icon-venv/bin/python -m pip install --quiet Pillow
+          /tmp/sh-owner-icon-venv/bin/python scripts/prepare_owner_logo.py
           flutter pub get
           dart run flutter_launcher_icons
           dart run flutter_native_splash:create
