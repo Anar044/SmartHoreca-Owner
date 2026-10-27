@@ -6,7 +6,7 @@ void main() {
     const question = 'Bu gün restoranların satışları neçə manatdır?';
     final payload = OwnerAssistantLanguage.messageForServer(
         question, 'Azərbaycan');
-    expect(payload, contains('Azerbaijani (az-AZ)'));
+    expect(payload, question);
     expect(payload, contains(question));
     expect(OwnerAssistantLanguage.originalQuestion(payload), question);
     expect(OwnerAssistantLanguage.responseLocale('Azərbaycan'), 'az-AZ');
@@ -23,8 +23,14 @@ void main() {
 
   test('English response preference and request size are bounded', () {
     expect(OwnerAssistantLanguage.messageForServer('Sales', 'English'),
-        contains('English (en-US)'));
+        'Sales');
+    expect(OwnerAssistantLanguage.messageForServer('Продажи', 'Azərbaycan'),
+        'Продажи');
+    expect(OwnerAssistantLanguage.messageForServer('Satışlar', 'Русский'),
+        'Satışlar');
     expect(OwnerAssistantLanguage.withinLimit(
-        'x' * 4000, 'Azərbaycan'), isFalse);
+        'x' * 4000, 'Azərbaycan'), isTrue);
+    expect(OwnerAssistantLanguage.withinLimit(
+        'x' * 4001, 'Azərbaycan'), isFalse);
   });
 }
