@@ -340,12 +340,17 @@ Future<void> ensureStoreFont(WidgetTester tester) async {
 
 void main() {
   final pages = ['01-home', '02-cash', '03-reports', '04-ai'];
-  for (final language in ['en', 'ru']) {
-    for (var page = 0; page < pages.length; page++) {
-      testWidgets('App Store screenshot $language ${pages[page]}',
-          (tester) async {
-        tester.view.physicalSize = const Size(1320, 2868);
-        tester.view.devicePixelRatio = 3;
+  for (final device in ['iphone', 'ipad13']) {
+    final iPad = device == 'ipad13';
+    for (final language in ['en', 'ru']) {
+      for (var page = 0; page < pages.length; page++) {
+        testWidgets('App Store screenshot $device $language ${pages[page]}',
+            (tester) async {
+        // Render at Apple's actual 13-inch iPad resolution. This is an
+        // independent Flutter layout, never a stretched iPhone bitmap.
+        tester.view.physicalSize = iPad
+          ? const Size(2064, 2752) : const Size(1320, 2868);
+        tester.view.devicePixelRatio = iPad ? 2 : 3;
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
         final state = OwnerState();
@@ -381,12 +386,15 @@ void main() {
             );
           });
           await tester.pump();
-          await saveScreenshot(tester,'${pages[page]}-$language-1320x2868.png');
+          final suffix = iPad ? '2064x2752' : '1320x2868';
+          await saveScreenshot(tester,
+            '${pages[page]}-$language-$suffix.png');
         } else {
           await tester.pumpAndSettle();
           expect(find.text('SH Owner'), findsOneWidget);
         }
-      }, skip:!captureEnabled);
+        }, skip:!captureEnabled);
+      }
     }
   }
 }
