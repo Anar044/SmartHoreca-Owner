@@ -61,7 +61,9 @@ class OwnerAssistantCharts {
     if (!RegExp(r'^[+-]?[0-9][0-9 ,\.]*$').hasMatch(value)) return null;
     if (value.contains(' ')) {
       if (!RegExp(r'^[+-]?\d{1,3}(?: \d{3})+(?:[.,]\d{1,2})?$')
-          .hasMatch(value)) return null;
+          .hasMatch(value)) {
+        return null;
+      }
       value = value.replaceAll(' ', '');
     }
     final commas = ','.allMatches(value).length;
@@ -103,7 +105,9 @@ class OwnerAssistantCharts {
     final columns = report['columns'];
     final rows = report['rows'];
     if (columns is! List || columns.length != 2 || rows is! List ||
-        rows.isEmpty || rows.length > 100) return null;
+        rows.isEmpty || rows.length > 100) {
+      return null;
+    }
     String columnLabel(dynamic col) =>
       col is Map ? (col['label'] ?? '').toString().trim() : col.toString().trim();
     final firstColumn = columnLabel(columns[0]);
@@ -115,7 +119,9 @@ class OwnerAssistantCharts {
       final label = row[0].toString().trim();
       final number = _number(row[1]);
       if (label.isEmpty || number == null ||
-          label.length > 100 || _number(label) != null) return null;
+          label.length > 100 || _number(label) != null) {
+        return null;
+      }
       points.add({'label': label, 'value': number});
     }
     if (points.isEmpty) return null;
