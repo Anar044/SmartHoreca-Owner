@@ -55,7 +55,7 @@ void main() {
           },
         ]),
       ))),
-    ));
+    );
     expect(find.text('Satışlar'), findsOneWidget);
     expect(find.text('Müqayisə'), findsOneWidget);
     expect(find.text('TEST'), findsOneWidget);
