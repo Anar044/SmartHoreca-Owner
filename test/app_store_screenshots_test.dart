@@ -290,19 +290,23 @@ class StorePage extends StatelessWidget {
 
 Future<void> saveScreenshot(WidgetTester tester, String filename) async {
   await tester.pumpAndSettle();
-  final boundary = tester.renderObject<RenderRepaintBoundary>(
-    find.byKey(captureKey));
-  final image = await boundary.toImage(pixelRatio: 3);
-  try {
-    final png = await image.toByteData(format: ui.ImageByteFormat.png);
-    if (png == null) throw StateError('PNG encoding returned null');
-    final directory = Directory('build/app_store_screenshots');
-    await directory.create(recursive:true);
-    await File('${directory.path}/$filename').writeAsBytes(
-      png.buffer.asUint8List());
-  } finally {
-    image.dispose();
-  }
+  // Asynchronous image encoding and file I/O must run outside the test
+  // binding's fake clock, otherwise screenshot capture may never complete.
+  await tester.runAsync(() async {
+    final boundary = tester.renderObject<RenderRepaintBoundary>(
+      find.byKey(captureKey));
+    final image = await boundary.toImage(pixelRatio: 3);
+    try {
+      final png = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (png == null) throw StateError('PNG encoding returned null');
+      final directory = Directory('build/app_store_screenshots');
+      await directory.create(recursive:true);
+      await File('${directory.path}/$filename').writeAsBytes(
+        png.buffer.asUint8List());
+    } finally {
+      image.dispose();
+    }
+  });
 }
 
 void main() {
