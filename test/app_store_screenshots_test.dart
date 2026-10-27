@@ -290,14 +290,14 @@ class StorePage extends StatelessWidget {
   ];
 }
 
-Future<void> saveScreenshot(WidgetTester tester, String filename) async {
+Future<void> saveScreenshot(WidgetTester tester, String filename, {double pixelRatio = 3}) async {
   await tester.pumpAndSettle();
   // Asynchronous image encoding and file I/O must run outside the test
   // binding's fake clock, otherwise screenshot capture may never complete.
   await tester.runAsync(() async {
     final boundary = tester.renderObject<RenderRepaintBoundary>(
       find.byKey(captureKey));
-    final image = await boundary.toImage(pixelRatio: 3);
+    final image = await boundary.toImage(pixelRatio: pixelRatio);
     try {
       final png = await image.toByteData(format: ui.ImageByteFormat.png);
       if (png == null) throw StateError('PNG encoding returned null');
@@ -388,7 +388,8 @@ void main() {
           await tester.pump();
           final suffix = iPad ? '2064x2752' : '1320x2868';
           await saveScreenshot(tester,
-            '${pages[page]}-$language-$suffix.png');
+            '${pages[page]}-$language-$suffix.png',
+            pixelRatio: iPad ? 2 : 3);
         } else {
           await tester.pumpAndSettle();
           expect(find.text('SH Owner'), findsOneWidget);
