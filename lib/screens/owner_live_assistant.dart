@@ -7,6 +7,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import '../core/owner_voice_locale.dart';
 import '../core/owner_voice_recording.dart';
 import '../core/owner_assistant_language.dart';
+import '../core/owner_assistant_charts.dart';
 import '../core/owner_ai_export.dart';
 import 'owner_assistant_visuals.dart';
 import '../ui/owner_text.dart';
@@ -22,11 +23,13 @@ class _OwnerAssistantMessage {
   final String role;
   final String text;
   final Map<String, dynamic>? chart;
+  final List<Map<String, dynamic>> charts;
   final Map<String, dynamic>? report;
   final bool chartMissing;
   final List<Map<String,dynamic>> sourceWarnings;
   const _OwnerAssistantMessage(this.role, this.text,
-      {this.chart, this.report, this.chartMissing = false,
+      {this.chart, this.charts = const [], this.report,
+       this.chartMissing = false,
        this.sourceWarnings = const []});
 }
 
@@ -206,7 +209,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   Future<void> _exportAnswerPdf(_OwnerAssistantMessage message) async {
     try {
       await OwnerAiExport.shareAnswerPdf(
-        answer: message.text, report: message.report, chart: message.chart);
+        answer: message.text, report: message.report,
+        chart: message.charts.isNotEmpty ? message.charts.first : message.chart);
     } catch (_) {
       if (mounted) {
         setState(() => error = OwnerL10n.tr(
@@ -396,6 +400,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
                     (m['content'] ?? '').toString())
                 : (m['content'] ?? '').toString(),
               chart: OwnerAssistantVisuals.structured(meta?['chart']),
+              charts: OwnerAssistantCharts.fromApi(
+                meta?['charts'], meta?['chart']),
               report: OwnerAssistantVisuals.structured(meta?['report']),
               sourceWarnings: (meta?['sourceWarnings'] as List? ?? [])
                   .whereType<Map<String,dynamic>>().toList(),
@@ -441,6 +447,35 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     setState(() => listening = false);
     final message = (preset ?? controller.text).trim();
     if (message.isEmpty || owner.workspaceId == null) return;
+
+    // A follow-up asking to visualize already-rendered verified report rows
+    // is fulfilled locally, without a fresh AI or accounting-server query.
+    // The active conversation is reset whenever workspace/restaurants change.
+    if (OwnerAssistantCharts.wantsChart(message) && conversation.isNotEmpty) {
+      Map<String, dynamic>? precedingReport;
+      for (final prior in conversation.reversed) {
+        if (prior.role == 'assistant' && prior.report != null) {
+          precedingReport = prior.report;
+          break;
+        }
+      }
+      final graph = OwnerAssistantCharts.fromReport(precedingReport);
+      if (graph != null) {
+        final answer = switch (OwnerVoiceLocale.languageCode(owner.language)) {
+          'az' => 'Qrafik əvvəlki təsdiqlənmiş hesabatın sətirləri üzrə quruldu.',
+          'en' => 'Chart created from the previously verified report rows.',
+          _ => 'График построен по строкам предыдущего проверенного отчёта.',
+        };
+        setState(() {
+          conversation.add(_OwnerAssistantMessage('user', message));
+          conversation.add(_OwnerAssistantMessage('assistant', answer,
+            charts: [graph]));
+          controller.clear();
+          error = null;
+        });
+        return;
+      }
+    }
     if (!OwnerAssistantLanguage.withinLimit(message, owner.language)) {
       setState(() => error = 'Вопрос должен быть короче 4000 символов.');
       return;
@@ -475,13 +510,17 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           'assistant',
           (result['answer'] ?? 'AI не вернул текст ответа.').toString(),
           chart: OwnerAssistantVisuals.structured(result['chart']),
+          charts: OwnerAssistantCharts.fromApi(
+            result['charts'], result['chart']),
           report: OwnerAssistantVisuals.structured(result['report']),
           sourceWarnings: (result['sourceWarnings'] as List? ?? [])
               .whereType<Map<String,dynamic>>().toList(),
           chartMissing: RegExp(
             r'график|диаграм|chart|graph|diaqram|qrafik',
             caseSensitive: false,
-          ).hasMatch(message) && result['chart'] == null,
+          ).hasMatch(message) &&
+              OwnerAssistantCharts.fromApi(
+                result['charts'], result['chart']).isEmpty,
         ));
       });
     } catch (e) {
@@ -565,8 +604,13 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
             'Остановить озвучивание'),
         ),
         if (message.role == 'assistant' &&
-            (message.chart != null || message.report != null))
-          OwnerAssistantVisuals(chart: message.chart, report: message.report),
+            (message.chart != null || message.charts.isNotEmpty ||
+             message.report != null))
+          OwnerAssistantVisuals(
+            chart: message.chart,
+            charts: message.charts,
+            report: message.report,
+          ),
         if (message.role == 'assistant' &&
             message.sourceWarnings.isNotEmpty)
           Padding(
