@@ -20,6 +20,16 @@ void main() {
     expect(OwnerAssistantCharts.wantsChart('qrafik uzre göstər'), isTrue);
     expect(OwnerAssistantCharts.wantsChart('покажи график'), isTrue);
     expect(OwnerAssistantCharts.wantsChart('show chart'), isTrue);
+    expect(OwnerAssistantCharts.isPreviousReportChartRequest(
+      'qrafik uzre göstər'), isTrue);
+    expect(OwnerAssistantCharts.isPreviousReportChartRequest(
+      'покажи график'), isTrue);
+    expect(OwnerAssistantCharts.isPreviousReportChartRequest(
+      'show chart'), isTrue);
+    expect(OwnerAssistantCharts.isPreviousReportChartRequest(
+      'покажи график за прошлый год'), isFalse);
+    expect(OwnerAssistantCharts.isPreviousReportChartRequest(
+      'show chart for October'), isFalse);
     final chart = OwnerAssistantCharts.fromReport(report)!;
     expect(chart['title'], 'Kassalar üzrə satış hesabatı');
     expect(chart['subtitle'], '1–27 oktyabr 2026');
