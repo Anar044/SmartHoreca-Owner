@@ -322,6 +322,12 @@ Future<void> ensureStoreFont(WidgetTester tester) async {
         ByteData.sublistView(bytes),
       ));
     await loader.load();
+    final iconBytes = await File(
+      'build/store_font/MaterialIcons-Regular.otf',
+    ).readAsBytes();
+    final icons = FontLoader('MaterialIcons')
+      ..addFont(Future.value(ByteData.sublistView(iconBytes)));
+    await icons.load();
     _storeFontLoaded = true;
   });
 }
