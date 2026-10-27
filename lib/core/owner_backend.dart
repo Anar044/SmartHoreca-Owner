@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'owner_voice_recording.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'owner_session_policy.dart';
 
@@ -196,9 +198,8 @@ class OwnerBackend {
     }
   }
 
-  /// Cloud speech transcription is only used with the user's microphone
-  /// permission, when native recognition lacks Azerbaijani support.
-  /// Audio is sent to the authenticated Smart Horeca transcription endpoint.
+  /// Explicitly recorded, format-checked WAV is uploaded through the owner's
+  /// authenticated connection. Do not infer the language from UI/phone locale.
   static Future<String> transcribeVoice(String audioPath) async {
     if (!configured) {
       throw const OwnerApiException('NOT_CONFIGURED',
@@ -209,12 +210,19 @@ class OwnerBackend {
       throw const OwnerApiException(
         'HTTPS_REQUIRED', 'Требуется защищённое соединение HTTPS.', 400);
     }
+    if (!await OwnerVoiceRecording.hasValidWavFile(audioPath)) {
+      throw const OwnerApiException('INVALID_WAV_RECORDING',
+        'Аудиозапись повреждена или слишком короткая. Запишите вопрос ещё раз.',
+        422);
+    }
     final token = await freshAccessToken();
     try {
       final request = http.MultipartRequest('POST', uri);
       request.headers['Authorization'] = 'Bearer $token';
       request.files.add(await http.MultipartFile.fromPath(
-        'audio', audioPath, filename: 'owner-question.m4a'));
+        'audio', audioPath,
+        filename: 'owner-question.wav',
+        contentType: MediaType('audio', 'wav')));
       final streamed = await request.send()
         .timeout(const Duration(seconds: 65));
       final response = await http.Response.fromStream(streamed);
@@ -225,6 +233,16 @@ class OwnerBackend {
           'Голосовой вопрос не распознан. Попробуйте ещё раз.', 422);
       }
       return text;
+    } on OwnerApiException catch (e) {
+      final reason = e.message.toLowerCase();
+      if (reason.contains('audio file might be corrupted') ||
+          reason.contains('unsupported audio') ||
+          reason.contains('invalid audio file')) {
+        throw const OwnerApiException('INVALID_AUDIO_FORMAT',
+          'Сервис не смог прочитать запись. Попробуйте записать вопрос ещё раз.',
+          422);
+      }
+      rethrow;
     } on TimeoutException {
       throw const OwnerApiException('TRANSCRIBE_TIMEOUT',
         'Распознавание речи заняло слишком много времени. Попробуйте ещё раз.',
