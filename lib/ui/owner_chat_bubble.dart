@@ -17,6 +17,7 @@ class OwnerChatBubble extends StatelessWidget {
     this.speakTooltip = 'Озвучить ответ',
     this.stopSpeakTooltip = 'Остановить озвучивание',
     this.speaking = false,
+    this.userLabel = 'Вы',
   });
 
   final String role;
@@ -29,6 +30,7 @@ class OwnerChatBubble extends StatelessWidget {
   final String speakTooltip;
   final String stopSpeakTooltip;
   final bool speaking;
+  final String userLabel;
 
   bool get fromUser => role == 'user';
 
@@ -74,7 +76,7 @@ class OwnerChatBubble extends StatelessWidget {
                   ),
                   const SizedBox(width: 7),
                   Text(
-                    fromUser ? 'Вы' : 'AI Smart Horeca',
+                    fromUser ? userLabel : 'AI Smart Horeca',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
