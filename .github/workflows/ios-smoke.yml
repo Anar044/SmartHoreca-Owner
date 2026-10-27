@@ -41,8 +41,9 @@ jobs:
         run: flutter pub get
       - name: Generate both platform launcher icons and splash
         run: |
-          python3 -m pip install --quiet Pillow
-          python3 scripts/prepare_owner_logo.py
+          python3 -m venv /tmp/sh-owner-icon-venv
+          /tmp/sh-owner-icon-venv/bin/python -m pip install --quiet Pillow
+          /tmp/sh-owner-icon-venv/bin/python scripts/prepare_owner_logo.py
           dart run flutter_launcher_icons
           dart run flutter_native_splash:create
       - name: Flutter analyze and widget tests
