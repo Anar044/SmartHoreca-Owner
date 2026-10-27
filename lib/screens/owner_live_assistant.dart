@@ -599,6 +599,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         OwnerChatBubble(
           role: message.role,
           text: message.text,
+          userLabel: OwnerL10n.tr(state.language, 'Вы'),
           speaking: speaking && identical(_speakingMessage, message),
           onSpeak: message.role == 'assistant'
               ? () => _readAnswer(message) : null,

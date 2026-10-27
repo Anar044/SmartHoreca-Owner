@@ -95,6 +95,15 @@ class OwnerDemoNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Never show design-preview/beta labels in the public App Store binary.
+    // The offline preview itself is already disabled in a signed release.
+    const previewAvailable = bool.fromEnvironment(
+      'SH_ENABLE_DEMO', defaultValue: true);
+    const storeCapture = bool.fromEnvironment(
+      'SH_STORE_CAPTURE', defaultValue: false);
+    if (!previewAvailable || storeCapture) {
+      return const SizedBox.shrink();
+    }
     return Row(
       children: [
         const Icon(Icons.info_outline, size: 15, color: OwnerPalette.warning),
