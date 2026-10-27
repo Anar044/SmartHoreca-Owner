@@ -60,8 +60,9 @@ jobs:
         run: |
           flutter create . --platforms=ios,android
           python3 scripts/configure_native_brand.py
-          python3 -m pip install --quiet Pillow
-          python3 scripts/prepare_owner_logo.py
+          python3 -m venv /tmp/sh-owner-icon-venv
+          /tmp/sh-owner-icon-venv/bin/python -m pip install --quiet Pillow
+          /tmp/sh-owner-icon-venv/bin/python scripts/prepare_owner_logo.py
           flutter pub get
           dart run flutter_launcher_icons
           dart run flutter_native_splash:create
