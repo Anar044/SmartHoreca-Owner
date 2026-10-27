@@ -1,8 +1,8 @@
 name: SH Owner Upload to TestFlight
 
 on:
-  # One-time TestFlight upload when the verified release PR reaches main.
-  # Future source-code pushes do not auto-publish new iOS builds.
+  # One-time TestFlight upload for the verified 2026-10-27 multilingual voice fix.
+  # Only changes to this release workflow trigger it; source-only pushes do not.
   push:
     branches: [main]
     paths:
