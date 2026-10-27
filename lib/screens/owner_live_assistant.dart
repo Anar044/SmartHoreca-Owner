@@ -94,14 +94,19 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     super.dispose();
   }
 
-  Future<void> _closeCloudRecorder() async {
+  Future<void> _cancelCloudRecording() async {
     try { await _cloudRecorder.cancel(); } catch (_) {}
+  }
+
+  Future<void> _closeCloudRecorder() async {
+    await _cancelCloudRecording();
     await _cloudRecorder.dispose();
   }
 
   /// Cloud fallback is activated only when Azerbaijani native recognition
   /// is missing. Audio is uploaded only after explicit microphone use.
   Future<void> _startCloudListening() async {
+    final generation = _generation;
     try {
       if (!await _cloudRecorder.hasPermission()) {
         if (mounted) setState(() => error = OwnerL10n.tr(
@@ -119,8 +124,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         ),
         path: path,
       );
-      if (!mounted) {
-        await _cloudRecorder.cancel();
+      if (!mounted || generation != _generation) {
+        await _cancelCloudRecording();
         return;
       }
       setState(() {
@@ -210,7 +215,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       listening = false;
       _usingCloudRecorder = false;
       _transcribing = false;
-      unawaited(_cloudRecorder.cancel());
+      unawaited(_cancelCloudRecording());
       speaking = false;
       _speakingMessage = null;
       ++_speechToken;
@@ -467,7 +472,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
 
   void _newConversation() {
     unawaited(_recognizer.stop());
-    unawaited(_cloudRecorder.cancel());
+    unawaited(_cancelCloudRecording());
     unawaited(_stopSpeech());
     ++_generation;
     setState(() {
