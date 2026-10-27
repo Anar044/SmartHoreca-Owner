@@ -10,12 +10,24 @@ class OwnerChatBubble extends StatelessWidget {
     required this.role,
     required this.text,
     this.onSpeak,
+    this.onCopy,
+    this.onPdf,
+    this.copyTooltip = 'Скопировать ответ',
+    this.pdfTooltip = 'Экспорт в PDF',
+    this.speakTooltip = 'Озвучить ответ',
+    this.stopSpeakTooltip = 'Остановить озвучивание',
     this.speaking = false,
   });
 
   final String role;
   final String text;
   final VoidCallback? onSpeak;
+  final VoidCallback? onCopy;
+  final VoidCallback? onPdf;
+  final String copyTooltip;
+  final String pdfTooltip;
+  final String speakTooltip;
+  final String stopSpeakTooltip;
   final bool speaking;
 
   bool get fromUser => role == 'user';
@@ -80,21 +92,42 @@ class OwnerChatBubble extends StatelessWidget {
                     color: foreground,
                   ),
                 ),
-                if (!fromUser && onSpeak != null) ...[
+                if (!fromUser &&
+                    (onSpeak != null || onCopy != null || onPdf != null)) ...[
                   const SizedBox(height: 4),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: IconButton(
-                      tooltip: speaking
-                          ? 'Остановить озвучивание'
-                          : 'Озвучить ответ',
-                      visualDensity: VisualDensity.compact,
-                      icon: Icon(
-                        speaking ? Icons.stop_circle_outlined
-                            : Icons.volume_up_outlined,
-                        size: 21,
-                      ),
-                      onPressed: onSpeak,
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 3,
+                      children: [
+                        if (onCopy != null)
+                          IconButton(
+                            tooltip: copyTooltip,
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.copy_outlined, size: 20),
+                            onPressed: onCopy,
+                          ),
+                        if (onPdf != null)
+                          IconButton(
+                            tooltip: pdfTooltip,
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.picture_as_pdf_outlined,
+                                size: 20),
+                            onPressed: onPdf,
+                          ),
+                        if (onSpeak != null)
+                          IconButton(
+                            tooltip: speaking ? stopSpeakTooltip : speakTooltip,
+                            visualDensity: VisualDensity.compact,
+                            icon: Icon(
+                              speaking ? Icons.stop_circle_outlined
+                                  : Icons.volume_up_outlined,
+                              size: 21,
+                            ),
+                            onPressed: onSpeak,
+                          ),
+                      ],
                     ),
                   ),
                 ],
