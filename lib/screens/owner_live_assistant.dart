@@ -236,16 +236,17 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     try {
       final ready = await _recognizer.initialize(
         onStatus: (status) {
-          if (!mounted) return;
+          if (!mounted || _usingCloudRecorder) return;
           if (status == 'done' || status == 'notListening') {
             setState(() => listening = false);
           }
         },
         onError: (e) {
-          if (mounted) {
+          if (mounted && !_usingCloudRecorder) {
             setState(() {
               listening = false;
-              error = 'Не удалось распознать речь: ${e.errorMsg}.';
+              error = OwnerL10n.tr(OwnerScope.of(context).language,
+                  'Не удалось распознать речь.') + ' ${e.errorMsg}';
             });
           }
         },
@@ -483,7 +484,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   }
 
   Future<void> _send([String? preset]) async {
-    if (sending) return;
+    if (sending || _transcribing || listening && _usingCloudRecorder) return;
     final owner = OwnerScope.of(context);
     await _stopSpeech();
     await _recognizer.stop();
@@ -700,7 +701,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
             ],
           ),
         ),
-        onSubmitted: sending ? null : (value) => _send(value),
+        onSubmitted: sending || _transcribing ? null : (value) => _send(value),
       ),
       const SizedBox(height: 6),
       OwnerText('Только аналитика. Изменение документов и настроек через AI запрещено.',
