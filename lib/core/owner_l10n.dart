@@ -238,7 +238,6 @@ class OwnerL10n {
       'Экспорт в PDF': 'PDF kimi paylaş',
       'Озвучить ответ': 'Cavabı səsləndir',
       'Остановить озвучивание': 'Səsləndirməni dayandır',
-      'Остановить запись': 'Yazını dayandır',
       'Нет разрешения на микрофон.': 'Mikrofona icazə verilməyib.',
       'Не удалось начать запись голоса.':
           'Səs yazısını başlatmaq mümkün olmadı.',
@@ -601,7 +600,6 @@ class OwnerL10n {
       'Экспорт в PDF': 'Share as PDF',
       'Озвучить ответ': 'Read aloud',
       'Остановить озвучивание': 'Stop speaking',
-      'Остановить запись': 'Stop recording',
       'Нет разрешения на микрофон.': 'Microphone access is not allowed.',
       'Не удалось начать запись голоса.':
           'Unable to start voice recording.',
