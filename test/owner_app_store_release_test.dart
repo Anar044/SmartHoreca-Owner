@@ -14,15 +14,15 @@ void main() {
     addTearDown(owner.dispose);
     await tester.pumpWidget(OwnerScope(
       state: owner,
-      child: const MaterialApp(home: Scaffold(body: SingleChildScrollView(
-        child: Column(children: [
-          OwnerDemoNotice(),
-          OwnerSignInScreen(),
-        ]),
-      ))),
+      child: const MaterialApp(home: Scaffold(body: OwnerDemoNotice())),
     ));
     await tester.pumpAndSettle();
     expect(find.textContaining('Демо дизайна'), findsNothing);
+    await tester.pumpWidget(OwnerScope(
+      state: owner,
+      child: const MaterialApp(home: OwnerSignInScreen()),
+    ));
+    await tester.pumpAndSettle();
     expect(find.textContaining('Посмотреть утверждённый дизайн'), findsNothing);
   }, skip: !releaseMode);
 }
