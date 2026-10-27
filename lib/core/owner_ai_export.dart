@@ -50,8 +50,7 @@ class OwnerAiExport {
             widgets.add(pw.Padding(
               padding: const pw.EdgeInsets.only(top: 5),
               child: pw.Text(
-                (item['label'] ?? '').toString() + ': ' +
-                    (item['value'] ?? '').toString(),
+                "${(item['label'] ?? '').toString()}: ${(item['value'] ?? '').toString()}",
                 style: style),
             ));
           }
@@ -108,8 +107,7 @@ class OwnerAiExport {
             for (final point in points.take(32)) {
               if (point is Map) {
                 widgets.add(pw.Text(
-                  (point['label'] ?? '').toString() + ': ' +
-                      (point['value'] ?? '').toString(),
+                  "${(point['label'] ?? '').toString()}: ${(point['value'] ?? '').toString()}",
                   style: style));
               }
             }
