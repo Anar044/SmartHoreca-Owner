@@ -197,7 +197,12 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   }
 
   Future<void> _copyAnswer(_OwnerAssistantMessage message) async {
-    await OwnerAiExport.copyAnswer(message.text);
+    await OwnerAiExport.copyAnswerWithVisuals(
+      answer: message.text,
+      report: message.report,
+      charts: message.charts,
+      chart: message.chart,
+    );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(OwnerL10n.tr(OwnerScope.of(context).language,
@@ -209,8 +214,11 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   Future<void> _exportAnswerPdf(_OwnerAssistantMessage message) async {
     try {
       await OwnerAiExport.shareAnswerPdf(
-        answer: message.text, report: message.report,
-        chart: message.charts.isNotEmpty ? message.charts.first : message.chart);
+        answer: message.text,
+        report: message.report,
+        chart: message.chart,
+        charts: message.charts,
+      );
     } catch (_) {
       if (mounted) {
         setState(() => error = OwnerL10n.tr(
@@ -611,6 +619,10 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
             chart: message.chart,
             charts: message.charts,
             report: message.report,
+            onCopy: () => _copyAnswer(message),
+            onPdf: () => _exportAnswerPdf(message),
+            copyTooltip: OwnerL10n.tr(state.language, 'Скопировать ответ'),
+            pdfTooltip: OwnerL10n.tr(state.language, 'Экспорт в PDF'),
           ),
         if (message.role == 'assistant' &&
             message.sourceWarnings.isNotEmpty)

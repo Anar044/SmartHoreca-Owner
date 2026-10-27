@@ -8,8 +8,19 @@ class OwnerAssistantVisuals extends StatelessWidget {
   final Map<String, dynamic>? chart;
   final List<Map<String, dynamic>> charts;
   final Map<String, dynamic>? report;
+  final VoidCallback? onCopy;
+  final VoidCallback? onPdf;
+  final String copyTooltip;
+  final String pdfTooltip;
   const OwnerAssistantVisuals({
-    super.key, this.chart, this.charts = const [], this.report,
+    super.key,
+    this.chart,
+    this.charts = const [],
+    this.report,
+    this.onCopy,
+    this.onPdf,
+    this.copyTooltip = 'Скопировать ответ',
+    this.pdfTooltip = 'Экспорт в PDF',
   });
 
   static Map<String, dynamic>? structured(dynamic value) {
@@ -25,14 +36,66 @@ class OwnerAssistantVisuals extends StatelessWidget {
     return Column(children: [
     for (final graph in visibleCharts) ...[
       const SizedBox(height: 9),
-      OwnerCard(child: _OwnerChart(graph, showNotes: report == null)),
+      OwnerCard(child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _OwnerChart(graph, showNotes: report == null),
+          if (onCopy != null || onPdf != null)
+            _VisualActions(
+              onCopy: onCopy, onPdf: onPdf,
+              copyTooltip: copyTooltip, pdfTooltip: pdfTooltip,
+            ),
+        ],
+      )),
     ],
     if (report != null) ...[
       const SizedBox(height: 9),
-      OwnerCard(child: _OwnerReport(report!)),
+      OwnerCard(child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _OwnerReport(report!),
+          if (onCopy != null || onPdf != null)
+            _VisualActions(
+              onCopy: onCopy, onPdf: onPdf,
+              copyTooltip: copyTooltip, pdfTooltip: pdfTooltip,
+            ),
+        ],
+      )),
     ],
   ]);
   }
+}
+
+class _VisualActions extends StatelessWidget {
+  final VoidCallback? onCopy;
+  final VoidCallback? onPdf;
+  final String copyTooltip;
+  final String pdfTooltip;
+  const _VisualActions({
+    required this.onCopy,
+    required this.onPdf,
+    required this.copyTooltip,
+    required this.pdfTooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.centerRight,
+    child: Wrap(spacing: 2, children: [
+      if (onCopy != null)
+        IconButton(
+          tooltip: copyTooltip,
+          icon: const Icon(Icons.copy_outlined, size: 20),
+          onPressed: onCopy,
+        ),
+      if (onPdf != null)
+        IconButton(
+          tooltip: pdfTooltip,
+          icon: const Icon(Icons.picture_as_pdf_outlined, size: 20),
+          onPressed: onPdf,
+        ),
+    ]),
+  );
 }
 
 class _PlotPoint {
@@ -88,7 +151,9 @@ class _OwnerChart extends StatelessWidget {
       for(final note in (showNotes && data['notes'] is List
         ?(data['notes'] as List).take(2):<dynamic>[])) ...[
         const SizedBox(height:4),
-        Text(note.toString(),style:muted),
+        Text(note.toString().replaceAll(
+          RegExp(r'iiko(?:Chain|Front)?', caseSensitive: false), 'Smart Horeca'),
+          style:muted),
       ],
     ]);
   }
@@ -155,7 +220,9 @@ class _OwnerReport extends StatelessWidget {
         Divider(color: Theme.of(context).dividerColor),
         for (final note in notes.toSet().take(3))
           Padding(padding: const EdgeInsets.only(top: 5),
-            child: Text(note.toString(),
+            child: Text(note.toString().replaceAll(
+              RegExp(r'iiko(?:Chain|Front)?', caseSensitive: false),
+              'Smart Horeca'),
               style: TextStyle(fontSize: 12, height: 1.35,
                 color: OwnerPalette.muted(context)))),
       ],
