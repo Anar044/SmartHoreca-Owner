@@ -40,6 +40,11 @@ jobs:
             'https://raw.githubusercontent.com/google/fonts/main/ofl/spacegrotesk/SpaceGrotesk%5Bwght%5D.ttf' \
             --output build/store_font/SpaceGrotesk.ttf
           test -s build/store_font/SpaceGrotesk.ttf
+          echo "Flutter SDK: $FLUTTER_ROOT"
+          ICON_FONT="$(find "$FLUTTER_ROOT/bin/cache" -type f \
+            -name 'MaterialIcons-Regular.otf' -print -quit)"
+          test -n "$ICON_FONT"
+          cp "$ICON_FONT" build/store_font/MaterialIcons-Regular.otf
       - name: Capture real Flutter UI at 1320x2868
         run: |
           flutter test test/app_store_screenshots_test.dart \
