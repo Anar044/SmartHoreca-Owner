@@ -8,6 +8,10 @@ class OwnerL10n {
 
   static const Map<String, Map<String, String>> _translations = {
     'Azərbaycan': {
+      'Слишком короткая запись. Говорите не менее одной секунды.': 'Səs yazısı çox qısadır. Ən azı bir saniyə danışın.',
+      'Не удалось сохранить голосовой вопрос. Попробуйте ещё раз.': 'Səsli sualı saxlamaq mümkün olmadı. Yenidən cəhd edin.',
+      'Аудиозапись повреждена или слишком короткая. Запишите вопрос ещё раз.': 'Səs yazısı zədələnib və ya çox qısadır. Sualı yenidən yazın.',
+      'Сервис не смог прочитать запись. Попробуйте записать вопрос ещё раз.': 'Səs yazısı oxunmadı. Sualı yenidən səsləndirin.',
       'Главная': 'Ana səhifə',
       'Кассы': 'Kassalar',
       'Отчёты': 'Hesabatlar',
@@ -370,6 +374,10 @@ class OwnerL10n {
       'Не удалось проверить активность подразделений. Список доступных ресторанов остаётся без изменений.': 'Bölmələrin fəaliyyətini yoxlamaq mümkün olmadı. Restoran siyahısı dəyişməyib.',
     },
     'English': {
+      'Слишком короткая запись. Говорите не менее одной секунды.': 'Recording is too short. Speak for at least one second.',
+      'Не удалось сохранить голосовой вопрос. Попробуйте ещё раз.': 'Could not save the voice question. Please try again.',
+      'Аудиозапись повреждена или слишком короткая. Запишите вопрос ещё раз.': 'The recording is damaged or too short. Please record the question again.',
+      'Сервис не смог прочитать запись. Попробуйте записать вопрос ещё раз.': 'The audio could not be processed. Please record your question again.',
       'Главная': 'Home',
       'Кассы': 'Registers',
       'Отчёты': 'Reports',

@@ -20,14 +20,12 @@ class OwnerAssistantLanguage {
   static String responseLocale(String selected) =>
       OwnerVoiceLocale.ttsLocale(selected);
 
-  static String hint(String selected) => switch (languageCode(selected)) {
-    'az' => _azHint,
-    'en' => _enHint,
-    _ => '',
-  };
-
+  /// Speech and typed questions are answered in their own language.
+  /// Changing the UI language must not force answers or tool queries into AZ/RU/EN.
+  /// The verified server already tells the model to answer in the user's
+  /// language. Do not add an app-locale hint to the question.
   static String messageForServer(String question, String selected) =>
-      question.trim() + hint(selected);
+      question.trim();
 
   static String originalQuestion(String stored) {
     for (final suffix in [_azHint, _enHint]) {
