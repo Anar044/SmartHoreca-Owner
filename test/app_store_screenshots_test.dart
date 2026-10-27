@@ -328,6 +328,12 @@ Future<void> ensureStoreFont(WidgetTester tester) async {
     final icons = FontLoader('MaterialIcons')
       ..addFont(Future.value(ByteData.sublistView(iconBytes)));
     await icons.load();
+    final cyrillicBytes = await File(
+      'build/store_font/NotoSans.ttf',
+    ).readAsBytes();
+    final cyrillic = FontLoader('StoreNotoSans')
+      ..addFont(Future.value(ByteData.sublistView(cyrillicBytes)));
+    await cyrillic.load();
     _storeFontLoaded = true;
   });
 }
@@ -356,7 +362,8 @@ void main() {
               scaffoldBackgroundColor: const Color(0xFFF3F6FC),
               colorScheme: ColorScheme.fromSeed(
                 seedColor: const Color(0xFF2563EB)),
-              fontFamily: 'StoreSpaceGrotesk',
+              fontFamily: language == 'ru'
+                ? 'StoreNotoSans' : 'StoreSpaceGrotesk',
             ),
             home: RepaintBoundary(
               key:captureKey,
@@ -365,6 +372,15 @@ void main() {
           ),
         ));
         if (captureEnabled) {
+          // The first image decode is asynchronous even after pumpAndSettle.
+          // Wait for the exact production brand asset before the first shot.
+          await tester.runAsync(() async {
+            await precacheImage(
+              const AssetImage('assets/brand/sh-owner-original.png'),
+              tester.element(find.byKey(captureKey)),
+            );
+          });
+          await tester.pump();
           await saveScreenshot(tester,'${pages[page]}-$language-1320x2868.png');
         } else {
           await tester.pumpAndSettle();
