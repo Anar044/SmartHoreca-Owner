@@ -1,7 +1,7 @@
 name: SH Owner Upload to TestFlight
 
 on:
-  # One-time TestFlight upload for the verified 2026-10-27 multilingual voice fix.
+  # One-time TestFlight upload for the verified 2026-10-27 AI chart-rendering fix.
   # Only changes to this release workflow trigger it; source-only pushes do not.
   push:
     branches: [main]
