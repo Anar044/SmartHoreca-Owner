@@ -16,22 +16,21 @@ class OwnerAssistantCharts {
   /// goes back to the authorized AI endpoint for fresh verified data.
   static bool isPreviousReportChartRequest(String question) {
     if (!wantsChart(question) || question.length > 100) return false;
-    final cleaned = question.toLowerCase()
-      .replaceAll(RegExp(
-        r'qrafik|qrafiq|grafik|diaqram|diagram|chart|graph|plot|'
-        r'график(?:е|ом)?|диаграмм(?:у|е|ой|ы)?',
-        caseSensitive: false,
-      ), ' ')
-      .replaceAll(RegExp(
-        r'göstər(?:in)?|goster(?:in)?|gostər(?:in)?|'
-        r'üzrə|uzre|görünüşündə|sekilde|şəklində|'
-        r'покажи|показать|выведи|отобрази|построй|'
-        r'show|display|draw|make|create|please|'
-        r'в|на|виде|это|его|bunu|kimi|as|a|the|it|me',
-        caseSensitive: false,
-      ), ' ')
-      .replaceAll(RegExp(r'[\s.,!?;:—–-]+'), '');
-    return cleaned.isEmpty;
+    const allowed = <String>{
+      'qrafik', 'qrafiq', 'grafik', 'diaqram', 'diaqrama',
+      'üzrə', 'uzre', 'göstər', 'goster', 'gostər', 'göstərin',
+      'görünüşündə', 'şəklində', 'kimi', 'bunu',
+      'график', 'графике', 'графиком', 'диаграмму', 'диаграмме',
+      'покажи', 'показать', 'выведи', 'отобрази', 'построй',
+      'на', 'в', 'виде', 'это', 'его',
+      'show', 'chart', 'graph', 'diagram', 'plot', 'display',
+      'draw', 'make', 'please', 'as', 'a', 'the', 'it', 'me',
+    };
+    final tokens = question.toLowerCase()
+        .replaceAll(RegExp(r'[.,!?;:—–-]'), ' ')
+        .split(RegExp(r'\s+'))
+        .where((token) => token.isNotEmpty);
+    return tokens.isNotEmpty && tokens.every(allowed.contains);
   }
 
   /// Safely copy up to three structured charts from the verified API.
