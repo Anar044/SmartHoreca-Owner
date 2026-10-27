@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - release/remove-demo-copy-store-assets-20261027
+      - release/appstore-ipad-screens-privacy-20261027
     paths:
       - 'test/app_store_screenshots_test.dart'
       - '.github/workflows/app-store-screenshots.yml'
@@ -49,37 +50,38 @@ jobs:
             -name 'MaterialIcons-Regular.otf' -print -quit)"
           test -n "$ICON_FONT"
           cp "$ICON_FONT" build/store_font/MaterialIcons-Regular.otf
-      - name: Capture real Flutter UI at 1320x2868
+      - name: Capture iPhone and 13-inch iPad Flutter UI at native resolutions
         run: |
           flutter test test/app_store_screenshots_test.dart \
             --dart-define=SH_STORE_CAPTURE=true \
             --reporter expanded
       - name: Install screenshot verifier
         run: python3 -m pip install --user Pillow
-      - name: Verify all eight full-resolution opaque PNGs
+      - name: Verify all sixteen full-resolution opaque PNGs
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import struct
           files=sorted(Path('build/app_store_screenshots').glob('*.png'))
-          assert len(files)==8, f'Expected 8 PNGs, got {len(files)}'
+          assert len(files)==16, f'Expected 16 PNGs, got {len(files)}'
           for path in files:
               data=path.read_bytes()
               assert data[:8]==b'\x89PNG\r\n\x1a\n', path
               width,height=struct.unpack('>II',data[16:24])
-              assert (width,height)==(1320,2868), (path,width,height)
+              expected=(2064,2752) if '2064x2752' in path.name else (1320,2868)
+              assert (width,height)==expected, (path,width,height)
               # PNG color type 6 is RGBA; App Store PNG must be opaque:
               # check that alpha bytes represent opaque values only.
               from PIL import Image
               with Image.open(path) as im:
-                  assert im.size==(1320,2868)
+                  assert im.size==expected
                   if im.mode in ('RGBA','LA'):
                       assert im.getchannel('A').getextrema()==(255,255), path
               print(path, (width,height))
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: SH-Owner-App-Store-iPhone-1320x2868-EN-RU
+          name: SH-Owner-App-Store-iPhone-iPad13-EN-RU
           path: build/app_store_screenshots/*.png
           if-no-files-found: error
           retention-days: 30
