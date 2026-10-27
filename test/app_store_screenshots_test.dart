@@ -274,7 +274,7 @@ class StorePage extends StatelessWidget {
       charts: [{
         'title': label(russian, 'Cash register sales', 'Продажи по кассам'),
         'subtitle': label(russian, 'Today · AZN', 'Сегодня · AZN'),
-        'series': [{
+        'series': const [{
           'name': 'Sales',
           'data': [
             {'label': 'CASH 01', 'value': 8420},
