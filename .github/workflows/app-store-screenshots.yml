@@ -33,6 +33,8 @@ jobs:
           flutter test test/app_store_screenshots_test.dart \
             --dart-define=SH_STORE_CAPTURE=true \
             --reporter expanded
+      - name: Install screenshot verifier
+        run: python3 -m pip install --user Pillow
       - name: Verify all eight full-resolution opaque PNGs
         run: |
           python3 - <<'PY'
