@@ -109,8 +109,10 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     final generation = _generation;
     try {
       if (!await _cloudRecorder.hasPermission()) {
-        if (mounted) setState(() => error = OwnerL10n.tr(
-          OwnerScope.of(context).language, 'Нет разрешения на микрофон.'));
+        if (mounted) {
+          setState(() => error = OwnerL10n.tr(
+            OwnerScope.of(context).language, 'Нет разрешения на микрофон.'));
+        }
         return;
       }
       final dir = await getTemporaryDirectory();
@@ -134,12 +136,14 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         _usingCloudRecorder = true;
       });
     } catch (_) {
-      if (mounted) setState(() {
-        listening = false;
-        _usingCloudRecorder = false;
+      if (mounted) {
+        setState(() {
+          listening = false;
+          _usingCloudRecorder = false;
         error = OwnerL10n.tr(OwnerScope.of(context).language,
-          'Не удалось начать запись голоса.');
-      });
+            'Не удалось начать запись голоса.');
+        });
+      }
     }
   }
 
@@ -193,9 +197,11 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       await OwnerAiExport.shareAnswerPdf(
         answer: message.text, report: message.report, chart: message.chart);
     } catch (_) {
-      if (mounted) setState(() => error =
-        OwnerL10n.tr(OwnerScope.of(context).language,
+      if (mounted) {
+        setState(() => error = OwnerL10n.tr(
+          OwnerScope.of(context).language,
           'Не удалось создать PDF. Проверьте соединение и повторите.'));
+      }
     }
   }
 
@@ -250,8 +256,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           if (mounted && !_usingCloudRecorder) {
             setState(() {
               listening = false;
-              error = OwnerL10n.tr(OwnerScope.of(context).language,
-                  'Не удалось распознать речь.') + ' ${e.errorMsg}';
+              error = '${OwnerL10n.tr(OwnerScope.of(context).language, 'Не удалось распознать речь.')} ${e.errorMsg}';
             });
           }
         },
