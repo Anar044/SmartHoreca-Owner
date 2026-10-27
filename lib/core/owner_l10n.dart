@@ -232,6 +232,20 @@ class OwnerL10n {
       'Официант': 'Ofisiant',
       'Сумма': 'Məbləğ',
       'Состав чека и разделение оплат пока не предоставлены источником SH OLAP. Они не подменяются демонстрационными позициями.': 'SH OLAP çekin tərkibini və ödəniş bölgüsünü təqdim etmir. Nümunə məlumatları ilə əvəz edilmir.',
+      'Скопировать ответ': 'Cavabı kopyala',
+      'Ответ скопирован': 'Cavab kopyalandı',
+      'Экспорт в PDF': 'PDF kimi paylaş',
+      'Озвучить ответ': 'Cavabı səsləndir',
+      'Остановить озвучивание': 'Səsləndirməni dayandır',
+      'Остановить запись': 'Yazını dayandır',
+      'Нет разрешения на микрофон.': 'Mikrofona icazə verilməyib.',
+      'Не удалось начать запись голоса.':
+          'Səs yazısını başlatmaq mümkün olmadı.',
+      'Не удалось распознать голосовой вопрос.':
+          'Səsli sualı tanımaq mümkün olmadı.',
+      'Не удалось создать PDF. Проверьте соединение и повторите.':
+          'PDF yaratmaq mümkün olmadı. Bağlantını yoxlayıb yenidən cəhd edin.',
+      'Распознаём голосовой вопрос…': 'Səsli sual tanınır…',
       'Вопрос должен быть короче 4000 символов.': 'Sual 4000 simvoldan qısa olmalıdır.',
       'AI не вернул текст ответа.': 'AI mətn cavabı qaytarmadı.',
       'Не удалось получить ответ AI Smart Horeca Assistant.': 'AI Smart Horeca Assistant-dan cavab alınmadı.',
@@ -580,6 +594,20 @@ class OwnerL10n {
       'Официант': 'Waiter',
       'Сумма': 'Amount',
       'Состав чека и разделение оплат пока не предоставлены источником SH OLAP. Они не подменяются демонстрационными позициями.': 'SH OLAP does not yet provide receipt lines or payment splits. No demonstration data are substituted.',
+      'Скопировать ответ': 'Copy answer',
+      'Ответ скопирован': 'Answer copied',
+      'Экспорт в PDF': 'Share as PDF',
+      'Озвучить ответ': 'Read aloud',
+      'Остановить озвучивание': 'Stop speaking',
+      'Остановить запись': 'Stop recording',
+      'Нет разрешения на микрофон.': 'Microphone access is not allowed.',
+      'Не удалось начать запись голоса.':
+          'Unable to start voice recording.',
+      'Не удалось распознать голосовой вопрос.':
+          'Unable to recognize the voice question.',
+      'Не удалось создать PDF. Проверьте соединение и повторите.':
+          'Could not create PDF. Check the connection and try again.',
+      'Распознаём голосовой вопрос…': 'Transcribing voice question…',
       'Вопрос должен быть короче 4000 символов.': 'Your question must be shorter than 4,000 characters.',
       'AI не вернул текст ответа.': 'AI returned no text answer.',
       'Не удалось получить ответ AI Smart Horeca Assistant.': 'Could not get an AI Smart Horeca Assistant response.',
