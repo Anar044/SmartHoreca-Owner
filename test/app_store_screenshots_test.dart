@@ -260,6 +260,7 @@ class StorePage extends StatelessWidget {
     const SizedBox(height: 16), _scope(), const SizedBox(height: 17),
     Align(alignment: Alignment.centerRight,
       child: OwnerChatBubble(role:'user',
+        userLabel: label(russian, 'You', 'Вы'),
         text: label(russian,
           'Show sales by cash register as a chart.',
           'Покажи продажи по кассам в виде графика.'))),
