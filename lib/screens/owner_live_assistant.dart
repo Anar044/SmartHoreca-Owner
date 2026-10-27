@@ -451,7 +451,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     // A follow-up asking to visualize already-rendered verified report rows
     // is fulfilled locally, without a fresh AI or accounting-server query.
     // The active conversation is reset whenever workspace/restaurants change.
-    if (OwnerAssistantCharts.wantsChart(message) && conversation.isNotEmpty) {
+    if (OwnerAssistantCharts.isPreviousReportChartRequest(message) &&
+        conversation.isNotEmpty) {
       Map<String, dynamic>? precedingReport;
       for (final prior in conversation.reversed) {
         if (prior.role == 'assistant' && prior.report != null) {
