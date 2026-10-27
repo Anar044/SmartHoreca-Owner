@@ -1,8 +1,13 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../core/owner_voice_locale.dart';
+import '../core/owner_assistant_language.dart';
+import '../core/owner_ai_export.dart';
 import 'owner_assistant_visuals.dart';
 import '../ui/owner_text.dart';
 import '../core/owner_backend.dart';
@@ -36,6 +41,9 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   final controller = TextEditingController();
   final stt.SpeechToText _recognizer = stt.SpeechToText();
   final FlutterTts _tts = FlutterTts();
+  final AudioRecorder _cloudRecorder = AudioRecorder();
+  bool _usingCloudRecorder = false;
+  bool _transcribing = false;
   final List<_OwnerAssistantMessage> conversation = [];
   bool listening = false;
   bool speaking = false;
@@ -81,8 +89,109 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     ++_speechToken;
     unawaited(_recognizer.stop());
     unawaited(_tts.stop());
+    unawaited(_closeCloudRecorder());
     controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _closeCloudRecorder() async {
+    try { await _cloudRecorder.cancel(); } catch (_) {}
+    await _cloudRecorder.dispose();
+  }
+
+  /// Cloud fallback is activated only when Azerbaijani native recognition
+  /// is missing. Audio is uploaded only after explicit microphone use.
+  Future<void> _startCloudListening() async {
+    try {
+      if (!await _cloudRecorder.hasPermission()) {
+        if (mounted) setState(() => error = OwnerL10n.tr(
+          OwnerScope.of(context).language, 'Нет разрешения на микрофон.'));
+        return;
+      }
+      final dir = await getTemporaryDirectory();
+      final path = '${dir.path}/sh-owner-voice-'
+          '${DateTime.now().microsecondsSinceEpoch}.m4a';
+      await _cloudRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+        path: path,
+      );
+      if (!mounted) {
+        await _cloudRecorder.cancel();
+        return;
+      }
+      setState(() {
+        error = null;
+        listening = true;
+        _usingCloudRecorder = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() {
+        listening = false;
+        _usingCloudRecorder = false;
+        error = OwnerL10n.tr(OwnerScope.of(context).language,
+          'Не удалось начать запись голоса.');
+      });
+    }
+  }
+
+  Future<void> _finishCloudListening() async {
+    final generation = _generation;
+    setState(() {
+      listening = false;
+      _usingCloudRecorder = false;
+      _transcribing = true;
+    });
+    String? path;
+    try {
+      path = await _cloudRecorder.stop();
+      if (path == null) throw StateError('Audio recording is empty');
+      final transcript = await OwnerBackend.transcribeVoice(path);
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        controller.text = transcript;
+        controller.selection = TextSelection.collapsed(
+          offset: controller.text.length);
+        error = null;
+      });
+    } catch (e) {
+      if (mounted && generation == _generation) {
+        setState(() => error = e is OwnerApiException
+          ? e.message : OwnerL10n.tr(OwnerScope.of(context).language,
+            'Не удалось распознать голосовой вопрос.'));
+      }
+    } finally {
+      if (path != null) {
+        try { await File(path).delete(); } catch (_) {}
+      }
+      if (mounted && generation == _generation) {
+        setState(() => _transcribing = false);
+      }
+    }
+  }
+
+  Future<void> _copyAnswer(_OwnerAssistantMessage message) async {
+    await OwnerAiExport.copyAnswer(message.text);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(OwnerL10n.tr(OwnerScope.of(context).language,
+        'Ответ скопирован')),
+      duration: const Duration(seconds: 2),
+    ));
+  }
+
+  Future<void> _exportAnswerPdf(_OwnerAssistantMessage message) async {
+    try {
+      await OwnerAiExport.shareAnswerPdf(
+        answer: message.text, report: message.report, chart: message.chart);
+    } catch (_) {
+      if (mounted) setState(() => error =
+        OwnerL10n.tr(OwnerScope.of(context).language,
+          'Не удалось создать PDF. Проверьте соединение и повторите.'));
+    }
   }
 
   @override
@@ -99,6 +208,9 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       error = null;
       sending = false;
       listening = false;
+      _usingCloudRecorder = false;
+      _transcribing = false;
+      unawaited(_cloudRecorder.cancel());
       speaking = false;
       _speakingMessage = null;
       ++_speechToken;
@@ -108,9 +220,13 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   }
 
   Future<void> _toggleListening() async {
-    if (sending) return;
+    if (sending || _transcribing) return;
     final selectedLanguage = OwnerScope.of(context).language;
     if (listening) {
+      if (_usingCloudRecorder) {
+        await _finishCloudListening();
+        return;
+      }
       await _recognizer.stop();
       if (mounted) setState(() => listening = false);
       return;
@@ -134,6 +250,10 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           }
         },
       );
+      if (!ready && OwnerVoiceLocale.languageCode(selectedLanguage) == 'az') {
+        await _startCloudListening();
+        return;
+      }
       if (!ready) {
         if (mounted) {
           setState(() =>
@@ -145,6 +265,11 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       final locale = OwnerVoiceLocale.availableSpeechLocale(
         selectedLanguage, locales.map((l) => l.localeId));
       if (!mounted) return;
+      if (OwnerVoiceLocale.languageCode(selectedLanguage) == 'az' &&
+          locale == null) {
+        await _startCloudListening();
+        return;
+      }
       setState(() {
         error = null;
         listening = true;
@@ -313,7 +438,11 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           .map((m) {
             final meta = OwnerAssistantVisuals.structured(m['meta']);
             return _OwnerAssistantMessage(
-              m['role'].toString(), (m['content'] ?? '').toString(),
+              m['role'].toString(),
+              m['role'] == 'user'
+                ? OwnerAssistantLanguage.originalQuestion(
+                    (m['content'] ?? '').toString())
+                : (m['content'] ?? '').toString(),
               chart: OwnerAssistantVisuals.structured(meta?['chart']),
               report: OwnerAssistantVisuals.structured(meta?['report']),
               sourceWarnings: (meta?['sourceWarnings'] as List? ?? [])
@@ -337,6 +466,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
 
   void _newConversation() {
     unawaited(_recognizer.stop());
+    unawaited(_cloudRecorder.cancel());
     unawaited(_stopSpeech());
     ++_generation;
     setState(() {
@@ -345,6 +475,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       error = null;
       sending = false;
       listening = false;
+      _usingCloudRecorder = false;
+      _transcribing = false;
       speaking = false;
       _speakingMessage = null;
     });
@@ -359,7 +491,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     setState(() => listening = false);
     final message = (preset ?? controller.text).trim();
     if (message.isEmpty || owner.workspaceId == null) return;
-    if (message.length > 4000) {
+    if (!OwnerAssistantLanguage.withinLimit(message, owner.language)) {
       setState(() => error = 'Вопрос должен быть короче 4000 символов.');
       return;
     }
@@ -379,7 +511,11 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         departmentIds: restaurantIds,
         payload: {
           'action': 'message',
-          'message': message,
+          'message': OwnerAssistantLanguage.messageForServer(
+            message, owner.language),
+          'language': OwnerAssistantLanguage.languageCode(owner.language),
+          'responseLanguage': OwnerAssistantLanguage.responseLocale(
+            owner.language),
           if (conversationId != null) 'conversationId': conversationId,
         },
       );
@@ -450,7 +586,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
               'Какие товары заканчиваются?',
             ]) ...[
               OutlinedButton(
-                onPressed: sending ? null : () => _send(question),
+                onPressed: sending ? null :
+                    () => _send(OwnerL10n.tr(state.language, question)),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(OwnerL10n.tr(state.language, question)),
@@ -468,6 +605,15 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           speaking: speaking && identical(_speakingMessage, message),
           onSpeak: message.role == 'assistant'
               ? () => _readAnswer(message) : null,
+          onCopy: message.role == 'assistant'
+              ? () => _copyAnswer(message) : null,
+          onPdf: message.role == 'assistant'
+              ? () => _exportAnswerPdf(message) : null,
+          copyTooltip: OwnerL10n.tr(state.language, 'Скопировать ответ'),
+          pdfTooltip: OwnerL10n.tr(state.language, 'Экспорт в PDF'),
+          speakTooltip: OwnerL10n.tr(state.language, 'Озвучить ответ'),
+          stopSpeakTooltip: OwnerL10n.tr(state.language,
+            'Остановить озвучивание'),
         ),
         if (message.role == 'assistant' &&
             (message.chart != null || message.report != null))
@@ -497,6 +643,13 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           ])),
         const SizedBox(height: 8),
       ],
+      if (_transcribing)
+        const OwnerCard(child: Row(children: [
+          SizedBox(width: 18, height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2)),
+          SizedBox(width: 12),
+          OwnerText('Распознаём голосовой вопрос…'),
+        ])),
       if (sending) const OwnerCard(child: Row(children: [
         SizedBox(width: 18, height: 18,
           child: CircularProgressIndicator(strokeWidth: 2)),
@@ -535,13 +688,14 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
                     : Icons.mic_none_rounded,
                     color: listening ? Colors.redAccent
                         : OwnerPalette.accent(context)),
-                tooltip: listening ? 'Остановить запись' : 'Голосовой вопрос',
-                onPressed: sending ? null : _toggleListening,
+                tooltip: OwnerL10n.tr(state.language,
+                  listening ? 'Остановить запись' : 'Голосовой вопрос'),
+                onPressed: sending || _transcribing ? null : _toggleListening,
               ),
               IconButton(
                 icon: const Icon(Icons.send_rounded),
-                tooltip: 'Отправить',
-                onPressed: sending ? null : _send,
+                tooltip: OwnerL10n.tr(state.language, 'Отправить'),
+                onPressed: sending || _transcribing ? null : _send,
               ),
             ],
           ),
