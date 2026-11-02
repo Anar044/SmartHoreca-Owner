@@ -316,6 +316,30 @@ class OwnerState extends ChangeNotifier {
     }
   }
 
+  /// Apply an in-report restaurant selection without navigating away from
+  /// the active report. Persist and sync the authorized scope only once.
+  void applyRestaurantSelection(Set<String> requested) {
+    final allowed = availableRestaurants.toSet();
+    final next = requested.intersection(allowed);
+    // Keep at least one department selected, as required by mobile reports.
+    if (next.isEmpty || setEquals(next, selectedRestaurants)) return;
+
+    selectedRestaurants = next;
+    final workspace = workspaceId;
+    if (live && workspace != null) {
+      final ids = selectedRestaurantIds;
+      unawaited(_prefs.setStringList('sh_owner_depts_$workspace', ids.toList()));
+      unawaited(OwnerPushService.syncScope(workspace, ids)
+          .catchError((Object _) {}));
+    }
+    notifyListeners();
+    // Report screens observe OwnerScope and reload when department IDs change.
+    // Refresh dashboard only if it is the currently selected tab.
+    if (live && stage == OwnerStage.shell && tabIndex == 0) {
+      unawaited(loadSummary());
+    }
+  }
+
   Future<void> loadRestaurantActivity() async {
     final ws = workspaceId;
     if (!live || ws == null || restaurantIdsByName.isEmpty) return;
