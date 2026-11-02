@@ -123,6 +123,9 @@ class OwnerState extends ChangeNotifier {
     unawaited(_prefs.setString('sh_owner_language', value));
     notifyListeners();
   }
+  // Same accounting-day rule as the web Dashboard.
+  static const String dashboardDateMode = 'calendar';
+
   static String formatDate(DateTime date) =>
       '${date.year.toString().padLeft(4, '0')}-'
       '${date.month.toString().padLeft(2, '0')}-'
@@ -494,10 +497,10 @@ class OwnerState extends ChangeNotifier {
         '/api/mobile/v1/summary',
         workspaceId: workspaceId!,
         departmentIds: selectedRestaurantIds,
-        // Only the default "Сегодня" dashboard uses active cash sessions.
-        // Explicit earlier date ranges keep their original calendar meaning.
+        // Match Smart Horeca Pages: report by OLAP accounting date
+        // (OpenDate.Typed), never by currently open cash shift IDs.
         query: {'from': formatDate(from), 'to': formatDate(to),
-          'mode': period == 'Сегодня' ? 'operational' : 'calendar'},
+          'mode': dashboardDateMode},
         retryTransient: false, // avoid repeated full-network OLAP runs
       );
       if (generation == _summaryGeneration && live && stage == OwnerStage.shell) {
