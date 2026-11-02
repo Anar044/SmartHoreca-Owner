@@ -123,6 +123,144 @@ class OwnerDemoNotice extends StatelessWidget {
 class OwnerRestaurantPicker extends StatelessWidget {
   const OwnerRestaurantPicker({super.key});
 
+  Future<void> _chooseRestaurants(BuildContext context, OwnerState state) async {
+    // A report is a pushed route. Switching OwnerStage here would replace the
+    // app's home screen behind that route and leave its picker unusable.
+    // Keep a local draft until Apply; dismissing the sheet changes nothing.
+    final draft = <String>{...state.selectedRestaurants};
+    var query = '';
+    var workingOnly = false;
+
+    final choice = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          final visible = state.availableRestaurants.where((name) {
+            if (!name.toLowerCase().contains(query.toLowerCase())) return false;
+            return !workingOnly ||
+                state.departmentEvidence[state.restaurantIdsByName[name]]
+                    ?.evidenceOfWork == true;
+          }).toList();
+          String tr(String ru) => OwnerL10n.tr(state.language, ru);
+
+          return Padding(
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
+            child: FractionallySizedBox(
+              heightFactor: 0.84,
+              child: Column(children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 4, 12, 8),
+                  child: Row(children: [
+                    Expanded(child: Text(tr('Выбор ресторанов'),
+                      style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w700))),
+                    IconButton(
+                      tooltip: 'Закрыть',
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                    ),
+                  ]),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.search),
+                      hintText: tr('Найти подразделение'),
+                      isDense: true,
+                    ),
+                    onChanged: (value) =>
+                        setSheetState(() => query = value.trim()),
+                  ),
+                ),
+                if (state.departmentEvidence.values
+                    .any((info) => info.evidenceOfWork)) ...[
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(spacing: 8, children: [
+                        ChoiceChip(
+                          label: Text(tr('Все')),
+                          selected: !workingOnly,
+                          showCheckmark: false,
+                          onSelected: (_) =>
+                              setSheetState(() => workingOnly = false),
+                        ),
+                        ChoiceChip(
+                          label: Text(tr('С признаками работы')),
+                          selected: workingOnly,
+                          showCheckmark: false,
+                          onSelected: (_) =>
+                              setSheetState(() => workingOnly = true),
+                        ),
+                      ]),
+                    ),
+                  ),
+                ],
+                CheckboxListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 18),
+                  title: Text(tr('Выбрать все')),
+                  subtitle: Text('${tr('Выбран')}: ${draft.length}'),
+                  value: draft.length == state.availableRestaurants.length,
+                  onChanged: (checked) => setSheetState(() {
+                    draft.clear();
+                    if (checked == true) {
+                      draft.addAll(state.availableRestaurants);
+                    }
+                  }),
+                ),
+                const Divider(height: 1),
+                Expanded(child: visible.isEmpty
+                  ? Center(child: Text(tr('Подразделения не найдены')))
+                  : ListView.builder(
+                    itemCount: visible.length,
+                    itemBuilder: (context, index) {
+                      final name = visible[index];
+                      return CheckboxListTile(
+                        key: ValueKey('restaurant:$name'),
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 18),
+                        title: Text(name, maxLines: 2,
+                            overflow: TextOverflow.ellipsis),
+                        value: draft.contains(name),
+                        onChanged: (checked) => setSheetState(() {
+                          if (checked == true) {
+                            draft.add(name);
+                          } else {
+                            draft.remove(name);
+                          }
+                        }),
+                      );
+                    },
+                  )),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: draft.isEmpty ? null
+                        : () => Navigator.of(sheetContext)
+                            .pop(Set<String>.of(draft)),
+                      child: Text('${tr('Применить')} (${draft.length})'),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          );
+        },
+      ),
+    );
+    if (choice == null || !context.mounted) return;
+    state.applyRestaurantSelection(choice);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = OwnerScope.of(context);
@@ -134,7 +272,7 @@ class OwnerRestaurantPicker extends StatelessWidget {
             : '${OwnerL10n.tr(state.language, 'Выбран')}: $count';
     return OwnerCard(
       padding: EdgeInsets.zero,
-      onTap: state.showRestaurants,
+      onTap: () => _chooseRestaurants(context, state),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
