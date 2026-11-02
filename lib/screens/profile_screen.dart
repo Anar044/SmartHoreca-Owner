@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_l10n.dart';
@@ -253,8 +252,11 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
                 onChanged:pushBusy||!OwnerPushService.configured
                   ?null:_togglePush,
               ),
-              if (kDebugMode) OutlinedButton.icon(
-                onPressed: pushBusy ? null : _checkPushConnection,
+              // Subscription diagnostics are safe for release builds:
+              // the API returns only status, never a device token or secret.
+              OutlinedButton.icon(
+                onPressed: pushBusy || !OwnerPushService.configured
+                  ? null : _checkPushConnection,
                 icon: const Icon(Icons.verified_outlined, size: 18),
                 label: Text(tr('Проверить подключение push')),
               ),
