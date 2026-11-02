@@ -233,6 +233,21 @@ class OwnerPushService {
     if (ids.isEmpty) {
       return 'Сначала выберите хотя бы один ресторан.';
     }
+    // iOS requires BOTH notification permission and a live Apple APNs token
+    // before Firebase can route notifications. This check is read-only.
+    if (Platform.isIOS) {
+      final permission = await FirebaseMessaging.instance.getNotificationSettings();
+      if (permission.authorizationStatus != AuthorizationStatus.authorized &&
+          permission.authorizationStatus != AuthorizationStatus.provisional) {
+        return 'Уведомления SH Owner отключены в настройках iPhone. '
+            'Разрешите их в Настройки → Уведомления → SH Owner.';
+      }
+      final apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+      if (apnsToken == null || apnsToken.isEmpty) {
+        return 'iPhone ещё не зарегистрирован в Apple Push Notification service (APNs). '
+            'Проверьте разрешения iOS, интернет и APNs-ключ в Firebase.';
+      }
+    }
     final token = await FirebaseMessaging.instance.getToken();
     if (token == null || token.isEmpty) {
       return 'Firebase не выдал токен этому телефону.';
