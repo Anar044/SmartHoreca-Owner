@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_horeca_owner/core/owner_state.dart';
 import 'package:smart_horeca_owner/screens/home_screen.dart';
-import 'package:smart_horeca_owner/ui/owner_components.dart';
 
 void main() {
   test('Home uses the web accounting-day mode for Today and every period', () {
