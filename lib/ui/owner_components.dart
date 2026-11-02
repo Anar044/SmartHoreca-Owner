@@ -159,7 +159,7 @@ class OwnerRestaurantPicker extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.w700))),
                     IconButton(
-                      tooltip: 'Закрыть',
+                      tooltip: tr('Закрыть'),
                       icon: const Icon(Icons.close),
                       onPressed: () => Navigator.of(sheetContext).pop(),
                     ),
