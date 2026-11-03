@@ -225,12 +225,13 @@ class OwnerState extends ChangeNotifier {
         'NO_ACTIVE_MEMBERSHIPS' =>
           'Ваша организация или учётная запись '
           'неактивна. Проверьте её статус в Smart Horeca.',
-        'OWNER_OR_SYSADMIN_ROLE_REQUIRED' =>
-          'Для входа необходим доступ владельца '
-          'в активной организации. Обратитесь к администратору.',
+        'OWNER_OR_SYSADMIN_ROLE_REQUIRED' ||
+        'SH_OWNER_ACCESS_REQUIRED' =>
+          'Для входа в SH Owner владелец организации должен '
+          'включить вам доступ в разделе «Пользователи и права».',
         _ =>
-          'Нет доступной организации владельца. Проверьте роль '
-          'и обратитесь к администратору Smart Horeca.',
+          'Нет доступных организаций SH Owner. Проверьте права '
+          'доступа у администратора Smart Horeca.',
       };
       throw OwnerApiException('OWNER_ACCESS_REQUIRED', message, 403);
     }
