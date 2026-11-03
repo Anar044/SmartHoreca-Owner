@@ -101,14 +101,17 @@ jobs:
       - name: Validate live beta API and generate public client defines
         run: |
           set -euo pipefail
-          # Real POS events are sent to the production Pages ingest endpoint.
-          # TestFlight must register FCM devices in the SAME production D1
-          # workspace or push events will never find iOS recipients.
-          ORIGIN="${SH_OWNER_API_ORIGIN:-https://smarthoreca.pages.dev}"
+          # TestFlight intentionally uses the last verified mobile API pilot
+          # until mobile /api/mobile/v1 routes are deployed to production.
+          # Do not silently switch to the Pages production site: its /health
+          # can be an HTML fallback and its missing mobile routes break login.
+          # The public App Store release must explicitly validate production.
+          ORIGIN="${SH_OWNER_API_ORIGIN:-https://feature-owner-mobile-readonl.smarthoreca.pages.dev}"
           [[ "$ORIGIN" =~ ^https://[A-Za-z0-9.-]+/?$ ]] || exit 1
           ORIGIN="${ORIGIN%/}"
-          if [[ "$ORIGIN" != "https://smarthoreca.pages.dev" ]]; then
-            echo "::error::TestFlight API origin must match production POS ingest (smarthoreca.pages.dev), not Preview."
+          if [[ "$ORIGIN" != "https://feature-owner-mobile-readonl.smarthoreca.pages.dev" &&
+                "$ORIGIN" != "https://smarthoreca.pages.dev" ]]; then
+            echo "::error::Use a verified Smart Horeca mobile API origin; unexpected host."
             exit 1
           fi
           for name in SH_FIREBASE_IOS_API_KEY SH_FIREBASE_IOS_APP_ID SH_FIREBASE_PROJECT_ID SH_FIREBASE_SENDER_ID; do
@@ -121,7 +124,7 @@ jobs:
             -o /tmp/sh-owner-ios-health.json
           node -e "const p=require('/tmp/sh-owner-ios-health.json'); if(!p.success||p.service!=='Smart Horeca Owner Mobile API') process.exit(1)"
           curl --fail --silent --show-error --location --max-time 20 \
-            https://raw.githubusercontent.com/Anar044/anarsystem/main/auth-config.js \
+            https://smarthoreca.pages.dev/auth-config.js \
             -o /tmp/sh-owner-public-auth.js
           echo "Compiling TestFlight beta against authenticated Owner API origin: $ORIGIN"
           export SH_OWNER_API_ORIGIN="$ORIGIN"
@@ -161,5 +164,5 @@ jobs:
           api-key-id: ${{ vars.APPSTORE_API_KEY_ID }}
           api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
 
-# Manual workflow only. It will not upload anything until the user has
-# explicitly set Apple signing credentials and run this workflow.
+# Triggered by updates to this release workflow (or manually) and uploads
+# only to TestFlight, never publishes a public App Store release.
