@@ -1,7 +1,8 @@
 name: SH Owner Upload to TestFlight
 
 on:
-  # One-time TestFlight upload for the 2026-10-27 public-store UI cleanup.
+  # Intentionally triggered to upload SH Owner 0.1.3 after Apple closed
+  # the already-approved 0.1.2 version train; do not publish to App Store.
   # Only changes to this release workflow trigger it; source-only pushes do not.
   push:
     branches: [main]
@@ -149,6 +150,13 @@ jobs:
           NODE
       - name: Build signed IPA for App Store Connect
         run: |
+          # Apple ITMS-90186 / ITMS-90062: 0.1.2 is an approved, closed train.
+          # The new TestFlight build must increment CFBundleShortVersionString.
+          VERSION="$(sed -nE 's/^version: ([0-9]+\\.[0-9]+\\.[0-9]+)\\+.*/\\1/p' pubspec.yaml)"
+          if [[ "$VERSION" != "0.1.3" ]]; then
+            echo "::error::This TestFlight run must use the new 0.1.3 version train."
+            exit 1
+          fi
           flutter build ipa --release \
             --build-number=${{ github.run_number }} \
             --export-options-plist=/tmp/sh_owner_export_options.plist \
