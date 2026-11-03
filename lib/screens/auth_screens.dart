@@ -165,12 +165,14 @@ class _OwnerForgotPasswordScreenState extends State<OwnerForgotPasswordScreen> {
     setState(() { _busy = true; _error = null; });
     try {
       await OwnerBackend.requestPasswordReset(value);
-      if (mounted) setState(() => _sent = true);
+      if (mounted) { setState(() => _sent = true); }
     } catch (_) {
-      if (mounted) setState(() =>
-        _error = 'Не удалось отправить письмо. Повторите попытку позднее.');
+      if (mounted) {
+        setState(() =>
+          _error = 'Не удалось отправить письмо. Повторите попытку позднее.');
+      }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) { setState(() => _busy = false); }
     }
   }
 
