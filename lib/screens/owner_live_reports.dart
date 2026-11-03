@@ -7,6 +7,7 @@ import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_l10n.dart';
 import '../ui/owner_components.dart';
+import '../ui/owner_audit_event_tile.dart';
 
 /// All screens in this file render authoritative, CHAIN-scoped server results.
 /// No demo financial values or fabricated receipt items are used here.
@@ -1193,52 +1194,13 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
             :'Плагин кассы не передал подтверждённых событий заказа.'))
         else ...[
           for(final entry in auditEvents) ...[
-            OwnerCard(child:Row(
-              crossAxisAlignment:CrossAxisAlignment.start,
-              children:[
-                Icon(Icons.history_toggle_off,
-                  color:OwnerPalette.accent(context),size:20),
-                const SizedBox(width:10),
-                Expanded(child:Column(
-                  crossAxisAlignment:CrossAxisAlignment.start,
-                  children:[
-                    Text((entry['label']??'Событие заказа').toString(),
-                      style:const TextStyle(fontWeight:FontWeight.w700)),
-                    const SizedBox(height:4),
-                    Text(_time(entry['occurredAt']),
-                      style:TextStyle(fontSize:12,
-                        color:OwnerPalette.muted(context))),
-                    if((entry['itemName']??'').toString().isNotEmpty)
-                      Text('Блюдо: ${entry['itemName']}'),
-                    if((entry['adjustmentName']??'').toString().isNotEmpty)
-                      Text('${entry['kind']=='SURCHARGE_APPLIED' ||
-                        entry['kind']=='SURCHARGE_REMOVED' ? 'Надбавка' : 'Скидка'}: '
-                        '${entry['adjustmentName']}'),
-                    if(entry['percent'] is num)
-                      Text('Процент: ${entry['percent']}%'),
-                    if((entry['writeOffLabel']??'').toString().isNotEmpty)
-                      Text('Списание: ${entry['writeOffLabel']}'),
-                    if((entry['writeOffReason']??'').toString().isNotEmpty)
-                      Text('Причина списания: ${entry['writeOffReason']}'),
-                    if((entry['writeOffComment']??'').toString().isNotEmpty)
-                      Text('Комментарий: ${entry['writeOffComment']}'),
-                    if(entry['billMinutes'] is num)
-                      Text('Время ожидания: ${entry['billMinutes']} мин'),
-                    if((entry['linkedOrderNum']??'').toString().isNotEmpty)
-                      Text('Связанный чек: №${entry['linkedOrderNum']}'),
-                    if(entry['quantity'] is num)
-                      Text('Количество: ${entry['quantity']}'),
-                    if(entry['amount'] is num)
-                      Text('Сумма: ${_money(entry['amount'])}'),
-                    if((entry['paymentType']??'').toString().isNotEmpty)
-                      Text('Оплата: ${entry['paymentType']}'),
-                    if((entry['employee']??'').toString().isNotEmpty)
-                      Text('Сотрудник: ${entry['employee']}'),
-                  ],
-                )),
-              ],
-            )),
-            const SizedBox(height:7),
+            OwnerAuditEventTile(
+              entry: entry,
+              language: OwnerScope.of(context).language,
+              formatTime: _time,
+              formatMoney: _money,
+            ),
+            const SizedBox(height: 7),
           ],
           if(historyLoading)
             const Padding(padding:EdgeInsets.only(bottom:8),
