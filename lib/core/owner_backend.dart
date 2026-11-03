@@ -103,6 +103,21 @@ class OwnerBackend {
     }
   }
 
+  // Share the existing Smart Horeca Supabase account and website recovery
+  // flow. No passwords, reset tokens or recovery URLs are stored on-device.
+  static Future<void> requestPasswordReset(String email) async {
+    if (!configured) {
+      throw const OwnerApiException('NOT_CONFIGURED',
+        'Авторизация приложения ещё не настроена.', 503);
+    }
+    final address=email.trim();
+    if(address.isEmpty || !address.contains('@')) {
+      throw const OwnerApiException('INVALID_EMAIL','Укажите корректный email.',400);
+    }
+    await client.auth.resetPasswordForEmail(
+      address,redirectTo:'https://smarthoreca.pages.dev/reset-password.html');
+  }
+
   static Future<void> signIn(String email, String password) async {
     if (!configured) {
       throw const OwnerApiException(

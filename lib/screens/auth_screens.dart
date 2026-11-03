@@ -106,6 +106,14 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
                         : Text(tr('Войти')),
                   ),
                 ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: state.busy || !OwnerBackend.configured ? null
+                    : () => Navigator.push<void>(context,
+                      MaterialPageRoute<void>(builder: (_) =>
+                        OwnerForgotPasswordScreen(initialEmail: email.text.trim()))),
+                  child: Text(tr('Забыли пароль?')),
+                ),
                 const SizedBox(height: 12),
                 if (!OwnerBackend.configured)
                   Text(tr('Сервис временно недоступен. Попробуйте позже.'),
@@ -127,6 +135,102 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// Password reset email uses the same Supabase account as Smart Horeca Pages.
+class OwnerForgotPasswordScreen extends StatefulWidget {
+  final String initialEmail;
+  const OwnerForgotPasswordScreen({super.key, this.initialEmail = ''});
+  @override
+  State<OwnerForgotPasswordScreen> createState() => _OwnerForgotPasswordScreenState();
+}
+
+class _OwnerForgotPasswordScreenState extends State<OwnerForgotPasswordScreen> {
+  late final TextEditingController _email = TextEditingController(text: widget.initialEmail);
+  bool _busy = false, _sent = false;
+  String? _error;
+
+  @override
+  void dispose() { _email.dispose(); super.dispose(); }
+
+  Future<void> _send() async {
+    if (_busy || _sent) return;
+    final value = _email.text.trim();
+    if (!value.contains('@') || !value.split('@').last.contains('.')) {
+      setState(() => _error = 'Введите корректный email.');
+      return;
+    }
+    setState(() { _busy = true; _error = null; });
+    try {
+      await OwnerBackend.requestPasswordReset(value);
+      if (mounted) { setState(() => _sent = true); }
+    } catch (_) {
+      if (mounted) {
+        setState(() =>
+          _error = 'Не удалось отправить письмо. Повторите попытку позднее.');
+      }
+    } finally {
+      if (mounted) { setState(() => _busy = false); }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = OwnerScope.of(context);
+    String tr(String text) => OwnerL10n.tr(state.language,text);
+    return Scaffold(
+      appBar: AppBar(title: Text(tr('Восстановление пароля'))),
+      body: SafeArea(child: Center(child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const OwnerBrandMark(size: 76),
+            const SizedBox(height: 22),
+            Text(tr('Восстановление пароля'),
+              style: Theme.of(context).textTheme.titleLarge,
+              textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            Text(tr('Введите email аккаунта Smart Horeca. Мы отправим ссылку для создания нового пароля.'),
+              textAlign: TextAlign.center),
+            const SizedBox(height: 20),
+            if (!_sent) ...[
+              TextField(
+                controller: _email,
+                keyboardType: TextInputType.emailAddress,
+                autofillHints: const [AutofillHints.email],
+                enabled: !_busy,
+                decoration: const InputDecoration(labelText: 'Email',
+                  prefixIcon: Icon(Icons.mail_outline)),
+                onSubmitted: (_) => _send(),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Text(tr(_error!),style: const TextStyle(color: OwnerPalette.error)),
+              ],
+              const SizedBox(height: 18),
+              FilledButton(
+                onPressed: _busy ? null : _send,
+                child: _busy
+                  ? const SizedBox.square(dimension: 19,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text(tr('Отправить письмо')),
+              ),
+            ] else ...[
+              Text(tr('Если аккаунт существует, письмо со ссылкой для сброса пароля отправлено. Проверьте почту и папку «Спам».'),
+                textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              Text(tr('Откройте ссылку из письма, установите новый пароль и вернитесь в SH Owner.'),
+                textAlign: TextAlign.center),
+            ],
+            const SizedBox(height: 16),
+            TextButton(onPressed: () => Navigator.pop(context),
+              child: Text(tr('Вернуться ко входу'))),
+          ]),
+        ),
+      ))),
     );
   }
 }
