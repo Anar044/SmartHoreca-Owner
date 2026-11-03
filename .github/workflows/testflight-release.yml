@@ -101,10 +101,22 @@ jobs:
       - name: Validate live beta API and generate public client defines
         run: |
           set -euo pipefail
-          # Internal TestFlight initially targets the same authenticated Owner
-          # beta API as the working Android pilot; never use fake/demo data.
-          ORIGIN="${SH_OWNER_API_ORIGIN:-https://feature-owner-mobile-readonl.smarthoreca.pages.dev}"
+          # Real POS events are sent to the production Pages ingest endpoint.
+          # TestFlight must register FCM devices in the SAME production D1
+          # workspace or push events will never find iOS recipients.
+          ORIGIN="${SH_OWNER_API_ORIGIN:-https://smarthoreca.pages.dev}"
           [[ "$ORIGIN" =~ ^https://[A-Za-z0-9.-]+/?$ ]] || exit 1
+          ORIGIN="${ORIGIN%/}"
+          if [[ "$ORIGIN" != "https://smarthoreca.pages.dev" ]]; then
+            echo "::error::TestFlight API origin must match production POS ingest (smarthoreca.pages.dev), not Preview."
+            exit 1
+          fi
+          for name in SH_FIREBASE_IOS_API_KEY SH_FIREBASE_IOS_APP_ID SH_FIREBASE_PROJECT_ID SH_FIREBASE_SENDER_ID; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::iOS push configuration incomplete: $name is required."
+              exit 1
+            fi
+          done
           curl --fail --silent --show-error --max-time 20 "$ORIGIN/api/mobile/v1/health" \
             -o /tmp/sh-owner-ios-health.json
           node -e "const p=require('/tmp/sh-owner-ios-health.json'); if(!p.success||p.service!=='Smart Horeca Owner Mobile API') process.exit(1)"
