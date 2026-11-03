@@ -108,11 +108,10 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
                 ),
                 const SizedBox(height: 8),
                 TextButton(
-                  onPressed: state.busy || !OwnerBackend.configured
-                    ? null
+                  onPressed: state.busy || !OwnerBackend.configured ? null
                     : () => Navigator.push<void>(context,
-                        MaterialPageRoute<void>(builder: (_) =>
-                          OwnerForgotPasswordScreen(initialEmail: email.text.trim()))),
+                      MaterialPageRoute<void>(builder: (_) =>
+                        OwnerForgotPasswordScreen(initialEmail: email.text.trim()))),
                   child: Text(tr('Забыли пароль?')),
                 ),
                 const SizedBox(height: 12),
@@ -140,239 +139,32 @@ class _OwnerSignInScreenState extends State<OwnerSignInScreen> {
   }
 }
 
-// Recover the same Supabase identity that Smart Horeca Pages uses.
-// The email link opens the existing authenticated reset-password web page;
-// no native deep-link handler or new password store is required.
+// Password reset email uses the same Supabase account as Smart Horeca Pages.
 class OwnerForgotPasswordScreen extends StatefulWidget {
   final String initialEmail;
   const OwnerForgotPasswordScreen({super.key, this.initialEmail = ''});
-
   @override
-  State<OwnerForgotPasswordScreen> createState() =>
-      _OwnerForgotPasswordScreenState();
+  State<OwnerForgotPasswordScreen> createState() => _OwnerForgotPasswordScreenState();
 }
 
 class _OwnerForgotPasswordScreenState extends State<OwnerForgotPasswordScreen> {
-  late final TextEditingController _email =
-      TextEditingController(text: widget.initialEmail);
-  bool _busy = false;
-  bool _sent = false;
+  late final TextEditingController _email = TextEditingController(text: widget.initialEmail);
+  bool _busy = false, _sent = false;
   String? _error;
 
   @override
-  void dispose() {
-    _email.dispose();
-    super.dispose();
-  }
+  void dispose() { _email.dispose(); super.dispose(); }
 
-  Future<void> _submit() async {
+  Future<void> _send() async {
     if (_busy || _sent) return;
-    final address = _email.text.trim();
-    if (!RegExp(r'^[^@\\s]+@[^@\\s]+\\.[^@\\s]+
-  const OwnerWorkspaceSelectScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final state = OwnerScope.of(context);
-    return Scaffold(
-      appBar: AppBar(title: const OwnerText('Мои организации')),
-      body: OwnerScreenFrame(children: [
-        const OwnerHeading('Выберите организацию',
-            caption: 'Доступны только организации вашего аккаунта.'),
-        const SizedBox(height: 13),
-        if (state.error != null)
-          Padding(padding: const EdgeInsets.only(bottom: 12),
-              child: Text(OwnerL10n.tr(state.language,state.error!),
-                  style: const TextStyle(color: OwnerPalette.error))),
-        for (final w in state.workspaces) ...[
-          OwnerCard(
-            onTap: state.busy ? null :
-              () => state.chooseWorkspace(w['id'].toString()),
-            child: Row(children: [
-              Icon(Icons.business, color: OwnerPalette.accent(context)),
-              const SizedBox(width: 12),
-              Expanded(child: Text(
-                (w['name'] ?? 'Smart Horeca').toString(),
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              )),
-              const Icon(Icons.chevron_right),
-            ]),
-          ),
-          const SizedBox(height: 9),
-        ],
-        if (state.busy) const Center(child: CircularProgressIndicator()),
-      ]),
-    );
-  }
-}
-
-class OwnerRestaurantSelectScreen extends StatefulWidget {
-  const OwnerRestaurantSelectScreen({super.key});
-  @override
-  State<OwnerRestaurantSelectScreen> createState() => _OwnerRestaurantSelectScreenState();
-}
-
-class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScreen> {
-  String _filter='all';
-  String _query='';
-  @override
-  Widget build(BuildContext context) {
-    final state = OwnerScope.of(context);
-    final visible=state.availableRestaurants.where((label) {
-      final id=state.restaurantIdsByName[label];
-      final evidence=state.departmentEvidence[id];
-      if(_query.isNotEmpty && !label.toLowerCase().contains(_query.toLowerCase())) {
-        return false;
-      }
-      if(_filter=='working') return evidence?.evidenceOfWork==true;
-      if(_filter=='unverified') return evidence!=null && !evidence.evidenceOfWork;
-      return true;
-    }).toList();
-    String tr(String ru) => OwnerL10n.tr(state.language, ru);
-    return Scaffold(
-      appBar: AppBar(title: Text(tr('Выбор ресторанов'))),
-      body: SafeArea(
-        child: Column(children: [
-          Expanded(child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              const OwnerHeading('Выберите рестораны',
-                  caption: 'В приложении будут показаны данные выбранных подразделений.'),
-              const SizedBox(height: 18),
-              if (!state.live) const OwnerDemoNotice(),
-              if (state.live) ...[
-                const SizedBox(height: 9),
-                Row(children: [
-                  Expanded(child: OwnerText(
-                    'Признаки работы: продажи за 30 дней, '
-                    'актуальные группы и кассы, подтверждённые смены.',
-                    style: TextStyle(fontSize: 12,
-                      color: OwnerPalette.muted(context)),
-                  )),
-                  IconButton(
-                    tooltip: 'Обновить признаки работы',
-                    onPressed: state.activityLoading
-                      ? null : () => state.loadRestaurantActivity(),
-                    icon: const Icon(Icons.refresh_rounded),
-                  ),
-                ]),
-                if(state.activityLoading) const LinearProgressIndicator(),
-                if(state.activityWarning!=null)
-                  Padding(padding:const EdgeInsets.symmetric(vertical:7),
-                    child:Text(OwnerL10n.tr(state.language,state.activityWarning!),
-                      style:TextStyle(fontSize:12,
-                        color:OwnerPalette.muted(context)))),
-                const SizedBox(height: 7),
-                TextField(
-                  onChanged:(v)=>setState(()=>_query=v.trim()),
-                  decoration:const InputDecoration(
-                    prefixIcon:Icon(Icons.search_rounded),
-                    hintText:'Найти подразделение',
-                    isDense:true,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(spacing:7,runSpacing:7,children:[
-                  ChoiceChip(label:const OwnerText('Все'),
-                    selected:_filter=='all',showCheckmark:false,
-                    onSelected:(_)=>setState(()=>_filter='all')),
-                  ChoiceChip(label:const OwnerText('С признаками работы'),
-                    selected:_filter=='working',showCheckmark:false,
-                    onSelected:(_)=>setState(()=>_filter='working')),
-                  ChoiceChip(label:const OwnerText('Без подтверждения'),
-                    selected:_filter=='unverified',showCheckmark:false,
-                    onSelected:(_)=>setState(()=>_filter='unverified')),
-                ]),
-                if(state.departmentEvidence.values.any((x)=>x.evidenceOfWork))
-                  Align(alignment:Alignment.centerRight,
-                    child:TextButton.icon(
-                      onPressed:state.activityBulkSelectionSafe
-                        ? state.selectRestaurantsWithEvidence : null,
-                      icon:const Icon(Icons.done_all_rounded,size:17),
-                      label:const OwnerText('Выбрать с признаками работы'),
-                    )),
-              ],
-              const SizedBox(height: 12),
-              OwnerCard(child: CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(tr('Выбрать все')),
-                subtitle: Text('${tr('Доступно')}: ${state.availableRestaurants.length}'),
-                value: state.selectedRestaurants.length ==
-                    state.availableRestaurants.length,
-                onChanged: (v) => state.selectAllRestaurants(v ?? false),
-              )),
-              const SizedBox(height: 10),
-              if(visible.isEmpty) const Padding(
-                padding:EdgeInsets.symmetric(vertical:14),
-                child:OwnerText('В этом фильтре подразделения не найдены.'),
-              ),
-              for (final restaurant in visible) ...[
-                Builder(builder:(context) {
-                  final id=state.restaurantIdsByName[restaurant];
-                  final info=state.departmentEvidence[id];
-                  return OwnerCard(child: CheckboxListTile(
-                    contentPadding:EdgeInsets.zero,
-                    secondary:Icon(
-                      info?.activity=='SALES_CONFIRMED'
-                        ? Icons.trending_up_rounded
-                        : info?.evidenceOfWork==true
-                          ? Icons.point_of_sale_rounded
-                          : Icons.storefront_outlined,
-                      color:info?.activity=='SALES_CONFIRMED'
-                        ? OwnerPalette.green
-                        : OwnerPalette.accent(context)),
-                    title:Text(restaurant),
-                    subtitle:info==null ? null:Padding(
-                      padding:const EdgeInsets.only(top:3),
-                      child:Column(
-                        crossAxisAlignment:CrossAxisAlignment.start,
-                        children:[
-                          Text(info.shortStatus,
-                            style:const TextStyle(fontSize:12)),
-                          Text(info.topologySummary,
-                            style:TextStyle(fontSize:11,
-                              color:OwnerPalette.muted(context))),
-                          if(info.shiftSummary!=null)
-                            Text(info.shiftSummary!,
-                              style:TextStyle(fontSize:11,
-                                color:OwnerPalette.muted(context))),
-                          if(info.recentRevenue!=null)
-                            Text('Выручка за 30 дней: '
-                              '${info.recentRevenue!.toStringAsFixed(2)} AZN',
-                              style:TextStyle(fontSize:11,
-                                color:OwnerPalette.muted(context))),
-                        ],
-                      ),
-                    ),
-                    value:state.selectedRestaurants.contains(restaurant),
-                    onChanged:(v)=>state.selectRestaurant(restaurant,v??false),
-                  ));
-                }),
-                const SizedBox(height: 10),
-              ],
-            ],
-          )),
-          Padding(padding: const EdgeInsets.all(16),
-            child: SizedBox(width: double.infinity, height: 52,
-              child: FilledButton(
-                onPressed: state.selectedRestaurants.isEmpty
-                    ? null : state.enterPreview,
-                child: Text('${tr('Применить')} (${state.selectedRestaurants.length})'),
-              ),
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-).hasMatch(address)) {
+    final value = _email.text.trim();
+    if (!value.contains('@') || !value.split('@').last.contains('.')) {
       setState(() => _error = 'Введите корректный email.');
       return;
     }
     setState(() { _busy = true; _error = null; });
     try {
-      await OwnerBackend.requestPasswordReset(address);
+      await OwnerBackend.requestPasswordReset(value);
       if (mounted) setState(() => _sent = true);
     } catch (_) {
       if (mounted) setState(() =>
@@ -385,13 +177,14 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
   @override
   Widget build(BuildContext context) {
     final state = OwnerScope.of(context);
-    String tr(String ru) => OwnerL10n.tr(state.language, ru);
+    String tr(String text) => OwnerL10n.tr(state.language,text);
     return Scaffold(
       appBar: AppBar(title: Text(tr('Восстановление пароля'))),
       body: SafeArea(child: Center(child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 430),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch,children: [
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             const OwnerBrandMark(size: 76),
             const SizedBox(height: 22),
             Text(tr('Восстановление пароля'),
@@ -407,34 +200,32 @@ class _OwnerRestaurantSelectScreenState extends State<OwnerRestaurantSelectScree
                 keyboardType: TextInputType.emailAddress,
                 autofillHints: const [AutofillHints.email],
                 enabled: !_busy,
-                decoration: const InputDecoration(
-                  labelText: 'Email', prefixIcon: Icon(Icons.mail_outline)),
-                onSubmitted: (_) => _submit(),
+                decoration: const InputDecoration(labelText: 'Email',
+                  prefixIcon: Icon(Icons.mail_outline)),
+                onSubmitted: (_) => _send(),
               ),
               if (_error != null) ...[
                 const SizedBox(height: 10),
-                Text(tr(_error!),style:const TextStyle(color: OwnerPalette.error)),
+                Text(tr(_error!),style: const TextStyle(color: OwnerPalette.error)),
               ],
               const SizedBox(height: 18),
               FilledButton(
-                onPressed: _busy ? null : _submit,
+                onPressed: _busy ? null : _send,
                 child: _busy
                   ? const SizedBox.square(dimension: 19,
-                      child:CircularProgressIndicator(strokeWidth:2))
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : Text(tr('Отправить письмо')),
               ),
             ] else ...[
-              Text(tr('Если аккаунт с таким email существует, мы отправили ссылку для сброса пароля. Проверьте почту и папку «Спам».'),
+              Text(tr('Если аккаунт существует, письмо со ссылкой для сброса пароля отправлено. Проверьте почту и папку «Спам».'),
                 textAlign: TextAlign.center),
               const SizedBox(height: 12),
               Text(tr('Откройте ссылку из письма, установите новый пароль и вернитесь в SH Owner.'),
                 textAlign: TextAlign.center),
             ],
             const SizedBox(height: 16),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(tr('Вернуться ко входу')),
-            )
+            TextButton(onPressed: () => Navigator.pop(context),
+              child: Text(tr('Вернуться ко входу'))),
           ]),
         ),
       ))),
