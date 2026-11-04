@@ -1,7 +1,7 @@
 name: SH Owner Upload to TestFlight
 
 on:
-  # TestFlight-only build: repeated same-order push taps, all authorized push scopes and localized notifications.
+  # TestFlight-only build: responsive logout, push taps, authorized scopes and localized notifications.
   # Rebuild existing 0.1.3 train after approval of precise seven-event styling.
   # Never publish to the public App Store automatically.
   # Only changes to this release workflow trigger it; source-only pushes do not.
