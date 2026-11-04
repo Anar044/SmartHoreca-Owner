@@ -5,7 +5,6 @@ import '../core/owner_l10n.dart';
 import '../ui/owner_components.dart';
 import '../core/owner_backend.dart';
 import '../core/owner_push_service.dart';
-import 'owner_live_reports.dart';
 
 class OwnerProfileScreen extends StatelessWidget {
   const OwnerProfileScreen({super.key});
@@ -117,7 +116,6 @@ class OwnerNotificationsScreen extends StatefulWidget {
 class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
   bool cash = true;
   bool sales = true;
-  bool inventory = true;
   bool pushEnabled=false;
   bool pushBusy=false;
   String? pushStatus;
@@ -148,7 +146,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
     try{
       if(enabled){
         await OwnerPushService.enable(
-          state.workspaceId!,state.selectedRestaurantIds);
+          state.workspaceId!,state.pushRestaurantIds);
       }else{
         await OwnerPushService.disable();
       }
@@ -156,7 +154,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
       setState((){
         pushEnabled=enabled;
         pushStatus=enabled
-          ?'Push включён для выбранных ресторанов.'
+          ?'Push включён для всех доступных ресторанов.'
           :'Push-уведомления отключены на этом телефоне.';
       });
     }catch(e){
@@ -180,7 +178,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
     setState(() { pushBusy = true; pushStatus = null; });
     try {
       final message = await OwnerPushService.checkConnection(
-        workspace, state.selectedRestaurantIds,
+        workspace, state.pushRestaurantIds,
       );
       if (mounted) setState(() => pushStatus = message);
     } catch (e) {
@@ -203,7 +201,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
     setState((){pushBusy=true;pushStatus=null;});
     try{
       await OwnerPushService.updateKinds(
-        workspace,state.selectedRestaurantIds,next);
+        workspace,state.pushRestaurantIds,next);
       if(!mounted)return;
       setState((){
         selectedKinds=next;
@@ -246,7 +244,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
                 contentPadding:EdgeInsets.zero,
                 title:Text(tr('Уведомления SH Owner')),
                 subtitle:Text(OwnerPushService.configured
-                  ?'${tr('Выбрано ресторанов')}: ${state.selectedRestaurantIds.length}'
+                  ?'${tr('Доступно ресторанов')}: ${state.pushRestaurantIds.length}'
                   :tr('Уведомления временно недоступны')),
                 value:pushEnabled,
                 onChanged:pushBusy||!OwnerPushService.configured
@@ -298,18 +296,7 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
                   color:OwnerPalette.muted(context))),
             ],
           )),
-          const SizedBox(height:14),
-          OwnerCard(
-            onTap:()=>Navigator.push(context,MaterialPageRoute<void>(
-              builder:(_)=>const OwnerLiveReportScreen(
-                title:'Складские предупреждения',
-                kind:'notifications'))),
-            child:ListTile(
-              contentPadding:EdgeInsets.zero,
-              leading:const Icon(Icons.inventory_2_outlined),
-              title:Text(tr('Складские предупреждения')),
-              trailing:const Icon(Icons.chevron_right),
-            )),
+
         ]),
       );
     }
@@ -326,8 +313,6 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
                     onChanged: (v) { setState(() => cash = v); setSheetState(() {}); }),
                   SwitchListTile(title: const Text('Продажи'), value: sales,
                     onChanged: (v) { setState(() => sales = v); setSheetState(() {}); }),
-                  SwitchListTile(title: const Text('Остатки на складах'), value: inventory,
-                    onChanged: (v) { setState(() => inventory = v); setSheetState(() {}); }),
                   Text('Демо: переключатели пока не подключены к push-серверу.',
                     style: TextStyle(fontSize: 11, color: OwnerPalette.muted(ctx))),
                 ]),
@@ -342,7 +327,6 @@ class _OwnerNotificationsScreenState extends State<OwnerNotificationsScreen> {
         const SizedBox(height: 12),
         for (final e in const [
           (Icons.trending_down, 'Снижение выручки', 'Jelly Park • на 25% ниже вчерашнего дня'),
-          (Icons.inventory_2_outlined, 'Низкий остаток', 'Помидоры • Основной склад'),
           (Icons.wallet, 'Смена закрыта', 'Касса 1 • Ресторан Баку'),
         ]) ...[
           OwnerCard(
