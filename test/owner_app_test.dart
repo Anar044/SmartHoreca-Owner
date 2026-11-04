@@ -49,7 +49,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(OwnerProfileScreen), findsOneWidget);
     expect(find.text('Выйти из демо'), findsNothing);
-    await tester.ensureVisible(find.text('Выйти'));
+    await tester.scrollUntilVisible(
+      find.text('Выйти'), 250,
+      scrollable: find.descendant(
+        of: find.byType(OwnerProfileScreen),
+        matching: find.byType(Scrollable),
+      ).first,
+    );
+    expect(find.text('Выйти из демо'), findsNothing);
     await tester.tap(find.text('Выйти'));
     await tester.pumpAndSettle();
 
