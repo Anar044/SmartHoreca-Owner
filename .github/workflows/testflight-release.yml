@@ -152,7 +152,8 @@ jobs:
         run: |
           # Apple ITMS-90186 / ITMS-90062: 0.1.2 is an approved, closed train.
           # The new TestFlight build must increment CFBundleShortVersionString.
-          VERSION="$(sed -nE 's/^version: ([0-9]+\\.[0-9]+\\.[0-9]+)\\+.*/\\1/p' pubspec.yaml)"
+          VERSION="$(awk '$1 == "version:" { print $2; exit }' pubspec.yaml)"
+          VERSION="${VERSION%%+*}"
           if [[ "$VERSION" != "0.1.3" ]]; then
             echo "::error::This TestFlight run must use the new 0.1.3 version train."
             exit 1
