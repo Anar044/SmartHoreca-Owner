@@ -127,7 +127,9 @@ class OwnerBackend {
   }
 
   static Future<void> signOut() async {
-    if (configured) await client.auth.signOut();
+    // Only this phone: signing out must not log the owner out of other
+    // Smart Horeca sessions on the web or another device.
+    if (configured) await client.auth.signOut(scope: SignOutScope.local);
   }
 
   static bool _transient(int status) =>
