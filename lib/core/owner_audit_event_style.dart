@@ -33,14 +33,32 @@ class OwnerAuditEventStyle {
     final kind = (event['kind'] ?? '').toString().trim().toUpperCase();
     final raw = _normalized(event['rawType']);
 
+    // ONLY the seven explicitly selected SH Owner push events are red.
+    // Match actual POS plugin event names exactly, not speculative risk
+    // categories, generic labels, or guessed order state.
+    const pushAlerts = <String, OwnerAuditEventStyle>{
+      'addingdiscount': OwnerAuditEventStyle(Icons.percent,
+        red, _critical, 'Добавлена скидка'),
+      'removingdiscount': OwnerAuditEventStyle(Icons.cancel_outlined,
+        red, _critical, 'Удалена скидка'),
+      'addingsurcharge': OwnerAuditEventStyle(Icons.trending_up_outlined,
+        red, _critical, 'Добавлена надбавка'),
+      'removingsurcharge': OwnerAuditEventStyle(Icons.trending_down_outlined,
+        red, _critical, 'Удалена надбавка'),
+      'cancellationofguestbill': OwnerAuditEventStyle(
+        Icons.receipt_long_outlined, red, _critical, 'Отменён пречек'),
+      'deletionofprinteditem': OwnerAuditEventStyle(
+        Icons.delete_outline, red, _critical, 'Удалено распечатанное блюдо'),
+      'voidreceipt': OwnerAuditEventStyle(
+        Icons.block_outlined, red, _critical, 'Сторно чека'),
+    };
+    if (pushAlerts.containsKey(raw)) return pushAlerts[raw]!;
+
     // The server currently normalizes both deletion types to ITEM_REMOVED.
-    // A printed dish deletion is materially more serious than an unprinted one.
+    // Any deletion other than the exact subscribed printed-item operation
+    // stays neutral/amber, even if its name includes similar words.
     if (kind == 'ITEM_REMOVED') {
-      if (raw.contains('printeditem') && !raw.contains('notprinteditem')) {
-        return const OwnerAuditEventStyle(
-          Icons.delete_outline, red, _critical, 'Удалено распечатанное блюдо');
-      }
-      if (raw.contains('notprinteditem')) {
+      if (raw == 'deletionofnotprinteditem') {
         return const OwnerAuditEventStyle(Icons.remove_circle_outline,
           amber, _caution, 'Удалено нераспечатанное блюдо');
       }
@@ -106,33 +124,33 @@ class OwnerAuditEventStyle {
           amber, _caution, 'Изменён тип оплаты');
       case 'ORDER_CANCELLED':
         return const OwnerAuditEventStyle(Icons.cancel_outlined,
-          red, _critical, 'Заказ отменён / удалён');
+          amber, _caution, 'Заказ отменён / удалён');
       case 'RECEIPT_STORNO':
         return const OwnerAuditEventStyle(Icons.block_outlined,
-          red, _critical, 'Сторно чека');
+          amber, _caution, 'Сторно чека');
     }
 
     // Some older plugin versions identify the operation only in rawType.
     // Match only explicit names; do not invent an operation for unknown types.
     if (raw.contains('opencashdrawer') || raw.contains('cashdraweropened')) {
       return const OwnerAuditEventStyle(Icons.inventory_2_outlined,
-        red, _critical, 'Открыт денежный ящик');
+        blue, _ordinary, 'Открыт денежный ящик');
     }
     if (raw.contains('reopenclosedorder') || raw.contains('reopeningclosedorder')) {
       return const OwnerAuditEventStyle(Icons.lock_open_outlined,
-        red, _critical, 'Повторно открыт закрытый заказ');
+        amber, _caution, 'Повторно открыт закрытый заказ');
     }
     if (raw.contains('manualpricechange') || raw.contains('manualpricechanged')) {
       return const OwnerAuditEventStyle(Icons.sell_outlined,
-        red, _critical, 'Изменена цена вручную');
+        amber, _caution, 'Изменена цена вручную');
     }
     if (raw.contains('cancelpayment') || raw.contains('paymentcancelled')) {
       return const OwnerAuditEventStyle(Icons.money_off_outlined,
-        red, _critical, 'Отмена оплаты');
+        amber, _caution, 'Отмена оплаты');
     }
     if (raw.contains('refund') || raw.contains('returnpayment')) {
       return const OwnerAuditEventStyle(Icons.reply_outlined,
-        red, _critical, 'Возврат');
+        amber, _caution, 'Возврат');
     }
     if (raw.contains('orderguestsnumberchanged') ||
         raw.contains('guestcountchanged')) {

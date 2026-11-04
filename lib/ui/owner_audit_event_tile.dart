@@ -87,7 +87,9 @@ class OwnerAuditEventTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(tr(style.title),
-                  style: const TextStyle(
+                  style: TextStyle(
+                    color: style.level == OwnerAuditLevel.critical
+                      ? style.color : OwnerPalette.text(context),
                     fontWeight: FontWeight.w700, fontSize: 14, height: 1.28)),
                 const SizedBox(height: 4),
                 Text(dateTime, style: TextStyle(
