@@ -1063,10 +1063,14 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
         !target.matchesOrder(
           departmentId:widget.departmentId,
           pluginId:widget.pluginId,
-          orderNum:_raw(widget.order['number']))) return false;
+          orderNum:_raw(widget.order['number']))) {
+      return false;
+    }
     final owner=OwnerScope.of(context);
     if(!owner.live || owner.workspaceId==null ||
-        !owner.pushRestaurantIds.contains(widget.departmentId)) return false;
+        !owner.pushRestaurantIds.contains(widget.departmentId)) {
+      return false;
+    }
     unawaited(_refreshAll());
     return true;
   }
