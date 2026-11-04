@@ -5,6 +5,16 @@ import 'package:smart_horeca_owner/core/owner_backend.dart';
 import 'package:smart_horeca_owner/screens/home_screen.dart';
 
 void main() {
+  test('push covers all accessible restaurants independently of Dashboard', () {
+    final state=OwnerState()
+      ..availableRestaurants=['RMS 1','RMS 2']
+      ..restaurantIdsByName={'RMS 1':'dept-1','RMS 2':'dept-2'}
+      ..selectedRestaurants={'RMS 1'};
+    addTearDown(state.dispose);
+    expect(state.selectedRestaurantIds,{'dept-1'});
+    expect(state.pushRestaurantIds,{'dept-1','dept-2'});
+  });
+
   test('Home uses the web accounting-day mode for Today and every period', () {
     expect(OwnerState.dashboardDateMode, 'calendar');
   });
