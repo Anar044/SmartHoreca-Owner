@@ -56,6 +56,9 @@ void main() {
         matching: find.byType(Scrollable),
       ).first,
     );
+    // Lazy ListView may build the button before it is fully on-screen.
+    await tester.ensureVisible(find.text('Выйти'));
+    await tester.pumpAndSettle();
     expect(find.text('Выйти из демо'), findsNothing);
     await tester.tap(find.text('Выйти'));
     await tester.pumpAndSettle();
