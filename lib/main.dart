@@ -62,6 +62,13 @@ class _SmartHorecaOwnerAppState extends State<SmartHorecaOwnerApp> {
       }
       final nav = navigator.currentState;
       if (nav == null) { _openingPushOrder = false; return; }
+      // If this very order is already on top, refresh both its POS items
+      // and confirmed audit events. Do not stack duplicate order screens.
+      if (OwnerPushService.refreshVisibleOrder(target)) {
+        OwnerPushService.clearPendingOrder();
+        _openingPushOrder = false;
+        return;
+      }
       OwnerPushService.clearPendingOrder();
       nav.push<void>(MaterialPageRoute<void>(
         builder: (_) => OwnerLivePosOrderScreen(
