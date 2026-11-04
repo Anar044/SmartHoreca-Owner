@@ -139,12 +139,17 @@ class OwnerState extends ChangeNotifier {
     return 'summary:$workspace:${ordered.join(',')}:$from:$to:$mode';
   }
 
-  /// Safe diagnostic identifiers only; no URLs, headers, tokens, or raw
-  /// upstream HTML are shown to the user.
+  /// Safe diagnostic identifiers only; never expose private service errors.
   static String summaryErrorText(Object error) {
     if (error is! OwnerApiException) return 'Ошибка получения данных SH.';
-    final code = RegExp(r'^[A-Z0-9_]{1,60}
-
+    final cleaned = error.code.toUpperCase()
+        .replaceAll(RegExp(r'[^A-Z0-9_]'), '');
+    final code = cleaned.isNotEmpty && cleaned.length <= 60
+        ? cleaned : 'API_ERROR';
+    final status = error.status >= 400 && error.status <= 599
+        ? 'HTTP ${error.status}' : 'HTTP ERROR';
+    return '${error.message} ($code · $status)';
+  }
   void setPeriod(String value) {
     if (value == 'Период') return;
     period = value;
