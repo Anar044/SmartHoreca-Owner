@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_horeca_owner/main.dart';
+import 'package:smart_horeca_owner/screens/profile_screen.dart';
 
 void main() {
   testWidgets('approved flow opens preview and keeps four bottom tabs', (tester) async {
@@ -31,5 +32,29 @@ void main() {
     await tester.tap(find.byIcon(Icons.smart_toy_outlined).last);
     await tester.pumpAndSettle();
     expect(find.text('AI Smart Horeca Assistant'), findsOneWidget);
+  });
+
+  testWidgets('logout exits to sign-in without demo label or stale profile',
+      (tester) async {
+    await tester.pumpWidget(const SmartHorecaOwnerApp());
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Посмотреть утверждённый дизайн'));
+    await tester.tap(find.text('Посмотреть утверждённый дизайн'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Применить (3)'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.account_circle_outlined));
+    await tester.pumpAndSettle();
+    expect(find.byType(OwnerProfileScreen), findsOneWidget);
+    expect(find.text('Выйти из демо'), findsNothing);
+    await tester.ensureVisible(find.text('Выйти'));
+    await tester.tap(find.text('Выйти'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(OwnerProfileScreen), findsNothing);
+    expect(find.text('Вход в аккаунт'), findsOneWidget);
+    expect(find.text('Выйти из демо'), findsNothing);
   });
 }
