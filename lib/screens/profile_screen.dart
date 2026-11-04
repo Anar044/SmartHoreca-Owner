@@ -6,8 +6,40 @@ import '../ui/owner_components.dart';
 import '../core/owner_backend.dart';
 import '../core/owner_push_service.dart';
 
-class OwnerProfileScreen extends StatelessWidget {
+class OwnerProfileScreen extends StatefulWidget {
   const OwnerProfileScreen({super.key});
+
+  @override
+  State<OwnerProfileScreen> createState() => _OwnerProfileScreenState();
+}
+
+class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
+  bool _signingOut = false;
+
+  Future<void> _signOut() async {
+    if (_signingOut) return;
+    final state = OwnerScope.of(context);
+    setState(() => _signingOut = true);
+    try {
+      await state.signOut();
+      if (!mounted) return;
+      // Remove all app detail routes, including old profile/order routes.
+      // Returning to the root guarantees the real sign-in UI is visible.
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (_) {
+      if (!mounted) return;
+      if (state.stage == OwnerStage.signIn) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(OwnerL10n.tr(
+            state.language, 'Не удалось выйти. Повторите попытку.')),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _signingOut = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,12 +126,12 @@ class OwnerProfileScreen extends StatelessWidget {
         ),
         const SizedBox(height: 15),
         OutlinedButton.icon(
-          onPressed: () {
-            Navigator.pop(context);
-            state.signOut();
-          },
-          icon: const Icon(Icons.logout),
-          label: Text(tr(state.live ? 'Выйти' : 'Выйти из демо')),
+          onPressed: _signingOut ? null : _signOut,
+          icon: _signingOut
+            ? const SizedBox(width: 18, height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.logout),
+          label: Text(tr(_signingOut ? 'Выход...' : 'Выйти')),
         ),
       ]),
     );
