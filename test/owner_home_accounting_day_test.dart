@@ -33,7 +33,7 @@ void main() {
   });
 
   test('Dashboard error shows safe source code and HTTP status', () {
-    final err = const OwnerApiException('HTTP_503',
+    const err = OwnerApiException('HTTP_503',
       'Сервис Smart Horeca временно недоступен.',503);
     final label = OwnerState.summaryErrorText(err);
     expect(label,contains('HTTP_503'));
