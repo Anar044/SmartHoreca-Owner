@@ -131,6 +131,24 @@ class OwnerState extends ChangeNotifier {
       '${date.month.toString().padLeft(2, '0')}-'
       '${date.day.toString().padLeft(2, '0')}';
 
+  /// Last verified summary is cached only for an exact session scope.
+  static String summaryCacheKey(String workspace, Iterable<String> ids,
+      String from, String to, String mode) {
+    final ordered = ids.toSet().toList()..sort();
+    return 'summary:$workspace:${ordered.join(',')}:$from:$to:$mode';
+  }
+
+  /// Display only safe diagnostics, not raw server responses or tokens.
+  static String summaryErrorText(Object error) {
+    if (error is! OwnerApiException) return 'Ошибка получения данных SH.';
+    final cleaned = error.code.toUpperCase()
+        .replaceAll(RegExp(r'[^A-Z0-9_]'), '');
+    final code = cleaned.isNotEmpty && cleaned.length <= 60
+        ? cleaned : 'API_ERROR';
+    final status = error.status >= 400 && error.status <= 599
+        ? 'HTTP ${error.status}' : 'HTTP ERROR';
+    return '${error.message} ($code · $status)';
+  }
   void setPeriod(String value) {
     if (value == 'Период') return;
     period = value;
@@ -477,10 +495,6 @@ class OwnerState extends ChangeNotifier {
     if (!live || workspaceId == null || selectedRestaurantIds.isEmpty) return;
     final generation = ++_summaryGeneration;
     final watch = Stopwatch()..start();
-    dashboardLoading = true;
-    dashboardError = null;
-    summary = null; // Never show stale or demonstration finance data as live.
-    notifyListeners();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final to = period == 'Период'
@@ -493,6 +507,14 @@ class OwnerState extends ChangeNotifier {
             'Месяц' => to.subtract(const Duration(days: 29)),
             _ => to,
           };
+    final key = summaryCacheKey(workspaceId!, selectedRestaurantIds,
+        formatDate(from), formatDate(to), dashboardDateMode);
+    final previous = cachedResponse(key);
+    dashboardLoading = true;
+    dashboardError = null;
+    // Reuse only same-workspace, department IDs and accounting dates.
+    summary = previous;
+    notifyListeners();
     try {
       final result = await OwnerBackend.getJson(
         '/api/mobile/v1/summary',
@@ -506,11 +528,11 @@ class OwnerState extends ChangeNotifier {
       );
       if (generation == _summaryGeneration && live && stage == OwnerStage.shell) {
         summary = result;
+        rememberResponse(key, result);
       }
     } catch (e) {
       if (generation == _summaryGeneration) {
-        dashboardError =
-            e is OwnerApiException ? e.message : 'Ошибка получения данных SH.';
+        dashboardError = summaryErrorText(e);
       }
     } finally {
       if (generation == _summaryGeneration) {

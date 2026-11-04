@@ -26,6 +26,8 @@ class OwnerHomeScreen extends StatelessWidget {
     final selected = state.selectedRestaurants;
     final demo = OwnerDemoData.snapshot(selected, state.period);
     final data = state.summary;
+    final lastVerified = DateTime.tryParse(
+      (data?['updatedAt'] ?? '').toString())?.toLocal();
     final metrics = data?['metrics'] is Map ? data!['metrics'] as Map : const {};
     final daily = (data?['daily'] is List ? data!['daily'] as List : const [])
         .whereType<Map<String, dynamic>>()
@@ -49,7 +51,7 @@ class OwnerHomeScreen extends StatelessWidget {
       ],
       const SizedBox(height: 15),
       if (state.live) ...[
-        if (state.dashboardLoading)
+        if (state.dashboardLoading && data == null)
           const OwnerCard(child: Center(child: Padding(
             padding: EdgeInsets.all(20),
             child: Column(children: [
@@ -58,7 +60,7 @@ class OwnerHomeScreen extends StatelessWidget {
               OwnerText('Загружаем отчёт…'),
             ]),
           )))
-        else if (state.dashboardError != null) ...[
+        else if (state.dashboardError != null && data == null) ...[
           OwnerCard(child: Column(children: [
             const Icon(Icons.cloud_off_rounded, color: OwnerPalette.error, size: 34),
             const SizedBox(height: 9),
@@ -68,6 +70,44 @@ class OwnerHomeScreen extends StatelessWidget {
               icon: const Icon(Icons.refresh), label: const OwnerText('Повторить')),
           ])),
         ] else if (data != null) ...[
+          if (state.dashboardLoading)
+            const OwnerCard(child: Row(children: [
+              SizedBox(width: 18, height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2)),
+              SizedBox(width: 10),
+              Expanded(child: OwnerText('Обновляем финансовую сводку…')),
+            ])),
+          if (state.dashboardError != null)
+            OwnerCard(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  const Icon(Icons.warning_amber_rounded,
+                    color: OwnerPalette.warning, size: 23),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(
+                    OwnerL10n.tr(state.language,
+                      'Не удалось обновить сводку. Ниже предыдущие подтверждённые данные за тот же период.'),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  )),
+                ]),
+                const SizedBox(height: 7),
+                if (lastVerified != null) Text(
+                  '${OwnerL10n.tr(state.language, 'Последняя успешная загрузка')}: '
+                  '${OwnerState.formatDate(lastVerified)} '
+                  '${lastVerified.hour.toString().padLeft(2, '0')}:'
+                  '${lastVerified.minute.toString().padLeft(2, '0')}',
+                  style: TextStyle(fontSize: 12,
+                    color: OwnerPalette.muted(context))),
+                const SizedBox(height: 6),
+                Text(state.dashboardError!, style: TextStyle(
+                  fontSize: 12, color: OwnerPalette.muted(context))),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(onPressed: state.loadSummary,
+                  icon: const Icon(Icons.refresh),
+                  label: const OwnerText('Повторить')),
+              ],
+            )),
           Row(children: [
             Expanded(child: OwnerMetric('Выручка', _money(metrics['revenue']),
               onTap: state.live ? () => Navigator.push(context,
