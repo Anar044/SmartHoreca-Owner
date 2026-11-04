@@ -38,6 +38,46 @@ void main() {
     }), isNull);
   });
 
+  test('a tapped push matches only the same restaurant, plugin and order', () {
+    final target = OwnerPushOrderTarget.fromData(const {
+      'kind':'SURCHARGE_APPLIED',
+      'departmentId':department,'pluginId':plugin,'orderNum':'45',
+    })!;
+    expect(target.matchesOrder(departmentId:department,
+      pluginId:plugin,orderNum:'45'),isTrue);
+    expect(target.matchesOrder(departmentId:department,
+      pluginId:plugin,orderNum:'46'),isFalse);
+    expect(target.matchesOrder(departmentId:department,
+      pluginId:'other-plugin',orderNum:'45'),isFalse);
+    expect(target.matchesOrder(departmentId:'other-department',
+      pluginId:plugin,orderNum:'45'),isFalse);
+  });
+
+  test('visible order handler consumes one matching push, unregistration is safe', () {
+    final target=OwnerPushOrderTarget.fromData(const {
+      'kind':'SURCHARGE_REMOVED',
+      'departmentId':department,'pluginId':plugin,'orderNum':'45',
+    })!;
+    var refreshes=0;
+    bool refresh(OwnerPushOrderTarget message) {
+      if(!message.matchesOrder(departmentId:department,
+          pluginId:plugin,orderNum:'45')) return false;
+      refreshes++;
+      return true;
+    }
+    OwnerPushService.registerVisibleOrder(refresh);
+    addTearDown(() => OwnerPushService.unregisterVisibleOrder(refresh));
+    expect(OwnerPushService.refreshVisibleOrder(target),isTrue);
+    expect(refreshes,1);
+    final other=OwnerPushOrderTarget.fromData(const {
+      'kind':'DISCOUNT_APPLIED',
+      'departmentId':department,'pluginId':plugin,'orderNum':'46',
+    })!;
+    expect(OwnerPushService.refreshVisibleOrder(other),isFalse);
+    expect(refreshes,1);
+    OwnerPushService.unregisterVisibleOrder(refresh);
+    expect(OwnerPushService.refreshVisibleOrder(target),isFalse);
+  });
   test('notification requires a real order number', () {
     expect(OwnerPushOrderTarget.fromData(const {
       'kind': 'DISCOUNT_REMOVED',
