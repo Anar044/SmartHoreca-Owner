@@ -61,7 +61,9 @@ void main() {
     var refreshes=0;
     bool refresh(OwnerPushOrderTarget message) {
       if(!message.matchesOrder(departmentId:department,
-          pluginId:plugin,orderNum:'45')) return false;
+          pluginId:plugin,orderNum:'45')) {
+        return false;
+      }
       refreshes++;
       return true;
     }
