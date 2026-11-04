@@ -16,6 +16,8 @@ void main() {
     ));
     await tester.pumpAndSettle();
     expect(find.text('Проверить подключение push'), findsOneWidget);
+    expect(find.text('Складские предупреждения'), findsNothing);
+    expect(find.text('Низкий остаток'), findsNothing);
     // Disabled when Firebase isn't configured, but diagnostic isn't
     // silently hidden solely because the app is an App Store release.
   });
