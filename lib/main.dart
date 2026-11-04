@@ -79,9 +79,14 @@ class _SmartHorecaOwnerAppState extends State<SmartHorecaOwnerApp> {
           registerName: 'Касса',
         ),
       )).whenComplete(() {
-        _openingPushOrder = false;
+        // A route pop can release a notification received mid-transition.
         _tryOpenPushOrder();
       });
+      // This flag guards the push NAVIGATION TRANSITION, not the lifetime
+      // of the order screen. Keep further notification taps functional while
+      // the order stays open, including a second alert for the same order.
+      _openingPushOrder = false;
+      _tryOpenPushOrder();
     });
   }
 
