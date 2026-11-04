@@ -1,7 +1,7 @@
 name: SH Owner Upload to TestFlight
 
 on:
-  # TestFlight-only validation build for owner-selected red audit events.
+  # TestFlight-only build: seven authorized-user POS push defaults, stock warnings hidden, and order refresh on tap.
   # Rebuild existing 0.1.3 train after approval of precise seven-event styling.
   # Never publish to the public App Store automatically.
   # Only changes to this release workflow trigger it; source-only pushes do not.
