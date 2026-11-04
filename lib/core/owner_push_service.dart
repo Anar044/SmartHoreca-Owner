@@ -25,6 +25,11 @@ class OwnerPushOrderTarget {
     required this.orderNum,
     required this.kind,
   });
+  bool matchesOrder({required String departmentId, required String pluginId,
+      required String orderNum}) =>
+    this.departmentId == departmentId &&
+    this.pluginId == pluginId && this.orderNum == orderNum;
+
   static OwnerPushOrderTarget? fromData(Map<String, dynamic> data) {
     final departmentId = (data['departmentId'] ?? '').toString().trim();
     final pluginId = (data['pluginId'] ?? '').toString().trim();
@@ -72,6 +77,23 @@ class OwnerPushService {
   static Set<String> _departments={};
   static void Function(String,String,OwnerPushOrderTarget?)? onForegroundAlert;
   static void Function(OwnerPushOrderTarget)? onOrderTap;
+  // A tapped push should refresh an already visible matching order,
+  // rather than stack another copy of the same order route.
+  static final Set<bool Function(OwnerPushOrderTarget)> _visibleOrderHandlers = {};
+  static void registerVisibleOrder(
+      bool Function(OwnerPushOrderTarget) handler) {
+    _visibleOrderHandlers.add(handler);
+  }
+  static void unregisterVisibleOrder(
+      bool Function(OwnerPushOrderTarget) handler) {
+    _visibleOrderHandlers.remove(handler);
+  }
+  static bool refreshVisibleOrder(OwnerPushOrderTarget target) {
+    for (final handler in _visibleOrderHandlers.toList().reversed) {
+      if (handler(target)) return true;
+    }
+    return false;
+  }
   static OwnerPushOrderTarget? _pendingOrder;
   static OwnerPushOrderTarget? get pendingOrder => _pendingOrder;
   static void clearPendingOrder() => _pendingOrder = null;
@@ -272,15 +294,17 @@ class OwnerPushService {
               'Выключите Push и включите его снова.'
           : 'Подписка телефона не активна. Включите Push выше.';
     }
-    final kinds = (result['kinds'] as List? ?? []).whereType<String>().toSet();
-    if (!kinds.contains('DISCOUNT_APPLIED')) {
-      return 'Подписка на сервере активна, но событие «Применена скидка» '
-          'выключено. Поставьте галочку напротив этого события.';
+    final serverKinds = (result['kinds'] as List? ?? [])
+        .whereType<String>().toSet();
+    final missing = (await selectedKinds(workspace))
+        .difference(serverKinds);
+    if(missing.isNotEmpty) {
+      return 'Подписка на сервере не содержит все выбранные события '
+        '(${missing.length} отсутствуют). Выключите Push и включите его снова.';
     }
     return 'FCM-секрет присутствует на сервере, телефон зарегистрирован, '
-        'уведомление о скидке разрешено. '
-        'Доставка пока не подтверждена: проверьте, что события кассы '
-        'попадают на этот же сервер, и журнал отправки FCM.';
+        'все выбранные события подписаны. '
+        'Доставка проверяется реальными операциями касс.';
   }
 
   static Future<void> syncScope(
@@ -290,8 +314,31 @@ class OwnerPushService {
     if(!configured)return;
     await initialize();
     if(!_initialized)return;
-    _enabled=await isEnabled();
-    if(!_enabled||_departments.isEmpty||!OwnerBackend.hasSession)return;
+    if(_departments.isEmpty||!OwnerBackend.hasSession)return;
+    final prefs=SharedPreferencesAsync();
+    final choice=await prefs.getBool(_optInKey);
+    if(choice==false){
+      // Existing explicit opt-out is never overridden by the rollout.
+      _enabled=false;
+      return;
+    }
+    if(choice==null){
+      // Default for each newly signed-in, authorized user: all seven
+      // approved POS alert kinds across their authorized restaurants.
+      // The OS permission dialog still requires the user's approval.
+      try {
+        await enable(workspace,_departments);
+      } on OwnerApiException catch(error) {
+        if(error.code=='PUSH_PERMISSION_DENIED'){
+          // Do not repeatedly prompt a user who denied permission.
+          await prefs.setBool(_optInKey,false);
+        }
+      } catch(_) {
+        // A transient Firebase/API failure should not record an opt-out.
+      }
+      return;
+    }
+    _enabled=true;
     final token=await FirebaseMessaging.instance.getToken();
     if(token!=null){
       await _registerToken(token,workspace,_departments);

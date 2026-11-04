@@ -113,6 +113,12 @@ class OwnerState extends ChangeNotifier {
       .where((id) => id.isNotEmpty)
       .toSet();
 
+  // Push covers every department authorized by the workspace bootstrap.
+  // Dashboard selection is a reporting filter, not a notification opt-out.
+  // Server RBAC rechecks membership before delivering each event.
+  Set<String> get pushRestaurantIds => restaurantIdsByName.values
+      .where((id) => id.isNotEmpty).toSet();
+
   void setTheme(ThemeMode value) {
     themeMode = value;
     unawaited(_prefs.setString('sh_owner_theme', value.name));
@@ -325,7 +331,7 @@ class OwnerState extends ChangeNotifier {
     unawaited(loadRestaurantActivity());
     if (stage == OwnerStage.shell) {
       unawaited(loadSummary());
-      unawaited(OwnerPushService.syncScope(id,selectedRestaurantIds)
+      unawaited(OwnerPushService.syncScope(id,pushRestaurantIds)
         .catchError((Object _) {}));
     }
   }
@@ -352,7 +358,7 @@ class OwnerState extends ChangeNotifier {
     if (live && workspace != null) {
       final ids = selectedRestaurantIds;
       unawaited(_prefs.setStringList('sh_owner_depts_$workspace', ids.toList()));
-      unawaited(OwnerPushService.syncScope(workspace, ids)
+      unawaited(OwnerPushService.syncScope(workspace, pushRestaurantIds)
           .catchError((Object _) {}));
     }
     notifyListeners();
@@ -423,7 +429,7 @@ class OwnerState extends ChangeNotifier {
     if (live && workspaceId != null) {
       unawaited(_prefs.setStringList(
         'sh_owner_depts_$workspaceId',selectedRestaurantIds.toList()));
-      unawaited(OwnerPushService.syncScope(workspaceId!,selectedRestaurantIds)
+      unawaited(OwnerPushService.syncScope(workspaceId!,pushRestaurantIds)
         .catchError((Object _) {}));
     }
     notifyListeners();
@@ -464,7 +470,7 @@ class OwnerState extends ChangeNotifier {
     }
     notifyListeners();
     if(live && workspaceId!=null && selectedRestaurantIds.isNotEmpty){
-      unawaited(OwnerPushService.syncScope(workspaceId!,selectedRestaurantIds)
+      unawaited(OwnerPushService.syncScope(workspaceId!,pushRestaurantIds)
         .catchError((Object _) {}));
     }
     if (live && stage == OwnerStage.shell && tabIndex == 0 &&
@@ -482,7 +488,7 @@ class OwnerState extends ChangeNotifier {
     }
     notifyListeners();
     if(live && workspaceId!=null && selectedRestaurantIds.isNotEmpty){
-      unawaited(OwnerPushService.syncScope(workspaceId!,selectedRestaurantIds)
+      unawaited(OwnerPushService.syncScope(workspaceId!,pushRestaurantIds)
         .catchError((Object _) {}));
     }
     if (live && stage == OwnerStage.shell && tabIndex == 0 &&

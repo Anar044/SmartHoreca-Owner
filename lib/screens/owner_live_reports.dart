@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../ui/owner_text.dart';
 
 import '../core/owner_backend.dart';
 import '../core/owner_audit_history.dart';
 import '../core/owner_state.dart';
+import '../core/owner_push_service.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_l10n.dart';
 import '../ui/owner_components.dart';
@@ -1048,6 +1051,30 @@ class OwnerLivePosOrderScreen extends StatefulWidget {
 }
 
 class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
+  late final bool Function(OwnerPushOrderTarget) _visibleOrderHandler =
+      _refreshFromMatchingPush;
+
+  // The currently visible route alone can consume an order notification.
+  // Match the verified restaurant, plugin AND order number; don't reveal
+  // data from another tenant or refresh a hidden/offline snapshot route.
+  bool _refreshFromMatchingPush(OwnerPushOrderTarget target) {
+    if (!mounted || widget.offlineSnapshot ||
+        ModalRoute.of(context)?.isCurrent != true ||
+        !target.matchesOrder(
+          departmentId:widget.departmentId,
+          pluginId:widget.pluginId,
+          orderNum:_raw(widget.order['number']))) {
+      return false;
+    }
+    final owner=OwnerScope.of(context);
+    if(!owner.live || owner.workspaceId==null ||
+        !owner.pushRestaurantIds.contains(widget.departmentId)) {
+      return false;
+    }
+    unawaited(_refreshAll());
+    return true;
+  }
+
   Map<String,dynamic>? details;
   String? error;
   // Show a clearly labelled previously verified POS list snapshot only when
@@ -1062,6 +1089,7 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
   @override
   void initState() {
     super.initState();
+    OwnerPushService.registerVisibleOrder(_visibleOrderHandler);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (widget.offlineSnapshot) {
@@ -1071,6 +1099,12 @@ class _OwnerLivePosOrderScreenState extends State<OwnerLivePosOrderScreen> {
         _refreshAll();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    OwnerPushService.unregisterVisibleOrder(_visibleOrderHandler);
+    super.dispose();
   }
 
   String _raw(dynamic value) => (value ?? '').toString().trim();
