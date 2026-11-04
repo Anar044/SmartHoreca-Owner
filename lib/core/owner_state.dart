@@ -557,8 +557,19 @@ class OwnerState extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
-    await OwnerPushService.onSignOut();
-    await OwnerBackend.signOut();
+    // A failed FCM unregister must never trap a person in a signed-in app.
+    try {
+      await OwnerPushService.onSignOut();
+    } catch (_) {
+      // The device may be offline; continue with the authenticated logout.
+    }
+    try {
+      await OwnerBackend.signOut();
+    } catch (_) {
+      // Supabase may have already removed the local session before a remote
+      // revocation failed. Never retain a stale signed-in app in that case.
+      if (OwnerBackend.hasSession) rethrow;
+    }
     logOutPreview();
   }
 
