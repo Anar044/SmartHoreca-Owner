@@ -1,8 +1,9 @@
 name: SH Owner Upload to TestFlight
 
 on:
-  # Intentionally triggered to upload SH Owner 0.1.3 after Apple closed
-  # the already-approved 0.1.2 version train; do not publish to App Store.
+  # TestFlight-only validation build for owner-selected red audit events.
+  # Rebuild existing 0.1.3 train after approval of precise seven-event styling.
+  # Never publish to the public App Store automatically.
   # Only changes to this release workflow trigger it; source-only pushes do not.
   push:
     branches: [main]
