@@ -19,8 +19,10 @@ void main() {
   test('four risk levels use distinct colors and icons', () {
     final ordinary=OwnerAuditEventStyle.fromEvent(event('ORDER_OPENED'));
     final payment=OwnerAuditEventStyle.fromEvent(event('ORDER_CLOSED'));
-    final caution=OwnerAuditEventStyle.fromEvent(event('DISCOUNT_APPLIED'));
-    final critical=OwnerAuditEventStyle.fromEvent(event('RECEIPT_STORNO'));
+    final caution=OwnerAuditEventStyle.fromEvent(event('PAYMENT_CHANGED',
+      raw:'paymentTypeChanged'));
+    final critical=OwnerAuditEventStyle.fromEvent(event('RECEIPT_STORNO',
+      raw:'voidReceipt'));
     expect(ordinary.level,OwnerAuditLevel.ordinary);
     expect(ordinary.color,OwnerAuditEventStyle.blue);
     expect(ordinary.icon,Icons.note_add_outlined);
@@ -32,23 +34,50 @@ void main() {
     expect(critical.color,OwnerAuditEventStyle.red);
   });
 
-  test('seven owner risk alerts have icon and RU/AZ/EN title', () {
-    const cases=<String,String>{
-      'DISCOUNT_APPLIED':'Добавлена скидка',
-      'DISCOUNT_REMOVED':'Удалена скидка',
-      'SURCHARGE_APPLIED':'Добавлена надбавка',
-      'SURCHARGE_REMOVED':'Удалена надбавка',
-      'PRECHECK_CANCELLED':'Отменён пречек',
-      'RECEIPT_STORNO':'Сторно чека',
-      'ITEM_REMOVED':'Удалено распечатанное блюдо',
+  test('only seven preselected push events are red, with RU/AZ/EN title', () {
+    const cases=<String, (String, String)>{
+      'addingDiscount': ('DISCOUNT_APPLIED','Добавлена скидка'),
+      'removingDiscount': ('DISCOUNT_REMOVED','Удалена скидка'),
+      'addingSurcharge': ('SURCHARGE_APPLIED','Добавлена надбавка'),
+      'removingSurcharge': ('SURCHARGE_REMOVED','Удалена надбавка'),
+      'cancellationOfGuestBill': ('PRECHECK_CANCELLED','Отменён пречек'),
+      'deletionOfPrintedItem': ('ITEM_REMOVED','Удалено распечатанное блюдо'),
+      'voidReceipt': ('RECEIPT_STORNO','Сторно чека'),
     };
     for (final row in cases.entries) {
-      final style=OwnerAuditEventStyle.fromEvent(event(row.key,
-        raw:row.key=='ITEM_REMOVED'?'deletionOfPrintedItem':''));
-      expect(style.title,row.value);
+      final style=OwnerAuditEventStyle.fromEvent(
+        event(row.value.$1,raw:row.key));
+      expect(style.title,row.value.$2,reason:row.key);
+      expect(style.color,OwnerAuditEventStyle.red,reason:row.key);
+      expect(style.level,OwnerAuditLevel.critical,reason:row.key);
       expect(style.icon,isNot(Icons.history_outlined));
       expect(OwnerL10n.hasTranslation('Azərbaycan',style.title),isTrue);
       expect(OwnerL10n.hasTranslation('English',style.title),isTrue);
+    }
+  });
+
+  test('all other events including previously called dangerous are NOT red', () {
+    const extra=<String, String>{
+      'ORDER_CANCELLED':'deletingAnOrder',
+      'PRECHECK_OVERDUE':'orderInTheStatusOfTheBillForALongTime',
+      'PAYMENT_CHANGED':'paymentTypeChanged',
+      'ORDER_CLOSED':'closingOrder',
+      'ITEM_ADDED':'addingItem',
+      'ITEM_REMOVED':'deletionOfNotPrintedItem',
+      'DISCOUNT_APPLIED':'someOtherDiscountEvent',
+      'SURCHARGE_REMOVED':'unknownSurchargeRemoval',
+      'RECEIPT_STORNO':'refund',
+      'OTHER':'openCashDrawer',
+      'OTHER2':'reopenClosedOrder',
+      'OTHER3':'manualPriceChanged',
+      'OTHER4':'cancelPayment',
+      'OTHER5':'returnPayment',
+    };
+    for (final row in extra.entries) {
+      final style=OwnerAuditEventStyle.fromEvent(
+        event(row.key,raw:row.value));
+      expect(style.color,isNot(OwnerAuditEventStyle.red),reason:row.value);
+      expect(style.level,isNot(OwnerAuditLevel.critical),reason:row.value);
     }
   });
 
@@ -86,7 +115,7 @@ void main() {
 
   testWidgets('AZ card keeps verified event details without losing data',
     (tester) async {
-    final row=event('DISCOUNT_APPLIED')
+    final row=event('DISCOUNT_APPLIED',raw:'addingDiscount')
       ..addAll({
         'itemName':'Caesar Salad',
         'adjustmentName':'Happy Hour',
@@ -111,7 +140,7 @@ void main() {
 
   testWidgets('English card shows a storno as critical without changing amount',
     (tester) async {
-    final row=event('RECEIPT_STORNO')
+    final row=event('RECEIPT_STORNO',raw:'voidReceipt')
       ..addAll({'amount':20, 'employee':'Cashier 2'});
     await tester.pumpWidget(MaterialApp(home: Scaffold(
       body: OwnerAuditEventTile(
