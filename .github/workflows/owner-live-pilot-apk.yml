@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
-      SH_PILOT_ORIGIN: https://feature-owner-mobile-readonl.smarthoreca.pages.dev
+      SH_PILOT_ORIGIN: ${{ vars.SH_OWNER_API_ORIGIN || 'https://feature-owner-mobile-readonl.smarthoreca.pages.dev' }}
       SH_FIREBASE_ANDROID_API_KEY: ${{ vars.SH_FIREBASE_ANDROID_API_KEY }}
       SH_FIREBASE_ANDROID_APP_ID: ${{ vars.SH_FIREBASE_ANDROID_APP_ID }}
       SH_FIREBASE_SENDER_ID: ${{ vars.SH_FIREBASE_SENDER_ID }}
@@ -73,7 +73,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location --retry 2 --max-time 20             https://raw.githubusercontent.com/Anar044/anarsystem/main/auth-config.js             -o /tmp/sh_owner_public_auth.js
+          curl --fail --silent --show-error --location --retry 2 --max-time 20             https://smarthoreca.pages.dev/auth-config.js             -o /tmp/sh_owner_public_auth.js
           node - <<'NODE'
           const fs=require('fs');
           const txt=fs.readFileSync('/tmp/sh_owner_public_auth.js','utf8');
