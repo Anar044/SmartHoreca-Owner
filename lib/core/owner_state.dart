@@ -260,9 +260,11 @@ class OwnerState extends ChangeNotifier {
           for (final entry in restaurantIdsByName.entries)
             if (prior.contains(entry.value)) entry.key
         };
-    if (selectedRestaurants.isEmpty) {
-      selectedRestaurants = {...availableRestaurants};
-    }
+    // Do not silently widen a previously saved 4-restaurant selection to
+    // all 22 restaurants when IDs change or user access is reconfigured.
+    // A first login (prior == null) still explicitly defaults to all.
+    // When a saved selection no longer intersects available restaurants,
+    // ask the owner to choose rather than automatically query the whole CHAIN.
     if(workspaceId!=id) clearResponseCache();
     workspaceId = id;
     workspaceName =
@@ -273,7 +275,7 @@ class OwnerState extends ChangeNotifier {
     // The owner should not have to reconfirm restaurants on every login.
     // First sign-in defaults to all authorized restaurants; an explicit
     // saved selection is restored by immutable department IDs above.
-    stage = availableRestaurants.isEmpty
+    stage = availableRestaurants.isEmpty || selectedRestaurants.isEmpty
         ? OwnerStage.restaurants
         : OwnerStage.shell;
     if (stage == OwnerStage.shell) {
