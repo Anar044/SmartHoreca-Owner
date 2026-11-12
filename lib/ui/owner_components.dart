@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
@@ -130,13 +131,18 @@ class OwnerRestaurantPicker extends StatelessWidget {
     final draft = <String>{...state.selectedRestaurants};
     var query = '';
     var workingOnly = false;
+    if (state.live && state.departmentEvidence.isEmpty && !state.activityLoading) {
+      unawaited(state.loadRestaurantActivity());
+    }
 
     final choice = await showModalBottomSheet<Set<String>>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      builder: (sheetContext) => StatefulBuilder(
+      builder: (sheetContext) => AnimatedBuilder(
+        animation: state,
+        builder: (sheetContext, _) => StatefulBuilder(
         builder: (sheetContext, setSheetState) {
           final visible = state.availableRestaurants.where((name) {
             if (!name.toLowerCase().contains(query.toLowerCase())) return false;
@@ -255,6 +261,7 @@ class OwnerRestaurantPicker extends StatelessWidget {
             ),
           );
         },
+        ),
       ),
     );
     if (choice == null || !context.mounted) return;

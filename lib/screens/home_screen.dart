@@ -5,6 +5,7 @@ import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
 import '../core/owner_demo_data.dart';
 import '../core/owner_l10n.dart';
+import '../ui/owner_data_freshness.dart';
 import '../core/owner_finance_validation.dart';
 import 'owner_live_reports.dart';
 
@@ -70,13 +71,7 @@ class OwnerHomeScreen extends StatelessWidget {
               icon: const Icon(Icons.refresh), label: const OwnerText('Повторить')),
           ])),
         ] else if (data != null) ...[
-          if (state.dashboardLoading)
-            const OwnerCard(child: Row(children: [
-              SizedBox(width: 18, height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2)),
-              SizedBox(width: 10),
-              Expanded(child: OwnerText('Обновляем финансовую сводку…')),
-            ])),
+          OwnerDataFreshness(data: data, updating: state.dashboardLoading),
           if (state.dashboardError != null)
             OwnerCard(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

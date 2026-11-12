@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'owner_snapshot_store.dart';
 import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,6 +12,13 @@ enum OwnerStage { signIn, workspaces, restaurants, shell }
 
 class OwnerState extends ChangeNotifier {
   late final SharedPreferencesAsync _prefs = SharedPreferencesAsync();
+
+  late final OwnerSnapshotStore _snapshots = OwnerSnapshotStore(
+    read: () => _prefs.getString('sh_owner_verified_snapshots_v1'),
+    write: (value) => _prefs.setString('sh_owner_verified_snapshots_v1', value),
+    remove: () => _prefs.remove('sh_owner_verified_snapshots_v1'),
+  );
+  int cacheEpoch = 0;
 
   Future<void> loadPreferences() async {
     try {
@@ -56,7 +65,7 @@ class OwnerState extends ChangeNotifier {
 
   // Session RAM cache for read-only mobile reports. Scoped by the
   // verified workspace, restaurant IDs and period supplied by each caller.
-  // Never persist tenant financial data in phone preferences or across login.
+  // Durable snapshots are restored only after fresh workspace authorization.
   final Map<String, Map<String,dynamic>> _responseCache = {};
   final Map<String, DateTime> _responseCachedAt = {};
 
@@ -86,11 +95,61 @@ class OwnerState extends ChangeNotifier {
     }
     _responseCache[key]=value;
     _responseCachedAt[key]=DateTime.now();
+    unawaited(_snapshots.remember(key, value));
   }
 
   void clearResponseCache() {
     _responseCache.clear();
     _responseCachedAt.clear();
+    ++cacheEpoch;
+  }
+
+  void discardUnauthorizedSnapshots() {
+    clearResponseCache();
+    summary = null;
+    unawaited(_snapshots.clear());
+    notifyListeners();
+  }
+
+  Map<String, String> reportDates({DateTime? now}) {
+    final current = now ?? DateTime.now();
+    final today = DateTime(current.year, current.month, current.day);
+    final to = period == 'Период' ? (customTo ?? today)
+        : period == 'Вчера' ? today.subtract(const Duration(days: 1)) : today;
+    final from = period == 'Период' ? (customFrom ?? to) : switch (period) {
+      '7 дней' => to.subtract(const Duration(days: 6)),
+      'Месяц' => to.subtract(const Duration(days: 29)),
+      _ => to,
+    };
+    return {'from': formatDate(from), 'to': formatDate(to)};
+  }
+
+  String reportCacheKey(String kind) {
+    final ids = selectedRestaurantIds.toList()..sort();
+    final dates = reportDates();
+    return 'report:${jsonEncode([workspaceId, ids, dates['from'], dates['to'],
+      period == 'Сегодня' ? 'operational' : 'calendar', kind])}';
+  }
+
+  String get cashCacheKey {
+    final ids = selectedRestaurantIds.toList()..sort();
+    return 'cash:$workspaceId:${ids.join(',')}';
+  }
+
+  Future<void> warmCash() async {
+    final ws = workspaceId;
+    if (!live || ws == null || selectedRestaurantIds.isEmpty) return;
+    final key = cashCacheKey;
+    if (cachedResponse(key, maxAge: const Duration(seconds: 30)) != null) return;
+    final epoch = cacheEpoch;
+    try {
+      final value = await OwnerBackend.getJson('/api/mobile/v1/cash',
+        workspaceId: ws, departmentIds: selectedRestaurantIds,
+        retryTransient: false);
+      if (live && cacheEpoch == epoch && workspaceId == ws && cashCacheKey == key) {
+        rememberResponse(key, value);
+      }
+    } catch (_) { /* Visible Cash screen owns retry/error presentation. */ }
   }
 
   List<String> availableRestaurants = [
@@ -317,6 +376,19 @@ class OwnerState extends ChangeNotifier {
     // ask the owner to choose rather than automatically query the whole CHAIN.
     if(workspaceId!=id) clearResponseCache();
     workspaceId = id;
+    // The latest bootstrap, not a saved selection or session alone, authorizes
+    // restoring the phone's last confirmed figures.
+    final userId = data['user']?['id']?.toString() ?? '';
+    if (userId.isNotEmpty) {
+      final allowedIds = restaurantIdsByName.values.toSet().toList()..sort();
+      final restored = await _snapshots.activate(jsonEncode([
+        OwnerBackend.apiBase, userId, id, allowedIds, data['stateUpdatedAt'],
+      ]));
+      for (final entry in restored.entries) {
+        _responseCache[entry.key] = entry.value.data;
+        _responseCachedAt[entry.key] = entry.value.savedAt;
+      }
+    }
     workspaceName =
         (data['workspace']?['name'] ?? 'Smart Horeca').toString();
     live = true;
@@ -331,12 +403,10 @@ class OwnerState extends ChangeNotifier {
     if (stage == OwnerStage.shell) {
       // The accounting server queues heavy reads. Give the visible dashboard
       // priority over the 30-day background restaurant-activity scan.
-      unawaited(loadSummary().then((_) {
-        if (live && workspaceId == id && !activityLoading &&
-            departmentEvidence.isEmpty) {
-          unawaited(loadRestaurantActivity());
-        }
-      }));
+      unawaited(loadSummary());
+      // POS has a separate source; warm it alongside Home without queuing
+      // another accounting report. Activity is loaded when its picker opens.
+      unawaited(warmCash());
       unawaited(OwnerPushService.syncScope(id,pushRestaurantIds)
         .catchError((Object _) {}));
     } else {
@@ -546,6 +616,9 @@ class OwnerState extends ChangeNotifier {
       }
     } catch (e) {
       if (generation == _summaryGeneration) {
+        if (e is OwnerApiException && (e.status == 401 || e.status == 403)) {
+          discardUnauthorizedSnapshots();
+        }
         dashboardError = summaryErrorText(e);
       }
     } finally {
@@ -578,10 +651,12 @@ class OwnerState extends ChangeNotifier {
       // revocation failed. Never retain a stale signed-in app in that case.
       if (OwnerBackend.hasSession) rethrow;
     }
+    await _snapshots.clear();
     logOutPreview();
   }
 
   void logOutPreview() {
+    unawaited(_snapshots.clear());
     clearResponseCache();
     ++_activityGeneration;
     departmentEvidence={};

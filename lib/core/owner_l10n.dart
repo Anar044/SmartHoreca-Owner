@@ -8,6 +8,9 @@ class OwnerL10n {
 
   static const Map<String, Map<String, String>> _translations = {
     'Azərbaycan': {
+      'Данные на': 'Məlumatın vaxtı',
+      'Обновляем…': 'Yenilənir…',
+      'Не удалось обновить данные. Показаны сохранённые результаты.': 'Məlumat yenilənmədi. Saxlanmış nəticələr göstərilir.',
       'История заказа': 'Sifariş tarixçəsi',
       'Подтверждённые события кассового плагина': 'Kassa plaqininin təsdiqlənmiş hadisələri',
       'Событие заказа': 'Sifariş hadisəsi',
@@ -436,6 +439,9 @@ class OwnerL10n {
       'Не удалось проверить активность подразделений. Список доступных ресторанов остаётся без изменений.': 'Bölmələrin fəaliyyətini yoxlamaq mümkün olmadı. Restoran siyahısı dəyişməyib.',
     },
     'English': {
+      'Данные на': 'Data as of',
+      'Обновляем…': 'Updating…',
+      'Не удалось обновить данные. Показаны сохранённые результаты.': 'Could not refresh. Showing saved results.',
       'История заказа': 'Order history',
       'Подтверждённые события кассового плагина': 'Verified POS plugin events',
       'Событие заказа': 'Order event',

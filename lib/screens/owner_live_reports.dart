@@ -10,6 +10,7 @@ import '../core/owner_push_service.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_l10n.dart';
 import '../ui/owner_components.dart';
+import '../ui/owner_data_freshness.dart';
 import '../ui/owner_audit_event_tile.dart';
 
 /// All screens in this file render authoritative, CHAIN-scoped server results.
@@ -47,49 +48,28 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
     table = widget.kind == 'cash';
   }
 
-  static String _fmt(DateTime date) =>
-      '${date.year.toString().padLeft(4, '0')}-'
-      '${date.month.toString().padLeft(2, '0')}-'
-      '${date.day.toString().padLeft(2, '0')}';
-
-  Map<String, String> _dates(OwnerState state) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    if (state.period == 'Период' &&
-        state.customFrom != null && state.customTo != null) {
-      return {
-        'from': _fmt(state.customFrom!),
-        'to': _fmt(state.customTo!),
-      };
-    }
-    final end = state.period == 'Вчера'
-        ? today.subtract(const Duration(days: 1)) : today;
-    final start = switch (state.period) {
-      '7 дней' => end.subtract(const Duration(days: 6)),
-      'Месяц' => end.subtract(const Duration(days: 29)),
-      _ => end,
-    };
-    return {'from': _fmt(start), 'to': _fmt(end)};
-  }
+  int _cacheEpoch = -1;
+  Map<String, String> _dates(OwnerState state) => state.reportDates();
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final state = OwnerScope.of(context);
-    final ids = state.selectedRestaurantIds.toList()..sort();
-    final key = '${state.workspaceId}|${ids.join(',')}|${state.period}|'
-        '${state.customFrom?.toIso8601String() ?? ''}|'
-        '${state.customTo?.toIso8601String() ?? ''}|${widget.kind}';
-    if (key != _scopeKey) {
+    final key = state.reportCacheKey(widget.kind);
+    if (key != _scopeKey || _cacheEpoch != state.cacheEpoch) {
+      final accessChanged = key == _scopeKey &&
+          _cacheEpoch >= 0 && _cacheEpoch != state.cacheEpoch;
+      _cacheEpoch = state.cacheEpoch;
       ++_generation;
       _scopeKey = key;
-      final cache=state.cachedResponse('report:$key');
+      final cache=state.cachedResponse(key);
       data=cache;
-      loading=cache==null;
-      error=null;
-      if(cache==null) {
+      loading=cache==null && !accessChanged;
+      error=accessChanged ? 'Доступ изменился. Обновите данные.' : null;
+      if (!accessChanged && state.cachedResponse(key,
+          maxAge: const Duration(seconds: 60)) == null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if(mounted) _load();
+          if(mounted && _scopeKey == key) _load();
         });
       }
     }
@@ -112,8 +92,8 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
     setState(() {
       loading = true;
       error = null;
-      data = null;
     });
+    final cacheKey = _scopeKey;
     final dates = _dates(owner);
     try {
       final query = switch (widget.kind) {
@@ -143,9 +123,10 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         workspaceId: workspaceId,
         departmentIds: ids,
         query: args,
+        retryTransient: false,
       );
       if (!mounted || seq != _generation) return;
-      owner.rememberResponse('report:$_scopeKey',result);
+      owner.rememberResponse(cacheKey,result);
       setState(() {
         data = result;
         loading = false;
@@ -153,6 +134,10 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
       });
     } catch (e) {
       if (!mounted || seq != _generation) return;
+      if (e is OwnerApiException && (e.status == 401 || e.status == 403)) {
+        owner.discardUnauthorizedSnapshots();
+        data = null;
+      }
       setState(() {
         loading = false;
         lastLoadSeconds=watch.elapsedMilliseconds / 1000;
@@ -819,12 +804,12 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         if (widget.kind != 'inventory' && widget.kind != 'notifications')
           const OwnerPeriodPicker(),
         const SizedBox(height: 14),
-        if (loading)
+        if (loading && data == null)
           const OwnerCard(child: Padding(
             padding: EdgeInsets.all(22),
             child: Center(child: CircularProgressIndicator()),
           ))
-        else if (error != null)
+        else if (error != null && data == null)
           OwnerCard(child: Column(children: [
             const Icon(Icons.cloud_off_outlined, size: 30,
                 color: OwnerPalette.error),
@@ -834,7 +819,13 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
             FilledButton.icon(onPressed: _load,
                 icon: const Icon(Icons.refresh), label: const OwnerText('Повторить')),
           ]))
-        else if (data != null)
+        if (data != null) ...[
+          OwnerDataFreshness(data: data!, updating: loading),
+          if (error != null) const Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: OwnerText('Не удалось обновить данные. Показаны сохранённые результаты.',
+              style: TextStyle(fontSize: 12, color: OwnerPalette.warning)),
+          ),
           if (widget.kind == 'inventory') _inventoryView(context)
           else if (widget.kind == 'notifications') _notificationsView(context)
           else if (widget.kind == 'orders') _ordersView(context)
@@ -842,6 +833,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
           else if (widget.kind == 'pnl') _pnlView(context)
           else if (widget.kind == 'discounts') _discountsView(context)
           else _olapView(context, owner),
+        ],
       ]),
     );
   }
