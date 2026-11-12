@@ -626,7 +626,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
             pdfTooltip: OwnerL10n.tr(state.language, 'Экспорт в PDF'),
           ),
         if (message.role == 'assistant' &&
-            message.sourceWarnings.isNotEmpty)
+            message.sourceWarnings.isNotEmpty &&
+            (message.report != null || message.chart != null || message.charts.isNotEmpty))
           Padding(
             padding: const EdgeInsets.only(left: 8, top: 5, bottom: 7),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [

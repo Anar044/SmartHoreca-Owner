@@ -328,11 +328,19 @@ class OwnerState extends ChangeNotifier {
     stage = availableRestaurants.isEmpty || selectedRestaurants.isEmpty
         ? OwnerStage.restaurants
         : OwnerStage.shell;
-    unawaited(loadRestaurantActivity());
     if (stage == OwnerStage.shell) {
-      unawaited(loadSummary());
+      // The accounting server queues heavy reads. Give the visible dashboard
+      // priority over the 30-day background restaurant-activity scan.
+      unawaited(loadSummary().then((_) {
+        if (live && workspaceId == id && !activityLoading &&
+            departmentEvidence.isEmpty) {
+          unawaited(loadRestaurantActivity());
+        }
+      }));
       unawaited(OwnerPushService.syncScope(id,pushRestaurantIds)
         .catchError((Object _) {}));
+    } else {
+      unawaited(loadRestaurantActivity());
     }
   }
 

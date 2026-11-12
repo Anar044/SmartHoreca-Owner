@@ -5,6 +5,7 @@ import 'package:http_parser/http_parser.dart';
 import 'owner_voice_recording.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'owner_session_policy.dart';
+import 'owner_read_transport.dart';
 
 class OwnerApiException implements Exception {
   final String code;
@@ -17,6 +18,7 @@ class OwnerApiException implements Exception {
 }
 
 class OwnerBackend {
+  static OwnerReadTransport _transport = OwnerReadTransport();
   static const apiBase = String.fromEnvironment(
     'SH_API_BASE_URL', defaultValue: 'https://smarthoreca.pages.dev');
   static const supabaseUrl = String.fromEnvironment('SH_SUPABASE_URL');
@@ -127,6 +129,8 @@ class OwnerBackend {
   }
 
   static Future<void> signOut() async {
+    _transport.close();
+    _transport = OwnerReadTransport();
     // Only this phone: signing out must not log the owner out of other
     // Smart Horeca sessions on the web or another device.
     if (configured) await client.auth.signOut(scope: SignOutScope.local);
@@ -195,7 +199,7 @@ class OwnerBackend {
           'HTTPS_REQUIRED', 'Требуется защищённое соединение HTTPS.', 400);
     }
     try {
-      final result = await http.post(uri, headers: {
+      final result = await _transport.post(uri, headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',
@@ -306,8 +310,7 @@ class OwnerBackend {
     var renewedAfter401 = false;
     while (true) {
       try {
-        final result = await http.get(uri, headers: headers)
-            .timeout(const Duration(seconds: 50));
+        final result = await _transport.get(uri, headers: headers);
         if (result.statusCode == 401 && !renewedAfter401) {
           renewedAfter401 = true;
           token = await freshAccessToken(forceRefresh: true);
