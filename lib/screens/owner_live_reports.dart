@@ -818,7 +818,7 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
             const SizedBox(height: 10),
             FilledButton.icon(onPressed: _load,
                 icon: const Icon(Icons.refresh), label: const OwnerText('Повторить')),
-          ]))
+          ])),
         if (data != null) ...[
           OwnerDataFreshness(data: data!, updating: loading),
           if (error != null) const Padding(
