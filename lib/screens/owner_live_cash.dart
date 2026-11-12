@@ -4,6 +4,7 @@ import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
 import '../ui/owner_components.dart';
 import '../ui/owner_text.dart';
+import '../ui/owner_data_freshness.dart';
 import 'owner_live_reports.dart';
 
 /// POS operational cash status: uses /api/mobile/v1/cash, the same source as
@@ -16,6 +17,7 @@ class OwnerLiveCashScreen extends StatefulWidget {
 
 class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
   String scope = '';
+  int _cacheEpoch = -1;
   int generation = 0;
   bool loading = true;
   double? lastLoadSeconds;
@@ -28,19 +30,22 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final owner = OwnerScope.of(context);
-    final ids = owner.selectedRestaurantIds.toList()..sort();
-    final key = '${owner.workspaceId}:${ids.join(',')}';
-    if (key != scope) {
+    final key = owner.cashCacheKey;
+    if (key != scope || _cacheEpoch != owner.cacheEpoch) {
+      final accessChanged = key == scope &&
+          _cacheEpoch >= 0 && _cacheEpoch != owner.cacheEpoch;
+      _cacheEpoch = owner.cacheEpoch;
       scope = key;
       // Use a same-tenant, same-department recent snapshot when revisiting
       // Cash. Never flash previous organization data during a scope change.
       ++generation;
-      data = owner.cachedResponse('cash:$key');
-      error = null;
-      loading = data == null;
-      if (data == null) {
+      data = owner.cachedResponse(key);
+      error = accessChanged ? 'Доступ изменился. Обновите данные.' : null;
+      loading = data == null && !accessChanged;
+      if (!accessChanged && owner.cachedResponse(key,
+          maxAge: const Duration(seconds: 30)) == null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _load();
+          if (mounted && scope == key) _load();
         });
       }
     }
@@ -64,7 +69,7 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
         workspaceId: workspace, departmentIds: ids,
         retryTransient: false); // fail promptly instead of tripling POS load
       if (!mounted || seq != generation) return;
-      owner.rememberResponse('cash:$scope', payload);
+      owner.rememberResponse(scope, payload);
       setState(() {
         loading = false;
         lastLoadSeconds = watch.elapsedMilliseconds / 1000;
@@ -72,6 +77,10 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
       });
     } catch (e) {
       if (!mounted || seq != generation) return;
+      if (e is OwnerApiException && (e.status == 401 || e.status == 403)) {
+        owner.discardUnauthorizedSnapshots();
+        data = null;
+      }
       setState(() { loading = false;
         lastLoadSeconds = watch.elapsedMilliseconds / 1000;
         error = e is OwnerApiException
@@ -121,10 +130,7 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
       const OwnerRestaurantPicker(),
       const SizedBox(height: 9),
       if (data != null) ...[
-        Text('Данные на: ${lastSeen(data?['updatedAt'])} · '
-          'Потяните вниз, чтобы обновить',
-          style:TextStyle(fontSize:11,color:OwnerPalette.muted(context))),
-        const SizedBox(height:9),
+        OwnerDataFreshness(data: data!, updating: loading),
       ],
       if (loading && data == null)
         const OwnerCard(child: Padding(
@@ -146,13 +152,6 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
             icon: const Icon(Icons.refresh), label: const OwnerText('Повторить')),
         ]))
       else ...[
-        if (loading) ...[
-          const LinearProgressIndicator(),
-          const SizedBox(height: 8),
-          const OwnerText('Обновляем данные подключённых касс…',
-            style: TextStyle(fontSize: 12)),
-          const SizedBox(height: 12),
-        ],
         if (error != null) ...[
           const OwnerCard(child: OwnerText('Не удалось обновить данные. '
             'Ниже оставлены результаты последнего успешного запроса.',
