@@ -10,6 +10,15 @@ on:
     paths:
       - '.github/workflows/testflight-release.yml'
   workflow_dispatch:
+    inputs:
+      assistant_origin:
+        description: 'Verified shared AI backend (production or Owner parity preview)'
+        required: true
+        default: 'https://smarthoreca.pages.dev'
+        type: choice
+        options:
+          - 'https://smarthoreca.pages.dev'
+          - 'https://codex-owner-ai-web-parity.smarthoreca.pages.dev'
 
 permissions:
   contents: read
@@ -25,6 +34,7 @@ jobs:
       APPSTORE_ISSUER_ID: ${{ vars.APPSTORE_ISSUER_ID }}
       APPSTORE_API_KEY_ID: ${{ vars.APPSTORE_API_KEY_ID }}
       SH_OWNER_API_ORIGIN: ${{ vars.SH_OWNER_API_ORIGIN }}
+      SH_OWNER_ASSISTANT_ORIGIN: ${{ inputs.assistant_origin || 'https://smarthoreca.pages.dev' }}
       SH_FIREBASE_IOS_API_KEY: ${{ vars.SH_FIREBASE_IOS_API_KEY }}
       SH_FIREBASE_IOS_APP_ID: ${{ vars.SH_FIREBASE_IOS_APP_ID }}
       SH_FIREBASE_PROJECT_ID: ${{ vars.SH_FIREBASE_PROJECT_ID }}
@@ -112,6 +122,16 @@ jobs:
           ORIGIN="${SH_OWNER_API_ORIGIN:-https://feature-owner-mobile-readonl.smarthoreca.pages.dev}"
           [[ "$ORIGIN" =~ ^https://[A-Za-z0-9.-]+/?$ ]] || exit 1
           ORIGIN="${ORIGIN%/}"
+          AI_ORIGIN="${SH_OWNER_ASSISTANT_ORIGIN%/}"
+          if [[ "$AI_ORIGIN" != "https://smarthoreca.pages.dev" &&
+                "$AI_ORIGIN" != "https://codex-owner-ai-web-parity.smarthoreca.pages.dev" ]]; then
+            echo "::error::Use a verified shared AI backend origin."
+            exit 1
+          fi
+          AI_STATUS="$(curl --silent --show-error --max-time 20 -w '%{http_code}' \
+            "$AI_ORIGIN/api/mobile/v1/assistant?action=status" -o /tmp/sh-owner-assistant-probe.json)"
+          [[ "$AI_STATUS" == "401" ]] || { echo "::error::Shared AI endpoint must require authentication (HTTP 401)."; exit 1; }
+          node -e "const p=require('/tmp/sh-owner-assistant-probe.json'); if(p.success!==false||!p.code) process.exit(1)"
           if [[ "$ORIGIN" != "https://feature-owner-mobile-readonl.smarthoreca.pages.dev" &&
                 "$ORIGIN" != "https://smarthoreca.pages.dev" ]]; then
             echo "::error::Use a verified Smart Horeca mobile API origin; unexpected host."
@@ -140,6 +160,7 @@ jobs:
           const defs = {
             SH_ENABLE_DEMO: 'false',
             SH_API_BASE_URL: process.env.SH_OWNER_API_ORIGIN,
+            SH_ASSISTANT_API_BASE_URL: process.env.SH_OWNER_ASSISTANT_ORIGIN,
             SH_SUPABASE_URL: url,
             SH_SUPABASE_PUBLISHABLE_KEY: key,
             SH_FIREBASE_IOS_API_KEY: process.env.SH_FIREBASE_IOS_API_KEY||'',

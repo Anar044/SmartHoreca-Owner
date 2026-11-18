@@ -7,6 +7,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import '../core/owner_voice_locale.dart';
 import '../core/owner_voice_recording.dart';
 import '../core/owner_assistant_language.dart';
+import '../core/owner_assistant_client.dart';
 import '../core/owner_assistant_charts.dart';
 import '../core/owner_ai_export.dart';
 import 'owner_assistant_visuals.dart';
@@ -499,19 +500,23 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       sending = true;
     });
     try {
-      final result = await OwnerBackend.postJson(
-        '/api/mobile/v1/assistant',
-        workspaceId: workspaceId,
-        departmentIds: restaurantIds,
-        payload: {
+      final client = OwnerAssistantClient(
+        post: (payload) => OwnerBackend.postJson('/api/mobile/v1/assistant',
+          workspaceId: workspaceId, departmentIds: restaurantIds,
+          payload: payload, timeout: OwnerAssistantClient.postTimeout),
+        read: (query) => OwnerBackend.getJson('/api/mobile/v1/assistant',
+          workspaceId: workspaceId, departmentIds: restaurantIds,
+          query: query.map((k,v) => MapEntry(k,v.toString())),
+          retryTransient: false),
+      );
+      final result = await client.send({
           'action': 'message',
           'message': OwnerAssistantLanguage.messageForServer(
             message, owner.language),
           'language': 'auto',
           'responseLanguage': 'auto',
           if (conversationId != null) 'conversationId': conversationId,
-        },
-      );
+        }, isActive: () => mounted && current == _generation);
       if (!mounted || current != _generation) return;
       setState(() {
         conversationId = result['conversationId']?.toString();

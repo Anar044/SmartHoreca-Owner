@@ -21,6 +21,11 @@ class OwnerBackend {
   static OwnerReadTransport _transport = OwnerReadTransport();
   static const apiBase = String.fromEnvironment(
     'SH_API_BASE_URL', defaultValue: 'https://smarthoreca.pages.dev');
+  // Share the website AI engine; all other Owner APIs keep their current host.
+  static const assistantApiBase = String.fromEnvironment(
+    'SH_ASSISTANT_API_BASE_URL', defaultValue: 'https://smarthoreca.pages.dev');
+  static Uri endpoint(String path) => Uri.parse(
+    '${path == '/api/mobile/v1/assistant' ? assistantApiBase : apiBase}$path');
   static const supabaseUrl = String.fromEnvironment('SH_SUPABASE_URL');
   static const supabasePublishableKey =
       String.fromEnvironment('SH_SUPABASE_PUBLISHABLE_KEY');
@@ -187,13 +192,14 @@ class OwnerBackend {
     required String workspaceId,
     required Iterable<String> departmentIds,
     required Map<String, dynamic> payload,
+    Duration timeout = const Duration(seconds: 120),
   }) async {
     if (!configured) {
       throw const OwnerApiException('NOT_CONFIGURED',
           'Не настроено подключение приложения.', 503);
     }
     final token = await freshAccessToken();
-    final uri = Uri.parse('$apiBase$path');
+    final uri = endpoint(path);
     if (uri.scheme != 'https') {
       throw const OwnerApiException(
           'HTTPS_REQUIRED', 'Требуется защищённое соединение HTTPS.', 400);
@@ -205,7 +211,7 @@ class OwnerBackend {
         'Authorization': 'Bearer $token',
         'X-SH-Workspace-Id': workspaceId,
         'X-SH-Department-Ids': (departmentIds.toList()..sort()).join(','),
-      }, body: jsonEncode(payload)).timeout(const Duration(seconds: 120));
+      }, body: jsonEncode(payload)).timeout(timeout);
       // AI POST is not retried automatically: resending could create duplicate
       // messages if the server processed the first request.
       return _decodeResponse(result);
@@ -286,7 +292,7 @@ class OwnerBackend {
           'Не настроено подключение приложения.', 503);
     }
     var token = await freshAccessToken();
-    final uri = Uri.parse('$apiBase$path')
+    final uri = endpoint(path)
         .replace(queryParameters: query?.isEmpty == true ? null : query);
     if (uri.scheme != 'https') {
       throw const OwnerApiException(
