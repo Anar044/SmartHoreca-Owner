@@ -15,13 +15,13 @@ class OwnerAssistantClient {
     DateTime Function()? clock,
     Future<void> Function(Duration)? delay,
     String Function()? requestId,
-    this.budget = const Duration(minutes: 5),
+    this.budget = const Duration(minutes: 7),
     this.pollInterval = const Duration(seconds: 3),
   })  : clock = clock ?? DateTime.now,
         delay = delay ?? Future<void>.delayed,
         requestId = requestId ?? newRequestId;
 
-  static const postTimeout = Duration(seconds: 270);
+  static const postTimeout = Duration(seconds: 390);
   final AssistantCall post;
   final AssistantCall read;
   final DateTime Function() clock;

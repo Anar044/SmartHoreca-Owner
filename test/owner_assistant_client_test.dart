@@ -26,6 +26,27 @@ void main() {
     expect(received?['answer'], 'verified');
   });
 
+  testWidgets(
+      'a queued heavy report can finish after the former 270-second transport cap',
+      (tester) async {
+    Map<String, dynamic>? received;
+    final client = OwnerAssistantClient(
+      post: (_) => Future.delayed(const Duration(seconds: 330),
+          () => {'success': true, 'answer': 'verified heavy report'}),
+      read: (_) async =>
+          throw StateError('successful submission must not poll'),
+      requestId: () => id,
+    );
+    final work = client
+        .send({'action': 'message', 'message': 'cost >90%, six months'}).then(
+            (v) => received = v);
+    await tester.pump(const Duration(seconds: 271));
+    expect(received, isNull);
+    await tester.pump(const Duration(seconds: 60));
+    await work;
+    expect(received?['answer'], 'verified heavy report');
+  });
+
   test('transport loss reconciles the exact saved answer without a second POST',
       () async {
     var now = DateTime.utc(2026, 11, 18), posts = 0, polls = 0;
