@@ -159,17 +159,36 @@ class _OwnerChart extends StatelessWidget {
   }
 }
 
-class _OwnerReport extends StatelessWidget {
+class _OwnerReport extends StatefulWidget {
   final Map<String, dynamic> data;
   const _OwnerReport(this.data);
+
+  @override
+  State<_OwnerReport> createState() => _OwnerReportState();
+}
+
+class _OwnerReportState extends State<_OwnerReport> {
+  static const _pageSize = 20;
+  int _offset = 0;
+
+  @override
+  void didUpdateWidget(covariant _OwnerReport oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.data, widget.data)) _offset = 0;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final data = widget.data;
     final cols = data['columns'] is List
         ? (data['columns'] as List).take(12).toList()
         : <dynamic>[];
     final rows = data['rows'] is List
-        ? (data['rows'] as List).take(45).toList()
-        : <dynamic>[];
+        ? (data['rows'] as List).whereType<List>().toList()
+        : <List>[];
+    final paged = rows.length > 45;
+    final page = paged ? rows.skip(_offset).take(_pageSize).toList() : rows;
+    final localizations = MaterialLocalizations.of(context);
     final notes = data['notes'] is List
         ? (data['notes'] as List).take(6).toList()
         : <dynamic>[];
@@ -195,22 +214,49 @@ class _OwnerReport extends StatelessWidget {
             ])),
       if (cols.isNotEmpty) ...[
         const SizedBox(height: 8),
+        if (paged)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                tooltip: localizations.previousPageTooltip,
+                onPressed: _offset == 0
+                    ? null
+                    : () => setState(() => _offset -= _pageSize),
+                icon: const Icon(Icons.chevron_left),
+              ),
+              Flexible(
+                child: Text(
+                  '${_offset + 1}–${_offset + page.length} / ${rows.length}',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              IconButton(
+                tooltip: localizations.nextPageTooltip,
+                onPressed: _offset + page.length == rows.length
+                    ? null
+                    : () => setState(() => _offset += _pageSize),
+                icon: const Icon(Icons.chevron_right),
+              ),
+            ],
+          ),
         SingleChildScrollView(scrollDirection: Axis.horizontal,
           child: DataTable(
+            horizontalMargin: 12,
+            columnSpacing: 20,
             columns: [
               for (final col in cols)
-                DataColumn(label: Text(
+                DataColumn(numeric: col is Map && col['align'] == 'right', label: Text(
                   col is Map ? (col['label'] ?? '').toString() :
                       col.toString(),
                   style: const TextStyle(fontWeight: FontWeight.bold))),
             ],
             rows: [
-              for (final row in rows)
-                if (row is List)
-                  DataRow(cells: [
-                    for (var i = 0; i < cols.length; i++)
-                      DataCell(Text(i < row.length ? row[i].toString() : '')),
-                  ]),
+              for (final row in page)
+                DataRow(cells: [
+                  for (var i = 0; i < cols.length; i++)
+                    DataCell(Text(i < row.length ? row[i].toString() : '')),
+                ]),
             ],
           ),
         ),
