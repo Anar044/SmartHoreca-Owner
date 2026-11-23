@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 
 import '../core/owner_backend.dart';
@@ -293,7 +294,9 @@ class _ReportEditorState extends State<_ReportEditor> {
           );
     if (filter == null ||
         !mounted ||
-        !_currentWorkspace(context, widget.client)) return;
+        !_currentWorkspace(context, widget.client)) {
+      return;
+    }
     setState(() {
       if (index == null) {
         _filters.add(filter);
@@ -657,8 +660,7 @@ class _FilterChoicesState extends State<_FilterChoices> {
     final owner = OwnerScope.of(context);
     final active = owner.live && owner.workspaceId == widget.client.workspaceId;
     final ids = active ? owner.selectedRestaurantIds : <String>{};
-    if (_restaurants?.length == ids.length && ids.containsAll(_restaurants!))
-      return;
+    if (setEquals(_restaurants, ids)) return;
     _restaurants = ids;
     _labels.clear();
     _load();
