@@ -126,6 +126,21 @@ class OwnerOlapTable {
 
   const OwnerOlapTable(this.columns, this.rows);
 
+  OwnerOlapTable onlyFields(Iterable<String> fields) {
+    final selected = fields.toSet();
+    final indices = [
+      for (var index = 0; index < columns.length; index++)
+        if (selected.contains(columns[index].name)) index,
+    ];
+    if (indices.length == columns.length) return this;
+    return OwnerOlapTable(
+      [for (final index in indices) columns[index]],
+      [
+        for (final row in rows) [for (final index in indices) row[index]]
+      ],
+    );
+  }
+
   factory OwnerOlapTable.fromJson(Map<String, dynamic> json) => OwnerOlapTable(
         (json['columns'] as List)
             .cast<Map<String, dynamic>>()

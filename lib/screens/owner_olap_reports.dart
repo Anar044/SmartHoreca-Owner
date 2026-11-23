@@ -932,7 +932,9 @@ class _ReportViewState extends State<_ReportView> {
     try {
       final result = await widget.client.run(widget.report, _restaurants,
           OwnerState.formatDate(dates.start), OwnerState.formatDate(dates.end));
-      if (mounted && version == _scopeVersion) setState(() => _result = result);
+      final table = result
+          .onlyFields([...widget.report.groups, ...widget.report.measures]);
+      if (mounted && version == _scopeVersion) setState(() => _result = table);
     } catch (error) {
       if (mounted && version == _scopeVersion) {
         setState(() => _error = _message(error));
@@ -952,52 +954,59 @@ class _ReportViewState extends State<_ReportView> {
     final selected = _dates!;
     final dateLabel = '${OwnerState.formatDate(selected.start)} – '
         '${OwnerState.formatDate(selected.end)}';
+    final controls = <Widget>[
+      const OwnerRestaurantPicker(),
+      const SizedBox(height: 12),
+      const OwnerHeading('Период отчёта'),
+      Wrap(spacing: 8, runSpacing: 6, children: [
+        ChoiceChip(
+          label: const OwnerText('Прошлый месяц'),
+          selected: selected == lastMonth,
+          onSelected: _loading ? null : (_) => _setDates(lastMonth),
+        ),
+        OutlinedButton.icon(
+          onPressed: _loading ? null : _pickDates,
+          icon: const Icon(Icons.calendar_month_outlined),
+          label: Text(dateLabel),
+        ),
+      ]),
+      const SizedBox(height: 10),
+      FilledButton.icon(
+        onPressed: _loading || _restaurants.isEmpty ? null : _run,
+        icon: const Icon(Icons.table_rows_outlined),
+        label: OwnerText(_loading ? 'Формируем отчёт…' : 'Показать'),
+      ),
+      if (_restaurants.isEmpty)
+        const OwnerText('Выберите рестораны для отчёта.'),
+      const SizedBox(height: 12),
+      if (_loading) const LinearProgressIndicator(),
+      if (_error != null) _OlapError(_error!),
+    ];
+    final result = _result;
     return Scaffold(
       appBar: AppBar(title: Text(widget.report.name)),
       body: !_currentWorkspace(context, widget.client)
           ? const Center(
               child: OwnerText('Нет доступа к выбранной организации.'))
-          : OwnerScreenFrame(children: [
-              const OwnerRestaurantPicker(),
-              const SizedBox(height: 12),
-              const OwnerHeading('Период отчёта'),
-              Wrap(spacing: 8, runSpacing: 6, children: [
-                ChoiceChip(
-                  label: const OwnerText('Прошлый месяц'),
-                  selected: selected == lastMonth,
-                  onSelected: _loading ? null : (_) => _setDates(lastMonth),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _loading ? null : _pickDates,
-                  icon: const Icon(Icons.calendar_month_outlined),
-                  label: Text(dateLabel),
-                ),
-              ]),
-              const SizedBox(height: 10),
-              FilledButton.icon(
-                onPressed: _loading || _restaurants.isEmpty ? null : _run,
-                icon: const Icon(Icons.table_rows_outlined),
-                label: OwnerText(_loading ? 'Формируем отчёт…' : 'Показать'),
-              ),
-              if (_restaurants.isEmpty)
-                const OwnerText('Выберите рестораны для отчёта.'),
-              const SizedBox(height: 12),
-              if (_loading) const LinearProgressIndicator(),
-              if (_error != null) _OlapError(_error!),
-              if (_result case final result?)
-                result.rows.isEmpty
-                    ? const OwnerCard(
-                        child: OwnerText('Нет данных для выбранного периода.'))
-                    : _ReportTable(table: result),
-            ]),
+          : result != null &&
+                  result.rows.isNotEmpty &&
+                  result.columns.isNotEmpty
+              ? _ReportTable(table: result, controls: controls)
+              : OwnerScreenFrame(children: [
+                  ...controls,
+                  if (result != null)
+                    const OwnerCard(
+                        child: OwnerText('Нет данных для выбранного периода.')),
+                ]),
     );
   }
 }
 
 class _ReportTable extends StatefulWidget {
   final OwnerOlapTable table;
+  final List<Widget> controls;
 
-  const _ReportTable({required this.table});
+  const _ReportTable({required this.table, required this.controls});
 
   @override
   State<_ReportTable> createState() => _ReportTableState();
@@ -1005,12 +1014,10 @@ class _ReportTable extends StatefulWidget {
 
 class _ReportTableState extends State<_ReportTable> {
   final _horizontal = ScrollController();
-  final _vertical = ScrollController();
 
   @override
   void dispose() {
     _horizontal.dispose();
-    _vertical.dispose();
     super.dispose();
   }
 
@@ -1023,80 +1030,112 @@ class _ReportTableState extends State<_ReportTable> {
     return value.toString();
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _tableSliver(BuildContext context, double width) {
     final table = widget.table;
-    return OwnerCard(child: LayoutBuilder(builder: (context, constraints) {
-      final columnWidth = (constraints.maxWidth / table.columns.length)
-          .clamp(128.0, 360.0)
-          .toDouble();
-      Widget line(List<String> values, {bool heading = false}) =>
-          Row(children: [
-            for (var index = 0; index < values.length; index++)
-              SizedBox(
-                  width: columnWidth,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 10, horizontal: 10),
-                    child: Text(
-                      values[index],
-                      textAlign: table.columns[index].measure
-                          ? TextAlign.end
-                          : TextAlign.start,
-                      style: heading
-                          ? const TextStyle(fontWeight: FontWeight.w700)
-                          : null,
-                    ),
-                  )),
-          ]);
-      return Scrollbar(
-        controller: _horizontal,
-        thumbVisibility: true,
-        notificationPredicate: (notice) =>
-            notice.metrics.axis == Axis.horizontal,
-        child: SingleChildScrollView(
-          controller: _horizontal,
-          scrollDirection: Axis.horizontal,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: SizedBox(
-              width: columnWidth * table.columns.length,
-              child: Column(children: [
-                ColoredBox(
-                  color: OwnerPalette.raised(context),
-                  child: line(
-                      table.columns
-                          .map((column) => column.restaurant
-                              ? _tr(context, 'Ресторан')
-                              : column.title)
-                          .toList(),
-                      heading: true),
+    final columnWidth = width / table.columns.length;
+    Widget line(List<String> values, {bool heading = false}) => Row(children: [
+          for (var index = 0; index < values.length; index++)
+            SizedBox(
+              width: columnWidth,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
+                child: Text(
+                  values[index],
+                  textAlign: table.columns[index].measure
+                      ? TextAlign.end
+                      : TextAlign.start,
+                  style: heading
+                      ? const TextStyle(fontWeight: FontWeight.w700)
+                      : null,
                 ),
-                SizedBox(
-                  height:
-                      (table.rows.length * 56.0).clamp(56.0, 380.0).toDouble(),
-                  child: Scrollbar(
-                    controller: _vertical,
-                    child: ListView.separated(
-                      controller: _vertical,
-                      primary: false,
-                      itemCount: table.rows.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (_, index) {
-                        final row = table.rows[index];
-                        return line([
-                          for (var cell = 0; cell < row.length; cell++)
-                            _value(row[cell], table.columns[cell]),
-                        ]);
-                      },
+              ),
+            ),
+        ]);
+    return SliverMainAxisGroup(slivers: [
+      SliverToBoxAdapter(
+          child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: OwnerPalette.raised(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+        ),
+        child: line(
+            table.columns
+                .map((column) =>
+                    column.restaurant ? _tr(context, 'Ресторан') : column.title)
+                .toList(),
+            heading: true),
+      )),
+      SliverList.builder(
+        itemCount: table.rows.length,
+        itemBuilder: (context, index) {
+          final row = table.rows[index];
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              color: OwnerPalette.surface(context),
+              border: Border(
+                  top: BorderSide(color: Theme.of(context).dividerColor)),
+            ),
+            child: line([
+              for (var cell = 0; cell < row.length; cell++)
+                _value(row[cell], table.columns[cell]),
+            ]),
+          );
+        },
+      ),
+    ]);
+  }
+
+  Widget _controlsSliver() => SliverPadding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        sliver: SliverToBoxAdapter(
+            child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: widget.controls,
+        )),
+      );
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        top: false,
+        child: LayoutBuilder(builder: (context, constraints) {
+          final available = constraints.maxWidth - 32;
+          final minimum = 112.0 * widget.table.columns.length;
+          if (minimum <= available) {
+            return CustomScrollView(slivers: [
+              _controlsSliver(),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                sliver: _tableSliver(context, available),
+              ),
+            ]);
+          }
+          return NestedScrollView(
+            headerSliverBuilder: (_, __) => [_controlsSliver()],
+            body: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Scrollbar(
+                controller: _horizontal,
+                thumbVisibility: true,
+                notificationPredicate: (notice) =>
+                    notice.metrics.axis == Axis.horizontal,
+                child: SingleChildScrollView(
+                  controller: _horizontal,
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: minimum,
+                    child: CustomScrollView(
+                      primary: true,
+                      slivers: [
+                        _tableSliver(context, minimum),
+                        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                      ],
                     ),
                   ),
                 ),
-              ]),
+              ),
             ),
-          ),
-        ),
+          );
+        }),
       );
-    }));
-  }
 }
