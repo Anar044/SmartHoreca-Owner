@@ -137,7 +137,7 @@ void main() {
         body: SingleChildScrollView(
           child: OwnerAssistantVisuals(report: {
             'title': 'Баланс по поставщикам',
-            'columns': [
+            'columns': const [
               {'label': 'Поставщик'},
               {'label': 'Задолженность', 'align': 'right'},
             ],
