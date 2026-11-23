@@ -872,6 +872,7 @@ class _ReportView extends StatefulWidget {
 
 class _ReportViewState extends State<_ReportView> {
   DateTimeRange? _dates;
+  String? _datePreset;
   Set<String> _restaurants = {};
   OwnerOlapTable? _result;
   String? _error;
@@ -898,11 +899,97 @@ class _ReportViewState extends State<_ReportView> {
     }
   }
 
-  void _setDates(DateTimeRange range) => setState(() {
-        _dates = range;
+  void _setDates(DateTimeRange range, [String? preset]) {
+    if (_dates == range && _datePreset == preset) return;
+    setState(() {
+      if (_dates != range) {
         _result = null;
         _error = null;
-      });
+      }
+      _dates = range;
+      _datePreset = preset;
+    });
+  }
+
+  Map<String, DateTimeRange> _presets(DateTime today) {
+    final yesterday = DateUtils.addDaysToDate(today, -1);
+    return {
+      'Сегодня': DateTimeRange(start: today, end: today),
+      'Вчера': DateTimeRange(start: yesterday, end: yesterday),
+      '7 дней':
+          DateTimeRange(start: DateUtils.addDaysToDate(today, -6), end: today),
+      'Этот месяц':
+          DateTimeRange(start: DateTime(today.year, today.month), end: today),
+      'Прошлый месяц': DateTimeRange(
+        start: DateTime(today.year, today.month - 1),
+        end: DateTime(today.year, today.month, 0),
+      ),
+    };
+  }
+
+  String _displayRange(DateTimeRange range) {
+    String date(DateTime value) => '${value.day.toString().padLeft(2, '0')}.'
+        '${value.month.toString().padLeft(2, '0')}.${value.year}';
+    return range.start == range.end
+        ? date(range.start)
+        : '${date(range.start)} – ${date(range.end)}';
+  }
+
+  String? _selectedPreset(Map<String, DateTimeRange> presets) {
+    if (presets[_datePreset] == _dates) return _datePreset;
+    for (final preset in presets.entries) {
+      if (preset.value == _dates) return preset.key;
+    }
+    return null;
+  }
+
+  Future<void> _choosePeriod() async {
+    final presets = _presets(DateUtils.dateOnly(DateTime.now()));
+    final active = _selectedPreset(presets);
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: FractionallySizedBox(
+          heightFactor: .8,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: OwnerHeading('Период отчёта'),
+              ),
+              for (final preset in presets.entries)
+                ListTile(
+                  title: OwnerText(preset.key),
+                  subtitle: Text(_displayRange(preset.value)),
+                  selected: preset.key == active,
+                  trailing:
+                      preset.key == active ? const Icon(Icons.check) : null,
+                  onTap: () => Navigator.pop(sheetContext, preset.key),
+                ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.calendar_month_outlined),
+                title: const OwnerText('Выбрать даты'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.pop(sheetContext, 'Выбрать даты'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted || choice == null) return;
+    if (choice == 'Выбрать даты') {
+      await _pickDates();
+    } else {
+      _setDates(presets[choice]!, choice);
+    }
+  }
 
   Future<void> _pickDates() async {
     final today = DateUtils.dateOnly(DateTime.now());
@@ -919,6 +1006,7 @@ class _ReportViewState extends State<_ReportView> {
       initialDateRange: initial,
       helpText: _tr(context, 'Период отчёта'),
       saveText: _tr(context, 'Применить'),
+      cancelText: _tr(context, 'Отмена'),
     );
     if (mounted && range != null) _setDates(range);
   }
@@ -949,29 +1037,25 @@ class _ReportViewState extends State<_ReportView> {
   @override
   Widget build(BuildContext context) {
     final today = DateUtils.dateOnly(DateTime.now());
-    final lastMonth = DateTimeRange(
-      start: DateTime(today.year, today.month - 1, 1),
-      end: DateTime(today.year, today.month, 0),
-    );
-    final selected = _dates!;
-    final dateLabel = '${OwnerState.formatDate(selected.start)} – '
-        '${OwnerState.formatDate(selected.end)}';
+    final preset = _selectedPreset(_presets(today));
+    final dateLabel = _displayRange(_dates!);
     final controls = <Widget>[
       const OwnerRestaurantPicker(),
       const SizedBox(height: 12),
       const OwnerHeading('Период отчёта'),
-      Wrap(spacing: 8, runSpacing: 6, children: [
-        ChoiceChip(
-          label: const OwnerText('Прошлый месяц'),
-          selected: selected == lastMonth,
-          onSelected: _loading ? null : (_) => _setDates(lastMonth),
+      const SizedBox(height: 6),
+      OwnerCard(
+        key: const ValueKey('olap-period'),
+        padding: EdgeInsets.zero,
+        onTap: _loading ? null : _choosePeriod,
+        child: ListTile(
+          leading: Icon(Icons.calendar_month_outlined,
+              color: OwnerPalette.accent(context)),
+          title: preset == null ? Text(dateLabel) : OwnerText(preset),
+          subtitle: preset == null ? null : Text(dateLabel),
+          trailing: const Icon(Icons.keyboard_arrow_down),
         ),
-        OutlinedButton.icon(
-          onPressed: _loading ? null : _pickDates,
-          icon: const Icon(Icons.calendar_month_outlined),
-          label: Text(dateLabel),
-        ),
-      ]),
+      ),
       const SizedBox(height: 10),
       FilledButton.icon(
         onPressed: _loading || _restaurants.isEmpty ? null : _run,
