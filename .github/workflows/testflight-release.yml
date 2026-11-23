@@ -1,8 +1,6 @@
 name: SH Owner Upload to TestFlight
 
 on:
-  # TestFlight-only build: responsive logout, push taps, authorized scopes and localized notifications.
-  # Rebuild existing 0.1.4 train after approval of precise seven-event styling.
   # Never publish to the public App Store automatically.
   # Only changes to this release workflow trigger it; source-only pushes do not.
   push:
@@ -193,14 +191,7 @@ jobs:
           NODE
       - name: Build signed IPA for App Store Connect
         run: |
-          # Apple ITMS-90186 / ITMS-90062: 0.1.2 is an approved, closed train.
-          # The new TestFlight build must increment CFBundleShortVersionString.
-          VERSION="$(awk '$1 == "version:" { print $2; exit }' pubspec.yaml)"
-          VERSION="${VERSION%%+*}"
-          if [[ "$VERSION" != "0.1.4" ]]; then
-            echo "::error::This TestFlight run must use the new 0.1.4 version train."
-            exit 1
-          fi
+          # Flutter reads the marketing version from pubspec.yaml.
           flutter build ipa --release \
             --build-number=${{ github.run_number }} \
             --export-options-plist=/tmp/sh_owner_export_options.plist \
