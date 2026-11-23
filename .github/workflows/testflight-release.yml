@@ -159,7 +159,7 @@ jobs:
             *) echo "::error::Unknown OLAP environment."; exit 1 ;;
           esac
           OLAP_STATUS="$(curl --silent --show-error --max-time 20 -w '%{http_code}' \
-            "$OLAP_ORIGIN/api/mobile/v1/olap-reports" -o /tmp/sh-owner-olap-probe.json)"
+            "$OLAP_ORIGIN/api/mobile/v1/olap-reports?action=filter-values" -o /tmp/sh-owner-olap-probe.json)"
           [[ "$OLAP_STATUS" == "401" ]] || { echo "::error::OLAP endpoint must require authentication (HTTP 401)."; exit 1; }
           node -e "const p=require('/tmp/sh-owner-olap-probe.json'); if(p.success!==false||p.code!=='TOKEN_REQUIRED') process.exit(1)"
           curl --fail --silent --show-error --location --max-time 20 \

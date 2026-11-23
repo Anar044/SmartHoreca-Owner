@@ -9,6 +9,7 @@ class OwnerOlapField {
   final bool group;
   final bool measure;
   final bool filter;
+  final bool valueChoices;
   final bool restaurant;
 
   const OwnerOlapField({
@@ -18,6 +19,7 @@ class OwnerOlapField {
     this.group = false,
     this.measure = false,
     this.filter = false,
+    this.valueChoices = false,
     this.restaurant = false,
   });
 
@@ -28,11 +30,13 @@ class OwnerOlapField {
         group: json['group'] == true,
         measure: json['measure'] == true,
         filter: json['filter'] == true,
+        valueChoices: json['valueChoices'] == true,
         restaurant: json['restaurant'] == true,
       );
 }
 
 class OwnerOlapFilter {
+  static const maxValues = 250;
   final String field;
   final bool exclude;
   final List<String> values;
@@ -48,6 +52,16 @@ class OwnerOlapFilter {
         'operator': exclude ? 'exclude' : 'include',
         'values': values,
       };
+}
+
+class OwnerOlapChoice {
+  final String value;
+  final String label;
+
+  const OwnerOlapChoice(this.value, this.label);
+
+  factory OwnerOlapChoice.fromJson(Map<String, dynamic> json) =>
+      OwnerOlapChoice(json['value'] as String, json['label'] as String);
 }
 
 class OwnerOlapTemplate {
@@ -143,6 +157,24 @@ class OwnerOlapClient {
     return (data['fields'] as List)
         .cast<Map<String, dynamic>>()
         .map(OwnerOlapField.fromJson)
+        .toList();
+  }
+
+  Future<List<OwnerOlapChoice>> filterValues(
+      String field, Set<String> restaurants, String from, String to) async {
+    final data = await OwnerBackend.getJson(_path,
+        workspaceId: workspaceId,
+        departmentIds: restaurants,
+        query: {
+          'action': 'filter-values',
+          'field': field,
+          'from': from,
+          'to': to
+        },
+        retryTransient: false);
+    return (data['values'] as List)
+        .cast<Map<String, dynamic>>()
+        .map(OwnerOlapChoice.fromJson)
         .toList();
   }
 

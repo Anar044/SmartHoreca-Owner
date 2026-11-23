@@ -8,6 +8,12 @@ class OwnerL10n {
 
   static const Map<String, Map<String, String>> _translations = {
     'Azərbaycan': {
+      'Период списка значений': 'Dəyərlər siyahısının dövrü',
+      'Поиск значения': 'Dəyər axtarışı',
+      'Выбрано': 'Seçilib',
+      'Нет значений за выбранный период.': 'Seçilmiş dövr üçün dəyər yoxdur.',
+      'Значения не найдены.': 'Dəyər tapılmadı.',
+      'iiko не предоставляет список значений для этого поля.': 'iiko bu sahə üçün dəyərlər siyahısını təqdim etmir.',
       'Мои OLAP-отчёты': 'OLAP hesabatlarım',
       'Создать отчёт': 'Hesabat yarat',
       'У вас пока нет сохранённых OLAP-отчётов.': 'Hələ saxlanmış OLAP hesabatınız yoxdur.',
@@ -480,6 +486,12 @@ class OwnerL10n {
       'Не удалось проверить активность подразделений. Список доступных ресторанов остаётся без изменений.': 'Bölmələrin fəaliyyətini yoxlamaq mümkün olmadı. Restoran siyahısı dəyişməyib.',
     },
     'English': {
+      'Период списка значений': 'Value list date range',
+      'Поиск значения': 'Find a value',
+      'Выбрано': 'Selected',
+      'Нет значений за выбранный период.': 'No values for the selected dates.',
+      'Значения не найдены.': 'No matching values.',
+      'iiko не предоставляет список значений для этого поля.': 'iiko does not provide a list of values for this field.',
       'Мои OLAP-отчёты': 'My OLAP reports',
       'Создать отчёт': 'Create report',
       'У вас пока нет сохранённых OLAP-отчётов.': 'You have no saved OLAP reports yet.',

@@ -279,11 +279,21 @@ class _ReportEditorState extends State<_ReportEditor> {
                 !_filters.any((filter) => filter.field == field.name)))
         : _catalog![previous.field];
     if (field == null || !mounted) return;
-    final filter = await showDialog<OwnerOlapFilter>(
-      context: context,
-      builder: (_) => _FilterDialog(field: field, previous: previous),
-    );
-    if (filter == null || !mounted) return;
+    final filter = field.valueChoices
+        ? await showModalBottomSheet<OwnerOlapFilter>(
+            context: context,
+            isScrollControlled: true,
+            useSafeArea: true,
+            builder: (_) => _FilterChoices(
+                client: widget.client, field: field, previous: previous),
+          )
+        : await showDialog<OwnerOlapFilter>(
+            context: context,
+            builder: (_) => _FilterDialog(field: field, previous: previous),
+          );
+    if (filter == null ||
+        !mounted ||
+        !_currentWorkspace(context, widget.client)) return;
     setState(() {
       if (index == null) {
         _filters.add(filter);
@@ -565,6 +575,9 @@ class _FilterDialogState extends State<_FilterDialog> {
                   onChanged: (value) =>
                       setState(() => _exclude = value ?? false),
                 ),
+                const OwnerText(
+                    'iiko не предоставляет список значений для этого поля.'),
+                const SizedBox(height: 8),
                 TextFormField(
                   controller: _values,
                   minLines: 2,
@@ -601,6 +614,246 @@ class _FilterDialogState extends State<_FilterDialog> {
           ),
         ],
       );
+}
+
+class _FilterChoices extends StatefulWidget {
+  final OwnerOlapClient client;
+  final OwnerOlapField field;
+  final OwnerOlapFilter? previous;
+
+  const _FilterChoices({
+    required this.client,
+    required this.field,
+    this.previous,
+  });
+
+  @override
+  State<_FilterChoices> createState() => _FilterChoicesState();
+}
+
+class _FilterChoicesState extends State<_FilterChoices> {
+  late final _selected = {...?widget.previous?.values};
+  late var _exclude = widget.previous?.exclude ?? false;
+  final _labels = <String, String>{};
+  List<OwnerOlapChoice> _choices = [];
+  Set<String>? _restaurants;
+  String _search = '';
+  String? _error;
+  bool _loading = false;
+  int _request = 0;
+  late DateTimeRange _period;
+
+  @override
+  void initState() {
+    super.initState();
+    final today = DateUtils.dateOnly(DateTime.now());
+    _period =
+        DateTimeRange(start: DateUtils.addDaysToDate(today, -29), end: today);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final owner = OwnerScope.of(context);
+    final active = owner.live && owner.workspaceId == widget.client.workspaceId;
+    final ids = active ? owner.selectedRestaurantIds : <String>{};
+    if (_restaurants?.length == ids.length && ids.containsAll(_restaurants!))
+      return;
+    _restaurants = ids;
+    _labels.clear();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final request = ++_request;
+    final restaurants = _restaurants!;
+    setState(() {
+      _choices = [];
+      _error = restaurants.isEmpty ? 'Выберите рестораны для отчёта.' : null;
+      _loading = restaurants.isNotEmpty;
+    });
+    if (restaurants.isEmpty) return;
+    try {
+      final choices = await widget.client.filterValues(
+          widget.field.name,
+          restaurants,
+          OwnerState.formatDate(_period.start),
+          OwnerState.formatDate(_period.end));
+      if (mounted && request == _request) {
+        setState(() {
+          _choices = choices;
+          _labels.addEntries(
+              choices.map((item) => MapEntry(item.value, item.label)));
+          _loading = false;
+        });
+      }
+    } catch (error) {
+      if (mounted && request == _request) {
+        setState(() {
+          _loading = false;
+          _error = _message(error);
+        });
+      }
+    }
+  }
+
+  Future<void> _pickPeriod() async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final period = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(today.year - 5),
+      lastDate: today,
+      initialDateRange: _period,
+      helpText: _tr(context, 'Период списка значений'),
+      saveText: _tr(context, 'Применить'),
+    );
+    if (!mounted || period == null || period == _period) return;
+    _period = period;
+    await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasScope = _restaurants?.isNotEmpty == true;
+    final display = {for (final choice in _choices) choice.value: choice.label};
+    for (final value in _selected) {
+      display.putIfAbsent(value, () => _labels[value] ?? value);
+    }
+    final matches = display.entries
+        .where((choice) =>
+            choice.value.toLowerCase().contains(_search) ||
+            choice.value != choice.key &&
+                choice.key.toLowerCase().contains(_search))
+        .toList();
+    final dates =
+        '${OwnerState.formatDate(_period.start)} – ${OwnerState.formatDate(_period.end)}';
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: FractionallySizedBox(
+          heightFactor: .94,
+          child: SafeArea(
+            top: false,
+            child: Column(children: [
+              Expanded(
+                  child: CustomScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                slivers: [
+                  SliverToBoxAdapter(
+                      child: ListTile(
+                    title: Text(widget.field.title,
+                        style: Theme.of(context).textTheme.titleLarge),
+                    trailing:
+                        CloseButton(onPressed: () => Navigator.pop(context)),
+                  )),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                    sliver: SliverToBoxAdapter(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                          SegmentedButton<bool>(
+                            segments: const [
+                              ButtonSegment(
+                                  value: false, label: OwnerText('Включить')),
+                              ButtonSegment(
+                                  value: true, label: OwnerText('Исключить')),
+                            ],
+                            selected: {_exclude},
+                            onSelectionChanged: (value) =>
+                                setState(() => _exclude = value.single),
+                          ),
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: hasScope ? _pickPeriod : null,
+                            icon: const Icon(Icons.date_range_outlined),
+                            label: Text(dates,
+                                semanticsLabel:
+                                    '${_tr(context, 'Период списка значений')}. $dates'),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            decoration: InputDecoration(
+                              prefixIcon: const Icon(Icons.search),
+                              labelText: _tr(context, 'Поиск значения'),
+                              border: const OutlineInputBorder(),
+                            ),
+                            onChanged: (value) => setState(
+                                () => _search = value.trim().toLowerCase()),
+                          ),
+                        ])),
+                  ),
+                  if (_loading)
+                    const SliverToBoxAdapter(child: LinearProgressIndicator()),
+                  if (_error != null)
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      sliver: SliverToBoxAdapter(
+                          child: _OlapError(_error!,
+                              onRetry: hasScope ? _load : null)),
+                    )
+                  else if (matches.isEmpty && !_loading)
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      sliver: SliverToBoxAdapter(
+                          child: OwnerText(_search.isEmpty
+                              ? 'Нет значений за выбранный период.'
+                              : 'Значения не найдены.')),
+                    ),
+                  SliverList.builder(
+                    itemCount: matches.length,
+                    itemBuilder: (context, index) {
+                      final choice = matches[index];
+                      final checked = _selected.contains(choice.key);
+                      return CheckboxListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        title: Text(choice.value),
+                        value: checked,
+                        onChanged: hasScope &&
+                                (checked ||
+                                    _selected.length <
+                                        OwnerOlapFilter.maxValues)
+                            ? (value) => setState(() {
+                                  if (value == true) {
+                                    _selected.add(choice.key);
+                                  } else {
+                                    _selected.remove(choice.key);
+                                  }
+                                })
+                            : null,
+                      );
+                    },
+                  ),
+                ],
+              )),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Row(children: [
+                  Expanded(
+                      child: Text(
+                          '${_tr(context, 'Выбрано')} ${_selected.length}'
+                          '${_selected.length >= OwnerOlapFilter.maxValues ? '/${OwnerOlapFilter.maxValues}' : ''}')),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: !hasScope || _selected.isEmpty
+                        ? null
+                        : () => Navigator.pop(
+                            context,
+                            OwnerOlapFilter(widget.field.name, _exclude,
+                                _selected.toList())),
+                    child: const OwnerText('Применить'),
+                  ),
+                ]),
+              ),
+            ]),
+          )),
+    );
+  }
 }
 
 class _ReportView extends StatefulWidget {

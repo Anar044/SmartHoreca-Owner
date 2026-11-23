@@ -19,6 +19,7 @@ class _Reports extends OwnerOlapClient {
     type: 'STRING',
     group: true,
     filter: true,
+    valueChoices: true,
   );
   OwnerOlapTemplate? saved;
   final runs = <({String from, String to, Set<String> restaurants})>[];
@@ -28,6 +29,18 @@ class _Reports extends OwnerOlapClient {
 
   @override
   Future<List<OwnerOlapField>> fields() async => [measure, grouping];
+
+  @override
+  Future<List<OwnerOlapChoice>> filterValues(
+      String field, Set<String> restaurants, String from, String to) async {
+    expect(field, grouping.name);
+    expect(restaurants, {'r1'});
+    expect(from.compareTo(to), lessThan(0));
+    return const [
+      OwnerOlapChoice('Карта', 'Карта'),
+      OwnerOlapChoice('Наличные', 'Наличные'),
+    ];
+  }
 
   @override
   Future<OwnerOlapTemplate> save(OwnerOlapTemplate template) async {
@@ -93,10 +106,14 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Способ оплаты').last);
     await tester.pumpAndSettle();
-    await tester.enterText(
-        find.descendant(
-            of: find.byType(AlertDialog), matching: find.byType(TextFormField)),
-        'Карта');
+    expect(find.byType(CheckboxListTile), findsNWidgets(2));
+    await tester.tap(find.text('Исключить'));
+    await tester.tap(find.widgetWithText(CheckboxListTile, 'Карта'));
+    await tester.enterText(find.byType(TextField).last, 'Налич');
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(CheckboxListTile, 'Карта'), findsNothing);
+    expect(find.widgetWithText(CheckboxListTile, 'Наличные'), findsOneWidget);
+    expect(find.text('Выбрано 1'), findsOneWidget);
     await tester.tap(find.text('Применить'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Сохранить отчёт'));
@@ -105,6 +122,7 @@ void main() {
     expect(client.saved!.groups, ['PayType']);
     expect(client.saved!.measures, ['Net']);
     expect(client.saved!.filters.single.values, ['Карта']);
+    expect(client.saved!.filters.single.exclude, isTrue);
     expect(find.text('Продажи по оплатам'), findsOneWidget);
 
     await tester.tap(find.text('Показать'));
@@ -125,5 +143,18 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Мои OLAP-отчёты'), findsOneWidget);
     expect(find.text('Продажи по оплатам'), findsOneWidget);
+    await tester.tap(find.byTooltip('Действия с отчётом'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Изменить'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Исключить · Карта'));
+    await tester.tap(find.text('Исключить · Карта'));
+    await tester.pumpAndSettle();
+    expect(
+        tester
+            .widget<CheckboxListTile>(
+                find.widgetWithText(CheckboxListTile, 'Карта'))
+            .value,
+        isTrue);
   });
 }
