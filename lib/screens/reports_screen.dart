@@ -4,15 +4,19 @@ import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
 import '../core/owner_demo_data.dart';
 import '../core/owner_l10n.dart';
+import '../core/owner_olap_client.dart';
 import '../ui/owner_components.dart';
 import 'owner_live_reports.dart';
+import 'owner_olap_reports.dart';
 
 class OwnerReportsScreen extends StatelessWidget {
   const OwnerReportsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final isLive = OwnerScope.of(context).live;
+    final owner = OwnerScope.of(context);
+    final isLive = owner.live;
+    final workspace = owner.workspaceId;
     const reports = [
       ('Блюда и категории', Icons.restaurant_menu),
       ('Скидки и наценки', Icons.percent),
@@ -28,6 +32,20 @@ class OwnerReportsScreen extends StatelessWidget {
       const SizedBox(height: 12),
       const OwnerPeriodPicker(),
       const SizedBox(height: 15),
+      if (isLive && workspace != null) ...[
+        OwnerCard(
+          onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+            builder: (_) => OwnerOlapReportsScreen(client: OwnerOlapClient(workspace)),
+          )),
+          child: const ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.table_chart_outlined),
+            title: OwnerText('Мои OLAP-отчёты'),
+            trailing: Icon(Icons.chevron_right),
+          ),
+        ),
+        const SizedBox(height: 9),
+      ],
       for (final report in reports) ...[
         OwnerCard(
           onTap: () {

@@ -19,6 +19,14 @@ on:
         options:
           - 'https://smarthoreca.pages.dev'
           - 'https://codex-owner-ai-web-parity.smarthoreca.pages.dev'
+      olap_origin:
+        description: 'Backend for the custom OLAP reports in this beta'
+        required: true
+        default: 'mobile'
+        type: choice
+        options:
+          - 'mobile'
+          - 'preview'
 
 permissions:
   contents: read
@@ -35,6 +43,7 @@ jobs:
       APPSTORE_API_KEY_ID: ${{ vars.APPSTORE_API_KEY_ID }}
       SH_OWNER_API_ORIGIN: ${{ vars.SH_OWNER_API_ORIGIN }}
       SH_OWNER_ASSISTANT_ORIGIN: ${{ inputs.assistant_origin || 'https://smarthoreca.pages.dev' }}
+      SH_OWNER_OLAP_TARGET: ${{ inputs.olap_origin || 'mobile' }}
       SH_FIREBASE_IOS_API_KEY: ${{ vars.SH_FIREBASE_IOS_API_KEY }}
       SH_FIREBASE_IOS_APP_ID: ${{ vars.SH_FIREBASE_IOS_APP_ID }}
       SH_FIREBASE_PROJECT_ID: ${{ vars.SH_FIREBASE_PROJECT_ID }}
@@ -146,11 +155,21 @@ jobs:
           curl --fail --silent --show-error --max-time 20 "$ORIGIN/api/mobile/v1/health" \
             -o /tmp/sh-owner-ios-health.json
           node -e "const p=require('/tmp/sh-owner-ios-health.json'); if(!p.success||p.service!=='Smart Horeca Owner Mobile API') process.exit(1)"
+          case "$SH_OWNER_OLAP_TARGET" in
+            mobile) OLAP_ORIGIN="$ORIGIN" ;;
+            preview) OLAP_ORIGIN="https://codex-owner-custom-olap.smarthoreca.pages.dev" ;;
+            *) echo "::error::Unknown OLAP environment."; exit 1 ;;
+          esac
+          OLAP_STATUS="$(curl --silent --show-error --max-time 20 -w '%{http_code}' \
+            "$OLAP_ORIGIN/api/mobile/v1/olap-reports" -o /tmp/sh-owner-olap-probe.json)"
+          [[ "$OLAP_STATUS" == "401" ]] || { echo "::error::OLAP endpoint must require authentication (HTTP 401)."; exit 1; }
+          node -e "const p=require('/tmp/sh-owner-olap-probe.json'); if(p.success!==false||p.code!=='TOKEN_REQUIRED') process.exit(1)"
           curl --fail --silent --show-error --location --max-time 20 \
             https://smarthoreca.pages.dev/auth-config.js \
             -o /tmp/sh-owner-public-auth.js
           echo "Compiling TestFlight beta against authenticated Owner API origin: $ORIGIN"
           export SH_OWNER_API_ORIGIN="$ORIGIN"
+          export SH_OWNER_OLAP_ORIGIN="$OLAP_ORIGIN"
           node - <<'NODE'
           const fs = require('fs');
           const source = fs.readFileSync('/tmp/sh-owner-public-auth.js','utf8');
@@ -161,6 +180,7 @@ jobs:
             SH_ENABLE_DEMO: 'false',
             SH_API_BASE_URL: process.env.SH_OWNER_API_ORIGIN,
             SH_ASSISTANT_API_BASE_URL: process.env.SH_OWNER_ASSISTANT_ORIGIN,
+            SH_OLAP_API_BASE_URL: process.env.SH_OWNER_OLAP_ORIGIN,
             SH_SUPABASE_URL: url,
             SH_SUPABASE_PUBLISHABLE_KEY: key,
             SH_FIREBASE_IOS_API_KEY: process.env.SH_FIREBASE_IOS_API_KEY||'',

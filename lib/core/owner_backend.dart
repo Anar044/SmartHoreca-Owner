@@ -21,11 +21,21 @@ class OwnerBackend {
   static OwnerReadTransport _transport = OwnerReadTransport();
   static const apiBase = String.fromEnvironment(
     'SH_API_BASE_URL', defaultValue: 'https://smarthoreca.pages.dev');
-  // Share the website AI engine; all other Owner APIs keep their current host.
+  // Website-backed features can be validated on their own preview.
   static const assistantApiBase = String.fromEnvironment(
     'SH_ASSISTANT_API_BASE_URL', defaultValue: 'https://smarthoreca.pages.dev');
-  static Uri endpoint(String path) => Uri.parse(
-    '${path == '/api/mobile/v1/assistant' ? assistantApiBase : apiBase}$path');
+  static const olapApiBase = String.fromEnvironment(
+    'SH_OLAP_API_BASE_URL', defaultValue: apiBase);
+  static const olapReportsPath = '/api/mobile/v1/olap-reports';
+
+  static Uri endpoint(String path) {
+    final origin = switch (path) {
+      '/api/mobile/v1/assistant' => assistantApiBase,
+      olapReportsPath => olapApiBase,
+      _ => apiBase,
+    };
+    return Uri.parse('$origin$path');
+  }
   static const supabaseUrl = String.fromEnvironment('SH_SUPABASE_URL');
   static const supabasePublishableKey =
       String.fromEnvironment('SH_SUPABASE_PUBLISHABLE_KEY');
@@ -193,6 +203,8 @@ class OwnerBackend {
     required Iterable<String> departmentIds,
     required Map<String, dynamic> payload,
     Duration timeout = const Duration(seconds: 120),
+    String timeoutMessage = 'Сервер Smart Horeca не ответил вовремя. '
+        'Проверьте историю диалога перед повторной отправкой.',
   }) async {
     if (!configured) {
       throw const OwnerApiException('NOT_CONFIGURED',
@@ -216,9 +228,7 @@ class OwnerBackend {
       // messages if the server processed the first request.
       return _decodeResponse(result);
     } on TimeoutException {
-      throw const OwnerApiException('API_TIMEOUT',
-        'Сервер Smart Horeca не ответил вовремя. '
-        'Проверьте историю диалога перед повторной отправкой.', 504);
+      throw OwnerApiException('API_TIMEOUT', timeoutMessage, 504);
     } on http.ClientException {
       throw const OwnerApiException('NETWORK_UNAVAILABLE',
         'Не удалось подключиться к Smart Horeca. Проверьте сеть.', 503);
