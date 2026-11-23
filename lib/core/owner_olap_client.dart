@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'owner_backend.dart';
@@ -123,8 +124,16 @@ class OwnerOlapTemplate {
 class OwnerOlapTable {
   final List<OwnerOlapField> columns;
   final List<List<Object?>> rows;
+  final List<List<String>> groupKeys;
+  final List<Object?>? totals;
+  final Map<String, List<Object?>> subtotals;
+  final bool totalsIncomplete;
 
-  const OwnerOlapTable(this.columns, this.rows);
+  const OwnerOlapTable(this.columns, this.rows,
+      {this.groupKeys = const [],
+      this.totals,
+      this.subtotals = const {},
+      this.totalsIncomplete = false});
 
   OwnerOlapTable onlyFields(Iterable<String> fields) {
     final selected = fields.toSet();
@@ -138,16 +147,35 @@ class OwnerOlapTable {
       [
         for (final row in rows) [for (final index in indices) row[index]]
       ],
+      groupKeys: groupKeys,
+      totals: totals,
+      subtotals: subtotals,
+      totalsIncomplete: totalsIncomplete,
     );
   }
 
-  factory OwnerOlapTable.fromJson(Map<String, dynamic> json) => OwnerOlapTable(
-        (json['columns'] as List)
-            .cast<Map<String, dynamic>>()
-            .map(OwnerOlapField.fromJson)
-            .toList(),
-        (json['rows'] as List).cast<List>().map(List<Object?>.from).toList(),
-      );
+  List<Object?>? subtotal(List<String> keys) => subtotals[jsonEncode(keys)];
+
+  factory OwnerOlapTable.fromJson(Map<String, dynamic> json) {
+    final subtotals = (json['subtotals'] as List?) ?? const [];
+    return OwnerOlapTable(
+      (json['columns'] as List)
+          .cast<Map<String, dynamic>>()
+          .map(OwnerOlapField.fromJson)
+          .toList(),
+      (json['rows'] as List).cast<List>().map(List<Object?>.from).toList(),
+      groupKeys: ((json['groupKeys'] as List?) ?? const [])
+          .cast<List>()
+          .map(List<String>.from)
+          .toList(),
+      totals: (json['totals'] as List?)?.cast<Object?>(),
+      subtotals: {
+        for (final subtotal in subtotals)
+          jsonEncode(subtotal['keys']): List<Object?>.from(subtotal['values']),
+      },
+      totalsIncomplete: json['totalsIncomplete'] == true,
+    );
+  }
 }
 
 class OwnerOlapClient {
@@ -204,7 +232,8 @@ class OwnerOlapClient {
 
   Future<OwnerOlapTable> run(OwnerOlapTemplate template,
       Set<String> restaurants, String from, String to) async {
-    final data = await _post('run', template, {'from': from, 'to': to},
+    final data = await _post(
+        'run', template, {'from': from, 'to': to, 'structure': 'hierarchy'},
         restaurants: restaurants);
     return OwnerOlapTable.fromJson(data);
   }

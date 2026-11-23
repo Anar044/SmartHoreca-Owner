@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 
@@ -991,7 +993,12 @@ class _ReportViewState extends State<_ReportView> {
           : result != null &&
                   result.rows.isNotEmpty &&
                   result.columns.isNotEmpty
-              ? _ReportTable(table: result, controls: controls)
+              ? _ReportTable(
+                  key: ObjectKey(result),
+                  table: result,
+                  groupCount: widget.report.groups.length,
+                  controls: controls,
+                )
               : OwnerScreenFrame(children: [
                   ...controls,
                   if (result != null)
@@ -1004,16 +1011,72 @@ class _ReportViewState extends State<_ReportView> {
 
 class _ReportTable extends StatefulWidget {
   final OwnerOlapTable table;
+  final int groupCount;
   final List<Widget> controls;
 
-  const _ReportTable({required this.table, required this.controls});
+  const _ReportTable({
+    super.key,
+    required this.table,
+    required this.groupCount,
+    required this.controls,
+  });
 
   @override
   State<_ReportTable> createState() => _ReportTableState();
 }
 
+class _ReportGroup {
+  final int depth;
+  final String label;
+  final List<Object?>? values;
+  final children = <String, _ReportGroup>{};
+
+  _ReportGroup(this.depth, this.label, this.values);
+}
+
 class _ReportTableState extends State<_ReportTable> {
   final _horizontal = ScrollController();
+  final _expanded = <_ReportGroup>{};
+  final _branches = <_ReportGroup>[];
+  late final _roots = _buildTree();
+
+  Map<String, _ReportGroup> _buildTree() {
+    final table = widget.table;
+    final roots = <String, _ReportGroup>{};
+    for (var index = 0; index < table.rows.length; index++) {
+      final row = table.rows[index];
+      final keys =
+          index < table.groupKeys.length ? table.groupKeys[index] : null;
+      var siblings = roots;
+      final path = <String>[];
+      for (var depth = 0; depth < widget.groupCount; depth++) {
+        final key = keys != null && depth < keys.length
+            ? keys[depth]
+            : jsonEncode(row[depth]);
+        path.add(key);
+        final leaf = depth == widget.groupCount - 1;
+        final node = siblings.putIfAbsent(key, () {
+          final value = row[depth];
+          final group = _ReportGroup(
+            depth,
+            value == null || value == '' ? '—' : value.toString(),
+            leaf ? row.sublist(widget.groupCount) : table.subtotal(path),
+          );
+          if (!leaf) _branches.add(group);
+          return group;
+        });
+        siblings = node.children;
+      }
+    }
+    return roots;
+  }
+
+  Iterable<_ReportGroup> _visible(Iterable<_ReportGroup> groups) sync* {
+    for (final group in groups) {
+      yield group;
+      if (_expanded.contains(group)) yield* _visible(group.children.values);
+    }
+  }
 
   @override
   void dispose() {
@@ -1024,7 +1087,9 @@ class _ReportTableState extends State<_ReportTable> {
   String _value(Object? value, OwnerOlapField field) {
     if (value == null) return '—';
     if (field.measure && field.type.toUpperCase() == 'PERCENT') {
-      final numeric = value is num ? value : num.tryParse(value.toString());
+      final numeric = value is num
+          ? value
+          : num.tryParse(value.toString().replaceAll(',', '.'));
       if (numeric != null) return '${(numeric * 100).toStringAsFixed(2)}%';
     }
     return value.toString();
@@ -1032,57 +1097,175 @@ class _ReportTableState extends State<_ReportTable> {
 
   Widget _tableSliver(BuildContext context, double width) {
     final table = widget.table;
-    final columnWidth = width / table.columns.length;
-    Widget line(List<String> values, {bool heading = false}) => Row(children: [
-          for (var index = 0; index < values.length; index++)
+    final groups = table.columns.take(widget.groupCount);
+    final measures = table.columns.skip(widget.groupCount).toList();
+    final visible = _visible(_roots.values).toList();
+    final anyExpanded = visible.any(_expanded.contains);
+    final labelWidth = (width * .52).clamp(138.0, width - 98 * measures.length);
+    final valueWidth = (width - labelWidth) / measures.length;
+    final totals =
+        table.totals ?? (widget.groupCount == 0 ? table.rows.first : null);
+    final showTotals = totals != null || table.totalsIncomplete;
+    final theme = Theme.of(context);
+    final divider = BorderSide(color: theme.dividerColor);
+    Widget line(String label, List<String> values,
+        {int depth = 0,
+        bool bold = false,
+        bool heading = false,
+        Color? ink,
+        bool? expanded}) {
+      final style = TextStyle(
+        color: ink,
+        fontWeight: bold ? FontWeight.w700 : null,
+      );
+      return Row(
+        children: [
+          SizedBox(
+            width: labelWidth,
+            child: Padding(
+              padding:
+                  EdgeInsetsDirectional.fromSTEB(12 + 8.0 * depth, 10, 8, 10),
+              child: Row(
+                children: [
+                  if (expanded != null) ...[
+                    ExcludeSemantics(
+                        child: Icon(
+                      expanded ? Icons.expand_more : Icons.chevron_right,
+                      size: 18,
+                    )),
+                    const SizedBox(width: 4),
+                  ],
+                  Expanded(child: Text(label, style: style)),
+                ],
+              ),
+            ),
+          ),
+          for (final value in values)
             SizedBox(
-              width: columnWidth,
+              width: valueWidth,
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
+                padding: const EdgeInsets.fromLTRB(6, 10, 12, 10),
                 child: Text(
-                  values[index],
-                  textAlign: table.columns[index].measure
-                      ? TextAlign.end
-                      : TextAlign.start,
+                  value,
+                  textAlign: TextAlign.end,
                   style: heading
-                      ? const TextStyle(fontWeight: FontWeight.w700)
-                      : null,
+                      ? style
+                      : style.copyWith(
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                 ),
               ),
             ),
-        ]);
+        ],
+      );
+    }
+
+    List<String> displayValues(List<Object?>? values) => [
+          for (var index = 0; index < measures.length; index++)
+            _value(
+                values != null && index < values.length ? values[index] : null,
+                measures[index]),
+        ];
+
     return SliverMainAxisGroup(slivers: [
-      SliverToBoxAdapter(
-          child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: OwnerPalette.raised(context),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-        ),
-        child: line(
-            table.columns
-                .map((column) =>
-                    column.restaurant ? _tr(context, 'Ресторан') : column.title)
-                .toList(),
-            heading: true),
-      )),
-      SliverList.builder(
-        itemCount: table.rows.length,
-        itemBuilder: (context, index) {
-          final row = table.rows[index];
-          return DecoratedBox(
-            decoration: BoxDecoration(
-              color: OwnerPalette.surface(context),
-              border: Border(
-                  top: BorderSide(color: Theme.of(context).dividerColor)),
+      if (_branches.isNotEmpty)
+        SliverToBoxAdapter(
+          child: Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: TextButton(
+              onPressed: () => setState(() {
+                if (anyExpanded) {
+                  _expanded.clear();
+                } else {
+                  _expanded.addAll(_branches);
+                }
+              }),
+              child: OwnerText(anyExpanded ? 'Свернуть всё' : 'Развернуть всё'),
             ),
-            child: line([
-              for (var cell = 0; cell < row.length; cell++)
-                _value(row[cell], table.columns[cell]),
-            ]),
+          ),
+        ),
+      SliverToBoxAdapter(
+        child: Semantics(
+          header: true,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: OwnerPalette.raised(context),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
+            child: line(
+              groups.isEmpty
+                  ? _tr(context, 'Показатели')
+                  : groups
+                      .map((field) => field.restaurant
+                          ? _tr(context, 'Ресторан')
+                          : field.title)
+                      .join(' → '),
+              measures.map((field) => field.title).toList(),
+              heading: true,
+              bold: true,
+            ),
+          ),
+        ),
+      ),
+      SliverList.builder(
+        itemCount: visible.length,
+        itemBuilder: (context, index) {
+          final group = visible[index];
+          final branch = group.children.isNotEmpty;
+          final color = branch && group.depth == 0
+              ? OwnerPalette.raised(context)
+              : OwnerPalette.surface(context);
+          final expanded = _expanded.contains(group);
+          final row = line(group.label, displayValues(group.values),
+              depth: group.depth,
+              bold: branch,
+              expanded: branch ? expanded : null);
+          return Container(
+            key: ObjectKey(group),
+            decoration:
+                BoxDecoration(color: color, border: Border(top: divider)),
+            child: branch
+                ? Semantics(
+                    button: true,
+                    expanded: expanded,
+                    child: Material(
+                      color: color,
+                      child: InkWell(
+                        onTap: () => setState(() {
+                          if (!_expanded.remove(group)) _expanded.add(group);
+                        }),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 48),
+                          child: row,
+                        ),
+                      ),
+                    ),
+                  )
+                : row,
           );
         },
       ),
+      if (showTotals)
+        SliverToBoxAdapter(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer,
+              border: Border(top: divider),
+              borderRadius:
+                  const BorderRadius.vertical(bottom: Radius.circular(12)),
+            ),
+            child: line(_tr(context, 'Итого'), displayValues(totals),
+                bold: true, ink: theme.colorScheme.onPrimaryContainer),
+          ),
+        ),
+      if (table.totalsIncomplete)
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: OwnerText('Некоторые итоги недоступны. Повторите запрос.'),
+          ),
+        ),
     ]);
   }
 
@@ -1100,7 +1283,8 @@ class _ReportTableState extends State<_ReportTable> {
         top: false,
         child: LayoutBuilder(builder: (context, constraints) {
           final available = constraints.maxWidth - 32;
-          final minimum = 112.0 * widget.table.columns.length;
+          final minimum =
+              138.0 + 98.0 * (widget.table.columns.length - widget.groupCount);
           if (minimum <= available) {
             return CustomScrollView(slivers: [
               _controlsSliver(),

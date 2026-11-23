@@ -45,6 +45,10 @@ class OwnerL10n {
       'Период отчёта': 'Hesabat dövrü',
       'Прошлый месяц': 'Keçən ay',
       'Формируем отчёт…': 'Hesabat hazırlanır…',
+      'Развернуть всё': 'Hamısını aç',
+      'Свернуть всё': 'Hamısını yığ',
+      'Некоторые итоги недоступны. Повторите запрос.':
+          'Bəzi yekunlar əlçatan deyil. Sorğunu təkrarlayın.',
       'Показать': 'Göstər',
       'Выберите рестораны для отчёта.': 'Hesabat üçün restoranları seçin.',
       'Ресторан': 'Restoran',
@@ -523,6 +527,10 @@ class OwnerL10n {
       'Период отчёта': 'Report period',
       'Прошлый месяц': 'Last month',
       'Формируем отчёт…': 'Running report…',
+      'Развернуть всё': 'Expand all',
+      'Свернуть всё': 'Collapse all',
+      'Некоторые итоги недоступны. Повторите запрос.':
+          'Some totals are unavailable. Run the report again.',
       'Показать': 'Run report',
       'Выберите рестораны для отчёта.': 'Choose restaurants for the report.',
       'Ресторан': 'Restaurant',

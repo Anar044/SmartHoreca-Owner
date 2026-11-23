@@ -238,4 +238,153 @@ void main() {
             .value,
         isTrue);
   });
+
+  testWidgets(
+      'folds independent grouping levels and keeps source totals visible',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(375, 812));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    final state = OwnerState()
+      ..live = true
+      ..workspaceId = 'org'
+      ..selectedRestaurants = {'Ресторан 1'}
+      ..availableRestaurants = ['Ресторан 1']
+      ..restaurantIdsByName = {'Ресторан 1': 'r1'};
+    addTearDown(state.dispose);
+
+    final client = _Reports(
+      result: OwnerOlapTable.fromJson({
+        'columns': <Map<String, dynamic>>[
+          {'name': 'Register', 'title': 'Касса', 'type': 'STRING'},
+          {'name': 'Payment', 'title': 'Тип оплаты', 'type': 'STRING'},
+          {'name': 'Dish', 'title': 'Блюдо', 'type': 'STRING'},
+          {
+            'name': 'Total',
+            'title': 'Сумма со скидкой',
+            'type': 'MONEY',
+            'measure': true
+          },
+          {
+            'name': 'Count',
+            'title': 'Количество блюд',
+            'type': 'INTEGER',
+            'measure': true
+          },
+        ],
+        'rows': [
+          ['Касса Север', 'Карта', 'Чай', 10.25, 3],
+          ['Касса Север', 'Наличные', 'Чай', 20, 5],
+          ['Касса Юг', 'Карта', 'Кофе', 41, 7],
+        ],
+        'groupKeys': [
+          ['"north"', '"card"', '"tea"'],
+          ['"north"', '"cash"', '"tea"'],
+          ['"south"', '"card"', '"coffee"'],
+        ],
+        'subtotals': [
+          {
+            'keys': ['"north"'],
+            'values': [30.25, 6]
+          },
+          {
+            'keys': ['"south"'],
+            'values': [41, 7]
+          },
+          {
+            'keys': ['"north"', '"card"'],
+            'values': [10.25, 3]
+          },
+          {
+            'keys': ['"north"', '"cash"'],
+            'values': [20, 5]
+          },
+          {
+            'keys': ['"south"', '"card"'],
+            'values': [41, 7]
+          },
+        ],
+        'totals': [71.25, 12],
+      }),
+    )..saved = const OwnerOlapTemplate(
+        id: 'test',
+        version: 1,
+        name: 'Кассы по оплате и блюдам',
+        groups: ['Register', 'Payment', 'Dish'],
+        measures: ['Total', 'Count'],
+        filters: [],
+      );
+    await tester.pumpWidget(OwnerScope(
+      state: state,
+      child: MaterialApp(
+        darkTheme: ThemeData.dark(useMaterial3: true),
+        home: OwnerOlapReportsScreen(client: client),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Кассы по оплате и блюдам'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Показать'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Касса → Тип оплаты → Блюдо'), findsOneWidget);
+    expect(find.text('Касса Север').hitTestable(), findsOneWidget);
+    expect(find.text('Касса Юг').hitTestable(), findsOneWidget);
+    expect(find.text('30.25'), findsOneWidget);
+    expect(find.text('6'), findsOneWidget);
+    expect(find.text('Карта'), findsNothing);
+    expect(find.text('Итого').hitTestable(), findsOneWidget);
+    expect(find.text('71.25').hitTestable(), findsOneWidget);
+    expect(find.text('12').hitTestable(), findsOneWidget);
+    expect(find.byType(SingleChildScrollView), findsNothing);
+
+    await tester.tap(find.text('Касса Север'));
+    await tester.pumpAndSettle();
+    expect(find.text('Карта').hitTestable(), findsOneWidget);
+    expect(find.text('Наличные').hitTestable(), findsOneWidget);
+    expect(find.text('Чай'), findsNothing);
+    await tester.tap(find.text('Карта'));
+    await tester.pumpAndSettle();
+    expect(find.text('Чай').hitTestable(), findsOneWidget);
+    expect(find.text('Кофе'), findsNothing);
+    await tester.tap(find.text('Касса Север'));
+    await tester.pumpAndSettle();
+    expect(find.text('Чай'), findsNothing);
+    expect(find.text('12').hitTestable(), findsOneWidget);
+
+    await tester.tap(find.text('Развернуть всё'));
+    await tester.pumpAndSettle();
+    expect(find.text('Чай'), findsNWidgets(2));
+    final scrollable = find.byType(Scrollable);
+    expect(scrollable, findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Кофе'), 180,
+        scrollable: scrollable);
+    expect(find.text('Кофе').hitTestable(), findsOneWidget);
+    tester.state<ScrollableState>(scrollable).position.jumpTo(0);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Свернуть всё'));
+    await tester.pumpAndSettle();
+    expect(find.text('Кофе'), findsNothing);
+    await tester.tap(find.text('Развернуть всё'));
+    await tester.pumpAndSettle();
+    expect(client.runs, hasLength(1));
+
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    tester.platformDispatcher.textScaleFactorTestValue = 1.8;
+    await tester.binding.setSurfaceSize(const Size(820, 390));
+    await tester.pumpAndSettle();
+    expect(scrollable, findsOneWidget);
+    final position = tester.state<ScrollableState>(scrollable).position;
+    for (var attempt = 0; attempt < 5; attempt++) {
+      position.jumpTo(position.maxScrollExtent);
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Итого').hitTestable(), findsOneWidget);
+    expect(find.text('71.25').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
