@@ -9,6 +9,7 @@ import '../core/owner_olap_client.dart';
 import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
 import '../ui/owner_components.dart';
+import '../ui/owner_date_range_picker.dart';
 import '../ui/owner_text.dart';
 
 String _tr(BuildContext context, String text) =>
@@ -702,14 +703,10 @@ class _FilterChoicesState extends State<_FilterChoices> {
   }
 
   Future<void> _pickPeriod() async {
-    final today = DateUtils.dateOnly(DateTime.now());
-    final period = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(today.year - 5),
-      lastDate: today,
-      initialDateRange: _period,
-      helpText: _tr(context, 'Период списка значений'),
-      saveText: _tr(context, 'Применить'),
+    final period = await showOwnerDateRangePicker(
+      context,
+      initialRange: _period,
+      title: 'Период списка значений',
     );
     if (!mounted || period == null || period == _period) return;
     _period = period;
@@ -927,14 +924,6 @@ class _ReportViewState extends State<_ReportView> {
     };
   }
 
-  String _displayRange(DateTimeRange range) {
-    String date(DateTime value) => '${value.day.toString().padLeft(2, '0')}.'
-        '${value.month.toString().padLeft(2, '0')}.${value.year}';
-    return range.start == range.end
-        ? date(range.start)
-        : '${date(range.start)} – ${date(range.end)}';
-  }
-
   String? _selectedPreset(Map<String, DateTimeRange> presets) {
     if (presets[_datePreset] == _dates) return _datePreset;
     for (final preset in presets.entries) {
@@ -965,7 +954,7 @@ class _ReportViewState extends State<_ReportView> {
               for (final preset in presets.entries)
                 ListTile(
                   title: OwnerText(preset.key),
-                  subtitle: Text(_displayRange(preset.value)),
+                  subtitle: Text(ownerDisplayDateRange(preset.value)),
                   selected: preset.key == active,
                   trailing:
                       preset.key == active ? const Icon(Icons.check) : null,
@@ -992,21 +981,10 @@ class _ReportViewState extends State<_ReportView> {
   }
 
   Future<void> _pickDates() async {
-    final today = DateUtils.dateOnly(DateTime.now());
-    final first = DateTime(today.year - 5);
-    final selected = _dates!;
-    final initial =
-        selected.start.isBefore(first) || selected.end.isAfter(today)
-            ? null
-            : selected;
-    final range = await showDateRangePicker(
-      context: context,
-      firstDate: first,
-      lastDate: today,
-      initialDateRange: initial,
-      helpText: _tr(context, 'Период отчёта'),
-      saveText: _tr(context, 'Применить'),
-      cancelText: _tr(context, 'Отмена'),
+    final range = await showOwnerDateRangePicker(
+      context,
+      initialRange: _dates,
+      startWithInput: true,
     );
     if (mounted && range != null) _setDates(range);
   }
@@ -1038,7 +1016,7 @@ class _ReportViewState extends State<_ReportView> {
   Widget build(BuildContext context) {
     final today = DateUtils.dateOnly(DateTime.now());
     final preset = _selectedPreset(_presets(today));
-    final dateLabel = _displayRange(_dates!);
+    final dateLabel = ownerDisplayDateRange(_dates!);
     final controls = <Widget>[
       const OwnerRestaurantPicker(),
       const SizedBox(height: 12),

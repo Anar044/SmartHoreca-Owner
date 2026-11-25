@@ -9,17 +9,20 @@ class OwnerReadTransport {
   final http.Client _client;
   final Map<String, Future<http.Response>> _pending = {};
 
-  Future<http.Response> get(Uri uri, {required Map<String, String> headers}) {
+  Future<http.Response> get(Uri uri, {
+    required Map<String, String> headers,
+    Duration timeout = const Duration(seconds: 50),
+  }) {
     final names = headers.keys.toList()..sort();
     // Includes authentication, workspace and restaurants. Never log this key.
-    final key = jsonEncode([uri.toString(), [
+    final key = jsonEncode([uri.toString(), timeout.inMilliseconds, [
       for (final name in names) [name, headers[name]],
     ]]);
     final existing = _pending[key];
     if (existing != null) return existing;
     late final Future<http.Response> pending;
     pending = _client.get(uri, headers: Map.of(headers))
-        .timeout(const Duration(seconds: 50)).whenComplete(() {
+        .timeout(timeout).whenComplete(() {
       if (identical(_pending[key], pending)) _pending.remove(key);
     });
     _pending[key] = pending;

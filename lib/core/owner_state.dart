@@ -124,6 +124,13 @@ class OwnerState extends ChangeNotifier {
     return {'from': formatDate(from), 'to': formatDate(to)};
   }
 
+  static int periodDays(String from, String to) =>
+      DateTime.parse('${to}T00:00:00Z')
+          .difference(DateTime.parse('${from}T00:00:00Z')).inDays + 1;
+
+  static Duration salesReadTimeout(Map<String, String> dates) =>
+      Duration(seconds: periodDays(dates['from']!, dates['to']!) > 32 ? 115 : 50);
+
   String reportCacheKey(String kind) {
     final ids = selectedRestaurantIds.toList()..sort();
     final dates = reportDates();
@@ -579,20 +586,9 @@ class OwnerState extends ChangeNotifier {
     if (!live || workspaceId == null || selectedRestaurantIds.isEmpty) return;
     final generation = ++_summaryGeneration;
     final watch = Stopwatch()..start();
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final to = period == 'Период'
-        ? (customTo ?? today)
-        : period == 'Вчера' ? today.subtract(const Duration(days: 1)) : today;
-    final from = period == 'Период'
-        ? (customFrom ?? to)
-        : switch (period) {
-            '7 дней' => to.subtract(const Duration(days: 6)),
-            'Месяц' => to.subtract(const Duration(days: 29)),
-            _ => to,
-          };
+    final dates = reportDates();
     final key = summaryCacheKey(workspaceId!, selectedRestaurantIds,
-        formatDate(from), formatDate(to), dashboardDateMode);
+        dates['from']!, dates['to']!, dashboardDateMode);
     final previous = cachedResponse(key);
     dashboardLoading = true;
     dashboardError = null;
@@ -606,9 +602,9 @@ class OwnerState extends ChangeNotifier {
         departmentIds: selectedRestaurantIds,
         // Match Smart Horeca Pages: report by OLAP accounting date
         // (OpenDate.Typed), never by currently open cash shift IDs.
-        query: {'from': formatDate(from), 'to': formatDate(to),
-          'mode': dashboardDateMode},
+        query: {...dates, 'mode': dashboardDateMode},
         retryTransient: false, // avoid repeated full-network OLAP runs
+        timeout: salesReadTimeout(dates),
       );
       if (generation == _summaryGeneration && live && stage == OwnerStage.shell) {
         summary = result;

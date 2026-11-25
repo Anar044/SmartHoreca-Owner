@@ -296,6 +296,7 @@ class OwnerBackend {
     Iterable<String>? departmentIds,
     Map<String, String>? query,
     bool retryTransient = true,
+    Duration timeout = const Duration(seconds: 50),
   }) async {
     if (!configured) {
       throw const OwnerApiException('NOT_CONFIGURED',
@@ -326,7 +327,7 @@ class OwnerBackend {
     var renewedAfter401 = false;
     while (true) {
       try {
-        final result = await _transport.get(uri, headers: headers);
+        final result = await _transport.get(uri, headers: headers, timeout: timeout);
         if (result.statusCode == 401 && !renewedAfter401) {
           renewedAfter401 = true;
           token = await freshAccessToken(forceRefresh: true);

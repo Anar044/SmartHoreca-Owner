@@ -124,6 +124,9 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         departmentIds: ids,
         query: args,
         retryTransient: false,
+        timeout: endpoint == '/api/mobile/v1/report'
+            ? OwnerState.salesReadTimeout(dates)
+            : const Duration(seconds: 50),
       );
       if (!mounted || seq != _generation) return;
       owner.rememberResponse(cacheKey,result);

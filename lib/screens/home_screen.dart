@@ -36,6 +36,23 @@ class OwnerHomeScreen extends StatelessWidget {
         .toList()
       ..sort((a, b) => (b['date'] ?? '').toString()
           .compareTo((a['date'] ?? '').toString()));
+    final dates = state.reportDates();
+    final days = OwnerState.periodDays(dates['from']!, dates['to']!);
+    final monthly = days > 32;
+    final yearly = days > 1096;
+    final revenueByPeriod = <String, double>{};
+    for (final row in daily) {
+      final day = DateTime.tryParse((row['date'] ?? '').toString());
+      if (day == null) continue;
+      final month = day.month.toString().padLeft(2, '0');
+      final label = yearly
+          ? '${day.year}'
+          : monthly
+              ? '$month.${day.year}'
+              : '${day.day.toString().padLeft(2, '0')}.$month';
+      revenueByPeriod.update(label, (sum) => sum + (row['revenue'] as num),
+          ifAbsent: () => (row['revenue'] as num).toDouble());
+    }
 
     return OwnerScreenFrame(onRefresh: state.live ? state.loadSummary : null, children: [
       const OwnerHeading('Главная', caption: 'Обзор бизнеса'),
@@ -147,19 +164,19 @@ class OwnerHomeScreen extends StatelessWidget {
           OwnerCard(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const OwnerHeading('Выручка по дням'),
+              OwnerHeading(yearly
+                  ? 'Выручка по годам'
+                  : monthly
+                      ? 'Выручка по месяцам'
+                      : 'Выручка по дням'),
               const SizedBox(height: 12),
-              if (daily.isNotEmpty)
+              if (revenueByPeriod.isNotEmpty)
                 OwnerRevenueDiagram(
-                  values: daily.map((e) => (e['revenue'] as num).toDouble()).toList(),
-                  labels: daily.map((e) {
-                    final date = (e['date'] ?? '').toString();
-                    return date.length >= 10
-                      ? '${date.substring(8, 10)}.${date.substring(5, 7)}'
-                      : date;
-                  }).toList(),
-                  valueLabels: daily.map((e) =>
-                    (e['revenue'] as num).toStringAsFixed(0)).toList(),
+                  labelWidth: monthly ? 62 : 45,
+                  values: revenueByPeriod.values.toList(),
+                  labels: revenueByPeriod.keys.toList(),
+                  valueLabels: revenueByPeriod.values
+                      .map((value) => value.toStringAsFixed(0)).toList(),
                 )
               else const OwnerText('Нет подтверждённых данных для диаграммы за выбранный период.'),
             ],

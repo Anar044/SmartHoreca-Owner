@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/owner_theme.dart';
 import '../core/owner_state.dart';
 import '../core/owner_l10n.dart';
+import 'owner_date_range_picker.dart';
 
 class OwnerCard extends StatelessWidget {
   final Widget child;
@@ -298,49 +299,29 @@ class OwnerRestaurantPicker extends StatelessWidget {
 class OwnerPeriodPicker extends StatelessWidget {
   const OwnerPeriodPicker({super.key});
 
-  String _shortDate(DateTime? date) {
-    if (date == null) return '';
-    return '${date.day.toString().padLeft(2, '0')}.'
-        '${date.month.toString().padLeft(2, '0')}';
-  }
-
   Future<void> _chooseCustomPeriod(
       BuildContext context, OwnerState state) async {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final initialStart = state.customFrom ?? today.subtract(const Duration(days: 29));
-    final initialEnd = state.customTo ?? today;
-    final start = initialStart.isAfter(today) ? today : initialStart;
-    final end = initialEnd.isAfter(today) ? today : initialEnd;
-    final range = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(now.year - 5, 1, 1),
-      lastDate: today,
-      initialDateRange: DateTimeRange(
-        start: start.isAfter(end) ? end : start,
-        end: end.isBefore(start) ? start : end,
-      ),
-      helpText: 'Выберите период отчёта',
-      saveText: 'Применить',
-    );
+    final range = await showOwnerDateRangePicker(context,
+      initialRange: _customRange(state), startWithInput: true);
     if (range == null || !context.mounted) return;
-    if (range.end.difference(range.start).inDays > 31) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(
-          'Период ограничен 32 календарными днями. Выберите более короткий диапазон.')),
-      );
-      return;
-    }
     state.setCustomPeriod(range.start, range.end);
+  }
+
+  DateTimeRange? _customRange(OwnerState state) {
+    final from = state.customFrom, to = state.customTo;
+    return state.period == 'Период' && from != null && to != null &&
+        DateUtils.dateOnly(from).compareTo(DateUtils.dateOnly(to)) <= 0
+        ? DateTimeRange(start: DateUtils.dateOnly(from), end: DateUtils.dateOnly(to))
+        : null;
   }
 
   @override
   Widget build(BuildContext context) {
     final state = OwnerScope.of(context);
-    final customLabel = state.period == 'Период' &&
-        state.customFrom != null && state.customTo != null
-      ? '${_shortDate(state.customFrom)}–${_shortDate(state.customTo)}'
-      : 'Выбрать даты';
+    final selectedRange = _customRange(state);
+    final customLabel = selectedRange == null
+        ? OwnerL10n.tr(state.language, 'Выбрать даты')
+        : ownerDisplayDateRange(selectedRange);
     return Wrap(
       spacing: 7,
       runSpacing: 7,
