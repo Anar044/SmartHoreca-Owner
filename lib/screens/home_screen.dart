@@ -70,7 +70,7 @@ class OwnerHomeScreen extends StatelessWidget {
     }
 
     return OwnerScreenFrame(onRefresh: state.live ? state.refreshSummary : null, children: [
-      const OwnerHeading('Главная', caption: 'Обзор бизнеса'),
+      const OwnerHeading('Главная', caption: 'Обзор бизнеса', prominent: true),
       const SizedBox(height: 14),
       const OwnerRestaurantPicker(),
       const SizedBox(height: 13),
@@ -186,36 +186,37 @@ class OwnerHomeScreen extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 8),
               child: OwnerText(state.dashboardAdjustmentsError!),
             ),
-          Row(children: [
-            Expanded(child: OwnerMetric('Выручка', _money(metrics['revenue']),
-              previousValue: previousMoney('revenue'),
-              onTap: state.live ? () => Navigator.push(context,
-                MaterialPageRoute<void>(builder: (_) => const OwnerLiveReportScreen(
-                  title: 'Касса и способы оплаты', kind: 'cash',
-                ))) : null)),
-            const SizedBox(width: 10),
+          OwnerMetric('Выручка', _money(metrics['revenue']),
+            featured: true,
+            previousValue: previousMoney('revenue'),
+            onTap: state.live ? () => Navigator.push(context,
+              MaterialPageRoute<void>(builder: (_) => const OwnerLiveReportScreen(
+                title: 'Касса и способы оплаты', kind: 'cash',
+              ))) : null),
+          const SizedBox(height: 8),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(child: OwnerMetric('Чеков', _count(metrics['checks']),
               previousValue: _count(previousMetrics?['checks']))),
-          ]),
-          const SizedBox(height: 10),
-          Row(children: [
+            const SizedBox(width: 8),
             Expanded(child: OwnerMetric('Средний чек', _money(metrics['avgCheck']),
               previousValue: previousMoney('avgCheck'))),
-            const SizedBox(width: 10),
+          ]),
+          const SizedBox(height: 8),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(child: OwnerMetric('Валовая прибыль', _money(metrics['grossProfit']),
               previousValue: previousMoney('grossProfit'))),
-          ]),
-          const SizedBox(height: 10),
-          Row(children: [
+            const SizedBox(width: 8),
             Expanded(child: OwnerMetric('Скидки гостям', _money(metrics['discounts']),
               previousValue: previousMoney('discounts'))),
-            const SizedBox(width: 10),
+          ]),
+          const SizedBox(height: 8),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(child: OwnerMetric('Надбавки', _money(metrics['surcharges']),
               previousValue: previousMoney('surcharges'))),
+            const SizedBox(width: 8),
+            Expanded(child: OwnerMetric('Себестоимость товаров', _money(metrics['costOfGoods']),
+              previousValue: previousMoney('costOfGoods'))),
           ]),
-          const SizedBox(height: 10),
-          OwnerMetric('Себестоимость товаров', _money(metrics['costOfGoods']),
-            previousValue: previousMoney('costOfGoods')),
           if (OwnerFinanceValidation.grossProfitMatchesRevenue(metrics)) ...[
             const SizedBox(height: 10),
             OwnerCard(child: Row(
@@ -257,23 +258,21 @@ class OwnerHomeScreen extends StatelessWidget {
           const SizedBox(height: 12),
         ] else const OwnerCard(child: OwnerText('Данные ещё не загружены.')),
       ] else ...[
-        Row(children: [
-          Expanded(child: OwnerMetric('Выручка',
-            OwnerDemoData.money(demo.revenue), trend: '↑ 12,5%')),
-          const SizedBox(width: 10),
+        OwnerMetric('Выручка', OwnerDemoData.money(demo.revenue),
+          featured: true, trend: '↑ 12,5%'),
+        const SizedBox(height: 8),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(child: OwnerMetric('Чеков',
             demo.checks.toString(), trend: '↑ 8%')),
-        ]),
-        const SizedBox(height: 10),
-        Row(children: [
+          const SizedBox(width: 8),
           Expanded(child: OwnerMetric('Средний чек',
             demo.averageCheck == null ? '—'
                 : OwnerDemoData.money(demo.averageCheck!, decimals: true),
             trend: '↑ 4%')),
-          const SizedBox(width: 10),
-          Expanded(child: OwnerMetric('Валовая прибыль*',
-            OwnerDemoData.money(demo.grossProfit), trend: '↑ 11%')),
         ]),
+        const SizedBox(height: 8),
+        OwnerMetric('Валовая прибыль*',
+          OwnerDemoData.money(demo.grossProfit), trend: '↑ 11%'),
         const SizedBox(height: 13),
         OwnerCard(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

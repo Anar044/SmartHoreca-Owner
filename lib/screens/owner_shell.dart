@@ -43,7 +43,7 @@ class _OwnerShellState extends State<OwnerShell> {
               const Text('SH Owner', style: TextStyle(
                 fontSize: 17, fontWeight: FontWeight.w800)),
               Text(OwnerL10n.tr(state.language, 'Ваш бизнес под контролем'),
-                style: const TextStyle(fontSize: 11,
+                style: TextStyle(fontSize: 11, color: OwnerPalette.muted(context),
                   fontWeight: FontWeight.normal)),
             ],
           )),
@@ -76,6 +76,8 @@ class _OwnerShellState extends State<OwnerShell> {
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         backgroundColor: OwnerPalette.surface(context),
+        elevation: 0,
+        iconSize: 21,
         selectedItemColor: OwnerPalette.accent(context),
         unselectedItemColor: OwnerPalette.muted(context),
         showUnselectedLabels: true,
@@ -84,12 +86,44 @@ class _OwnerShellState extends State<OwnerShell> {
         currentIndex: state.tabIndex,
         onTap: state.setTab,
         items: [
-          BottomNavigationBarItem(icon: const Icon(Icons.home_outlined), activeIcon: const Icon(Icons.home), label: OwnerL10n.tr(state.language, 'Главная')),
-          BottomNavigationBarItem(icon: const Icon(Icons.account_balance_wallet_outlined), activeIcon: const Icon(Icons.account_balance_wallet), label: OwnerL10n.tr(state.language, 'Кассы')),
-          BottomNavigationBarItem(icon: const Icon(Icons.bar_chart_outlined), activeIcon: const Icon(Icons.bar_chart), label: OwnerL10n.tr(state.language, 'Отчёты')),
-          const BottomNavigationBarItem(icon: Icon(Icons.smart_toy_outlined), activeIcon: Icon(Icons.smart_toy), label: 'AI'),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.home_outlined),
+            activeIcon: const _SelectedTabIcon(Icons.home),
+            label: OwnerL10n.tr(state.language, 'Главная'),
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            activeIcon: const _SelectedTabIcon(Icons.account_balance_wallet),
+            label: OwnerL10n.tr(state.language, 'Кассы'),
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.bar_chart_outlined),
+            activeIcon: const _SelectedTabIcon(Icons.bar_chart),
+            label: OwnerL10n.tr(state.language, 'Отчёты'),
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.smart_toy_outlined),
+            activeIcon: _SelectedTabIcon(Icons.smart_toy),
+            label: 'AI',
+          ),
         ],
       ),
     );
   }
+}
+
+class _SelectedTabIcon extends StatelessWidget {
+  final IconData icon;
+  const _SelectedTabIcon(this.icon);
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 48,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: OwnerPalette.selection(context),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Icon(icon),
+  );
 }

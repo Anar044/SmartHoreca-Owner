@@ -556,7 +556,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       OwnerScreenFrame(onRefresh: _refreshCurrentConversation, children: [
       const OwnerRestaurantPicker(),
       const SizedBox(height: 12),
-      const OwnerHeading('AI Smart Horeca Assistant'),
+      const OwnerHeading('AI Smart Horeca Assistant', prominent: true),
       const SizedBox(height: 10),
       Row(children: [
         Expanded(

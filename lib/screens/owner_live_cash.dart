@@ -125,7 +125,7 @@ class _OwnerLiveCashScreenState extends State<OwnerLiveCashScreen> {
         entry.value: entry.key
     };
     return OwnerScreenFrame(onRefresh: _load, children: [
-      const OwnerHeading('Кассы', caption: 'Оперативные заказы подключённых касс'),
+      const OwnerHeading('Кассы', caption: 'Оперативные заказы подключённых касс', prominent: true),
       const SizedBox(height: 12),
       const OwnerRestaurantPicker(),
       const SizedBox(height: 9),

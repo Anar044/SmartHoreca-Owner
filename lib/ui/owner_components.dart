@@ -9,21 +9,28 @@ class OwnerCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
+  final Color? background;
 
   const OwnerCard({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
     this.onTap,
+    this.background,
   });
 
   @override
   Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(14),
+      side: background == null
+          ? BorderSide(color: OwnerPalette.border(context)) : BorderSide.none,
+    );
     return Material(
-      color: OwnerPalette.surface(context),
-      borderRadius: BorderRadius.circular(16),
+      color: background ?? OwnerPalette.surface(context),
+      shape: shape,
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        customBorder: shape,
         onTap: onTap,
         child: Padding(padding: padding, child: child),
       ),
@@ -37,31 +44,43 @@ class OwnerMetric extends StatelessWidget {
   final String? trend;
   final Color? trendColor;
   final String? previousValue;
+  final bool featured;
   final VoidCallback? onTap;
 
   const OwnerMetric(this.label, this.value, {
-    super.key, this.trend, this.trendColor, this.previousValue, this.onTap,
+    super.key, this.trend, this.trendColor, this.previousValue, this.featured = false, this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final muted = featured ? OwnerPalette.revenueMuted : OwnerPalette.muted(context);
+    final foreground = featured ? OwnerPalette.revenueText : OwnerPalette.text(context);
     return OwnerCard(
       onTap: onTap,
+      background: featured ? OwnerPalette.revenueSurface : null,
+      padding: featured ? const EdgeInsets.all(16)
+          : const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
             Expanded(child: Text(OwnerL10n.tr(OwnerScope.of(context).language, label),
-              style: TextStyle(color: OwnerPalette.muted(context), fontSize: 12))),
+              style: TextStyle(color: featured ? foreground : muted,
+                fontSize: featured ? 14 : 12, fontWeight: FontWeight.w600))),
             if (onTap != null) Icon(Icons.chevron_right, size: 16,
-              color: OwnerPalette.muted(context)),
+              color: muted),
           ]),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           FittedBox(
             alignment: Alignment.centerLeft,
             fit: BoxFit.scaleDown,
-            child: Text(value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+            child: Text(value, style: TextStyle(
+              fontSize: featured ? 30 : 17,
+              fontWeight: FontWeight.w700,
+              color: foreground,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            )),
           ),
           if (previousValue != null) ...[
             const SizedBox(height: 5),
@@ -69,9 +88,10 @@ class OwnerMetric extends StatelessWidget {
               previousValue!,
               semanticsLabel: '${OwnerL10n.tr(OwnerScope.of(context).language, 'Предыдущий период')} ${previousValue!}',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: OwnerPalette.muted(context),
+                color: muted,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
           ],
@@ -88,7 +108,8 @@ class OwnerMetric extends StatelessWidget {
 class OwnerHeading extends StatelessWidget {
   final String title;
   final String? caption;
-  const OwnerHeading(this.title, {super.key, this.caption});
+  final bool prominent;
+  const OwnerHeading(this.title, {super.key, this.caption, this.prominent = false});
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +117,11 @@ class OwnerHeading extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(OwnerL10n.tr(OwnerScope.of(context).language, title),
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          style: TextStyle(
+            fontSize: prominent ? 26 : 18,
+            fontWeight: FontWeight.w700,
+            letterSpacing: prominent ? -.6 : -.15,
+          )),
         if (caption != null) ...[
           const SizedBox(height: 4),
           Text(OwnerL10n.tr(OwnerScope.of(context).language, caption!),
@@ -443,10 +468,10 @@ class OwnerRevenueDiagram extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(child: Container(
-              height: 13,
+              height: 9,
               decoration: BoxDecoration(
                 color: OwnerPalette.raised(context),
-                borderRadius: BorderRadius.circular(5),
+                borderRadius: BorderRadius.circular(3),
               ),
               alignment: Alignment.centerLeft,
               child: FractionallySizedBox(
@@ -455,7 +480,7 @@ class OwnerRevenueDiagram extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: value < 0 ? OwnerPalette.error
                         : OwnerPalette.accent(context),
-                    borderRadius: BorderRadius.circular(5),
+                    borderRadius: BorderRadius.circular(3),
                   ),
                 ),
               ),
@@ -467,7 +492,8 @@ class OwnerRevenueDiagram extends StatelessWidget {
                 textAlign: TextAlign.end,
                 maxLines: 1,
                 style: const TextStyle(fontSize: 11,
-                  fontWeight: FontWeight.w600),
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: [FontFeature.tabularFigures()]),
               ),
             ),
           ]),

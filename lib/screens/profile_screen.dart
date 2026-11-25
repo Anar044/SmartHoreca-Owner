@@ -52,7 +52,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
           CircleAvatar(
             radius: 27,
             backgroundColor: OwnerPalette.accent(context),
-            child: const Icon(Icons.person_outline, color: Colors.white),
+            child: Icon(Icons.person_outline, color: Theme.of(context).colorScheme.onPrimary),
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

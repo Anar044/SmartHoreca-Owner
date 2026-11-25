@@ -138,7 +138,7 @@ class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
     }).toList();
 
     return OwnerScreenFrame(onRefresh: _load, children: [
-      const OwnerHeading('Кассы', caption: 'Просмотр кассовых смен'),
+      const OwnerHeading('Кассы', caption: 'Просмотр кассовых смен', prominent: true),
       const SizedBox(height: 12),
       const OwnerRestaurantPicker(),
       const SizedBox(height: 12),

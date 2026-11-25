@@ -21,7 +21,7 @@ class OwnerCashScreen extends StatelessWidget {
     final owner = OwnerScope.of(context);
     final selected = owner.selectedRestaurants;
     return OwnerScreenFrame(children: [
-      const OwnerHeading('Кассы', caption: 'Кассовые смены, выручка и чеки'),
+      const OwnerHeading('Кассы', caption: 'Кассовые смены, выручка и чеки', prominent: true),
       const SizedBox(height: 12),
       const OwnerRestaurantPicker(),
       const SizedBox(height: 13),

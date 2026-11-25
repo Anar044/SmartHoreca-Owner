@@ -27,7 +27,7 @@ class OwnerReportsScreen extends StatelessWidget {
       ('Остатки на складах', Icons.warehouse_outlined),
     ];
     return OwnerScreenFrame(children: [
-      const OwnerHeading('Отчёты', caption: 'Аналитика и остатки на складах'),
+      const OwnerHeading('Отчёты', caption: 'Аналитика и остатки на складах', prominent: true),
       const SizedBox(height: 14),
       const OwnerRestaurantPicker(),
       const SizedBox(height: 12),
@@ -38,11 +38,9 @@ class OwnerReportsScreen extends StatelessWidget {
           onTap: () => Navigator.push(context, MaterialPageRoute<void>(
             builder: (_) => OwnerOlapReportsScreen(client: OwnerOlapClient(workspace)),
           )),
-          child: const ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.table_chart_outlined),
+          child: const _ReportEntry(
+            icon: Icons.table_chart_outlined,
             title: OwnerText('Мои OLAP-отчёты'),
-            trailing: Icon(Icons.chevron_right),
           ),
         ),
         const SizedBox(height: 9),
@@ -50,11 +48,9 @@ class OwnerReportsScreen extends StatelessWidget {
           onTap: () => Navigator.push(context, MaterialPageRoute<void>(
             builder: (_) => const OwnerLflScreen(),
           )),
-          child: const ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.compare_arrows),
+          child: const _ReportEntry(
+            icon: Icons.compare_arrows,
             title: Text('Like-for-Like (LFL)'),
-            trailing: Icon(Icons.chevron_right),
           ),
         ),
         const SizedBox(height: 9),
@@ -87,25 +83,38 @@ class OwnerReportsScreen extends StatelessWidget {
                     : OwnerReportPendingScreen(title: report.$1),
           ));
           },
-          child: Row(children: [
-            Container(
-              decoration: BoxDecoration(
-                color: OwnerPalette.raised(context),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              width: 42,
-              height: 42,
-              child: Icon(report.$2, color: OwnerPalette.accent(context)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(OwnerL10n.tr(OwnerScope.of(context).language, report.$1), style: const TextStyle(fontWeight: FontWeight.w600))),
-            const Icon(Icons.chevron_right),
-          ]),
+          child: _ReportEntry(icon: report.$2, title: OwnerText(report.$1)),
         ),
         const SizedBox(height: 9),
       ],
     ]);
   }
+}
+
+class _ReportEntry extends StatelessWidget {
+  final IconData icon;
+  final Widget title;
+
+  const _ReportEntry({required this.icon, required this.title});
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: OwnerPalette.selection(context),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(icon, size: 20, color: OwnerPalette.accent(context)),
+    ),
+    const SizedBox(width: 12),
+    Expanded(child: DefaultTextStyle.merge(
+      style: const TextStyle(fontWeight: FontWeight.w600),
+      child: title,
+    )),
+    Icon(Icons.chevron_right, size: 20, color: OwnerPalette.muted(context)),
+  ]);
 }
 
 /// Explicitly unavailable report type: never reuse sales numbers as
