@@ -19,6 +19,24 @@ void main() {
     expect(OwnerState.dashboardDateMode, 'calendar');
   });
 
+  test('Home compares with the immediately preceding equal-length period', () {
+    final state = OwnerState();
+    addTearDown(state.dispose);
+    final now = DateTime(2026, 11, 25);
+    expect(OwnerState.previousReportDates(state.reportDates(now: now)), {
+      'from': '2026-11-24', 'to': '2026-11-24',
+    });
+    state.period = 'Месяц';
+    expect(OwnerState.previousReportDates(state.reportDates(now: now)), {
+      'from': '2026-09-27', 'to': '2026-10-26',
+    });
+    expect(OwnerState.previousReportDates({
+      'from': '2024-02-28', 'to': '2024-03-01',
+    }), {
+      'from': '2024-02-25', 'to': '2024-02-27',
+    });
+  });
+
   test('financial summary cache is bound to tenant, department and period', () {
     final state = OwnerState();
     addTearDown(state.dispose);
@@ -106,5 +124,52 @@ void main() {
     expect(find.text('Выручка'), findsWidgets);
     expect(find.text('Операционный день по кассовым сменам'), findsNothing);
     expect(find.textContaining('продолжившаяся после полуночи'), findsNothing);
+  });
+
+  testWidgets('each live Home KPI shows a scoped previous-period value',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(375, 812));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final owner = OwnerState()
+      ..live = true
+      ..workspaceId = 'ws-1'
+      ..availableRestaurants = ['Центр']
+      ..restaurantIdsByName = {'Центр': 'dept-1'}
+      ..selectedRestaurants = {'Центр'}
+      ..period = 'Период'
+      ..customFrom = DateTime(2026, 11, 7)
+      ..customTo = DateTime(2026, 11, 8)
+      ..summary = {
+        'metrics': {
+          'revenue': 120, 'checks': 3, 'avgCheck': 40, 'grossProfit': 50,
+          'discounts': 2, 'surcharges': 5, 'costOfGoods': 70,
+        },
+      };
+    addTearDown(owner.dispose);
+    owner.rememberResponse(
+      OwnerState.summaryCacheKey(
+        'ws-1', ['dept-1'], '2026-11-05', '2026-11-06', 'calendar',
+      ),
+      {
+        'metrics': {
+          'revenue': 90, 'checks': 2, 'avgCheck': 45, 'grossProfit': 30,
+          'discounts': 1, 'surcharges': 0, 'costOfGoods': 60,
+        },
+      },
+    );
+    await tester.pumpWidget(OwnerScope(
+      state: owner,
+      child: const MaterialApp(home: Scaffold(body: OwnerHomeScreen())),
+    ));
+    expect(find.text('Предыдущий период · 05.11.2026 – 06.11.2026'), findsOneWidget);
+    for (final value in [
+      '90.00 AZN', '2', '45.00 AZN', '30.00 AZN',
+      '1.00 AZN', '0.00 AZN', '60.00 AZN',
+    ]) {
+      expect(find.text(value), findsOneWidget);
+    }
+    owner.restaurantIdsByName = {'Центр': 'dept-2'};
+    expect(owner.dashboardComparison, isNull);
+    expect(tester.takeException(), isNull);
   });
 }

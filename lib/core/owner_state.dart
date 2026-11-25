@@ -55,6 +55,8 @@ class OwnerState extends ChangeNotifier {
   String? error;
   String? dashboardError;
   bool dashboardLoading = false;
+  bool dashboardComparisonLoading = false;
+  bool dashboardComparisonFailed = false;
   double? lastDashboardLoadSeconds;
 
   String? workspaceId;
@@ -62,6 +64,7 @@ class OwnerState extends ChangeNotifier {
   List<Map<String, dynamic>> workspaces = [];
   Map<String, dynamic>? summary;
   int _summaryGeneration = 0;
+  String? _dashboardKey;
 
   // Session RAM cache for read-only mobile reports. Scoped by the
   // verified workspace, restaurant IDs and period supplied by each caller.
@@ -107,6 +110,9 @@ class OwnerState extends ChangeNotifier {
   void discardUnauthorizedSnapshots() {
     clearResponseCache();
     summary = null;
+    _dashboardKey = null;
+    dashboardComparisonLoading = false;
+    dashboardComparisonFailed = false;
     unawaited(_snapshots.clear());
     notifyListeners();
   }
@@ -127,6 +133,27 @@ class OwnerState extends ChangeNotifier {
   static int periodDays(String from, String to) =>
       DateTime.parse('${to}T00:00:00Z')
           .difference(DateTime.parse('${from}T00:00:00Z')).inDays + 1;
+
+  static Map<String, String>? previousReportDates(Map<String, String> dates) {
+    final from = DateTime.parse("${dates['from']!}T00:00:00Z");
+    final days = periodDays(dates['from']!, dates['to']!);
+    final start = from.subtract(Duration(days: days));
+    if (start.year < 1) return null;
+    return {
+      'from': formatDate(start),
+      'to': formatDate(from.subtract(const Duration(days: 1))),
+    };
+  }
+
+  Map<String, dynamic>? get dashboardComparison {
+    final workspace = workspaceId;
+    final ids = selectedRestaurantIds;
+    final dates = previousReportDates(reportDates());
+    if (!live || workspace == null || ids.isEmpty || dates == null) return null;
+    return cachedResponse(summaryCacheKey(
+      workspace, ids, dates['from']!, dates['to']!, dashboardDateMode,
+    ));
+  }
 
   static Duration salesReadTimeout(Map<String, String> dates) =>
       Duration(seconds: periodDays(dates['from']!, dates['to']!) > 32 ? 115 : 50);
@@ -583,35 +610,51 @@ class OwnerState extends ChangeNotifier {
   }
 
   Future<void> loadSummary() async {
-    if (!live || workspaceId == null || selectedRestaurantIds.isEmpty) return;
+    final workspace = workspaceId;
+    final ids = selectedRestaurantIds;
+    if (!live || workspace == null || ids.isEmpty) return;
     final generation = ++_summaryGeneration;
+    final accessEpoch = cacheEpoch;
     final watch = Stopwatch()..start();
     final dates = reportDates();
-    final key = summaryCacheKey(workspaceId!, selectedRestaurantIds,
+    final key = summaryCacheKey(workspace, ids,
         dates['from']!, dates['to']!, dashboardDateMode);
-    final previous = cachedResponse(key);
+    final comparisonDates = previousReportDates(dates);
+    final comparisonKey = comparisonDates == null ? null : summaryCacheKey(
+      workspace, ids, comparisonDates['from']!, comparisonDates['to']!,
+      dashboardDateMode,
+    );
+    final loadComparison = comparisonKey != null &&
+        cachedResponse(comparisonKey, maxAge: const Duration(minutes: 1)) == null;
+    bool currentLoad() => generation == _summaryGeneration && live &&
+        stage == OwnerStage.shell && workspaceId == workspace &&
+        cacheEpoch == accessEpoch && setEquals(selectedRestaurantIds, ids);
+    Future<Map<String, dynamic>> readSummary(Map<String, String> range) =>
+        OwnerBackend.getJson(
+          '/api/mobile/v1/summary',
+          workspaceId: workspace,
+          departmentIds: ids,
+          query: {...range, 'mode': dashboardDateMode},
+          retryTransient: false,
+          timeout: salesReadTimeout(range),
+        );
+
+    _dashboardKey = key;
     dashboardLoading = true;
     dashboardError = null;
+    dashboardComparisonLoading = loadComparison;
+    dashboardComparisonFailed = false;
     // Reuse only same-workspace, department IDs and accounting dates.
-    summary = previous;
+    summary = cachedResponse(key);
     notifyListeners();
     try {
-      final result = await OwnerBackend.getJson(
-        '/api/mobile/v1/summary',
-        workspaceId: workspaceId!,
-        departmentIds: selectedRestaurantIds,
-        // Match Smart Horeca Pages: report by OLAP accounting date
-        // (OpenDate.Typed), never by currently open cash shift IDs.
-        query: {...dates, 'mode': dashboardDateMode},
-        retryTransient: false, // avoid repeated full-network OLAP runs
-        timeout: salesReadTimeout(dates),
-      );
-      if (generation == _summaryGeneration && live && stage == OwnerStage.shell) {
+      final result = await readSummary(dates);
+      if (currentLoad()) {
         summary = result;
         rememberResponse(key, result);
       }
     } catch (e) {
-      if (generation == _summaryGeneration) {
+      if (currentLoad()) {
         if (e is OwnerApiException && (e.status == 401 || e.status == 403)) {
           discardUnauthorizedSnapshots();
         }
@@ -621,6 +664,26 @@ class OwnerState extends ChangeNotifier {
       if (generation == _summaryGeneration) {
         dashboardLoading = false;
         lastDashboardLoadSeconds = watch.elapsedMilliseconds / 1000;
+        dashboardComparisonLoading = currentLoad() && summary != null && loadComparison;
+        notifyListeners();
+      }
+    }
+    if (!currentLoad() || summary == null || !loadComparison) return;
+    try {
+      final result = await readSummary(comparisonDates!);
+      if (currentLoad()) rememberResponse(comparisonKey, result);
+    } catch (e) {
+      if (currentLoad()) {
+        if (e is OwnerApiException && (e.status == 401 || e.status == 403)) {
+          discardUnauthorizedSnapshots();
+          dashboardError = summaryErrorText(e);
+        } else {
+          dashboardComparisonFailed = true;
+        }
+      }
+    } finally {
+      if (generation == _summaryGeneration) {
+        dashboardComparisonLoading = false;
         notifyListeners();
       }
     }
@@ -629,8 +692,15 @@ class OwnerState extends ChangeNotifier {
   void setTab(int value) {
     tabIndex = value;
     notifyListeners();
-    // Initial login and explicit selection changes load the dashboard.
-    // Navigating tabs is presentation-only: no network I/O here.
+    final workspace = workspaceId;
+    final ids = selectedRestaurantIds;
+    if (value == 0 && live && stage == OwnerStage.shell &&
+        workspace != null && ids.isNotEmpty) {
+      final dates = reportDates();
+      final key = summaryCacheKey(workspace, ids,
+        dates['from']!, dates['to']!, dashboardDateMode);
+      if (key != _dashboardKey) unawaited(loadSummary());
+    }
   }
 
   Future<void> signOut() async {
@@ -666,6 +736,9 @@ class OwnerState extends ChangeNotifier {
     tabIndex = 0;
     workspaceId = null;
     summary = null;
+    _dashboardKey = null;
+    dashboardComparisonLoading = false;
+    dashboardComparisonFailed = false;
     error = null;
     notifyListeners();
   }

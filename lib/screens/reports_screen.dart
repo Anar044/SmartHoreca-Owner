@@ -6,6 +6,7 @@ import '../core/owner_demo_data.dart';
 import '../core/owner_l10n.dart';
 import '../core/owner_olap_client.dart';
 import '../ui/owner_components.dart';
+import 'owner_lfl_screen.dart';
 import 'owner_live_reports.dart';
 import 'owner_olap_reports.dart';
 
@@ -41,6 +42,18 @@ class OwnerReportsScreen extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             leading: Icon(Icons.table_chart_outlined),
             title: OwnerText('Мои OLAP-отчёты'),
+            trailing: Icon(Icons.chevron_right),
+          ),
+        ),
+        const SizedBox(height: 9),
+        OwnerCard(
+          onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+            builder: (_) => const OwnerLflScreen(),
+          )),
+          child: const ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.compare_arrows),
+            title: Text('Like-for-Like (LFL)'),
             trailing: Icon(Icons.chevron_right),
           ),
         ),

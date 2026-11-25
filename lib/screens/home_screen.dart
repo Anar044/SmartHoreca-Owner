@@ -6,6 +6,7 @@ import '../core/owner_state.dart';
 import '../core/owner_demo_data.dart';
 import '../core/owner_l10n.dart';
 import '../ui/owner_data_freshness.dart';
+import '../ui/owner_date_range_picker.dart';
 import '../core/owner_finance_validation.dart';
 import 'owner_live_reports.dart';
 
@@ -26,7 +27,8 @@ class OwnerHomeScreen extends StatelessWidget {
     final state = OwnerScope.of(context);
     final selected = state.selectedRestaurants;
     final demo = OwnerDemoData.snapshot(selected, state.period);
-    final data = state.summary;
+    final data = state.live && state.selectedRestaurantIds.isEmpty
+        ? null : state.summary;
     final lastVerified = DateTime.tryParse(
       (data?['updatedAt'] ?? '').toString())?.toLocal();
     final metrics = data?['metrics'] is Map ? data!['metrics'] as Map : const {};
@@ -37,6 +39,15 @@ class OwnerHomeScreen extends StatelessWidget {
       ..sort((a, b) => (b['date'] ?? '').toString()
           .compareTo((a['date'] ?? '').toString()));
     final dates = state.reportDates();
+    final comparisonDates = OwnerState.previousReportDates(dates);
+    final previousMetrics = state.dashboardComparison?['metrics'] as Map?;
+    String previousMoney(String key) => _money(previousMetrics?[key]);
+    final previousLabel = comparisonDates == null ? null : ownerDisplayDateRange(
+      DateTimeRange(
+        start: DateTime.parse(comparisonDates['from']!),
+        end: DateTime.parse(comparisonDates['to']!),
+      ),
+    );
     final days = OwnerState.periodDays(dates['from']!, dates['to']!);
     final monthly = days > 32;
     final yearly = days > 1096;
@@ -120,29 +131,55 @@ class OwnerHomeScreen extends StatelessWidget {
                   label: const OwnerText('Повторить')),
               ],
             )),
+          if (previousLabel != null) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                '${OwnerL10n.tr(state.language, 'Предыдущий период')} · $previousLabel',
+                style: TextStyle(fontSize: 12, color: OwnerPalette.muted(context)),
+              ),
+            ),
+            if (state.dashboardComparisonLoading && previousMetrics == null)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: OwnerText('Загружаем предыдущий период…'),
+              ),
+            if (state.dashboardComparisonFailed)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: OwnerText('Не удалось загрузить предыдущий период.'),
+              ),
+          ],
           Row(children: [
             Expanded(child: OwnerMetric('Выручка', _money(metrics['revenue']),
+              previousValue: previousMoney('revenue'),
               onTap: state.live ? () => Navigator.push(context,
                 MaterialPageRoute<void>(builder: (_) => const OwnerLiveReportScreen(
                   title: 'Касса и способы оплаты', kind: 'cash',
                 ))) : null)),
             const SizedBox(width: 10),
-            Expanded(child: OwnerMetric('Чеков', _count(metrics['checks']))),
+            Expanded(child: OwnerMetric('Чеков', _count(metrics['checks']),
+              previousValue: _count(previousMetrics?['checks']))),
           ]),
           const SizedBox(height: 10),
           Row(children: [
-            Expanded(child: OwnerMetric('Средний чек', _money(metrics['avgCheck']))),
+            Expanded(child: OwnerMetric('Средний чек', _money(metrics['avgCheck']),
+              previousValue: previousMoney('avgCheck'))),
             const SizedBox(width: 10),
-            Expanded(child: OwnerMetric('Валовая прибыль', _money(metrics['grossProfit']))),
+            Expanded(child: OwnerMetric('Валовая прибыль', _money(metrics['grossProfit']),
+              previousValue: previousMoney('grossProfit'))),
           ]),
           const SizedBox(height: 10),
           Row(children: [
-            Expanded(child: OwnerMetric('Скидки гостям', _money(metrics['discounts']))),
+            Expanded(child: OwnerMetric('Скидки гостям', _money(metrics['discounts']),
+              previousValue: previousMoney('discounts'))),
             const SizedBox(width: 10),
-            Expanded(child: OwnerMetric('Надбавки', _money(metrics['surcharges']))),
+            Expanded(child: OwnerMetric('Надбавки', _money(metrics['surcharges']),
+              previousValue: previousMoney('surcharges'))),
           ]),
           const SizedBox(height: 10),
-          OwnerMetric('Себестоимость товаров', _money(metrics['costOfGoods'])),
+          OwnerMetric('Себестоимость товаров', _money(metrics['costOfGoods']),
+            previousValue: previousMoney('costOfGoods')),
           if (OwnerFinanceValidation.grossProfitMatchesRevenue(metrics)) ...[
             const SizedBox(height: 10),
             OwnerCard(child: Row(

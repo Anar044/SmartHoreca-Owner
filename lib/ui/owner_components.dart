@@ -36,9 +36,12 @@ class OwnerMetric extends StatelessWidget {
   final String value;
   final String? trend;
   final Color? trendColor;
+  final String? previousValue;
   final VoidCallback? onTap;
 
-  const OwnerMetric(this.label, this.value, {super.key, this.trend, this.trendColor, this.onTap});
+  const OwnerMetric(this.label, this.value, {
+    super.key, this.trend, this.trendColor, this.previousValue, this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +63,18 @@ class OwnerMetric extends StatelessWidget {
             fit: BoxFit.scaleDown,
             child: Text(value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
           ),
+          if (previousValue != null) ...[
+            const SizedBox(height: 5),
+            Text(
+              previousValue!,
+              semanticsLabel: '${OwnerL10n.tr(OwnerScope.of(context).language, 'Предыдущий период')} ${previousValue!}',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: OwnerPalette.muted(context),
+              ),
+            ),
+          ],
           if (trend != null) ...[
             const SizedBox(height: 5),
             Text(trend!, style: TextStyle(color: trendColor ?? OwnerPalette.green, fontSize: 12, fontWeight: FontWeight.w600)),
