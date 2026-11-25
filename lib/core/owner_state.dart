@@ -651,7 +651,9 @@ class OwnerState extends ChangeNotifier {
     );
     final key = cacheKey(dates);
     if (_dashboardKey == key &&
-        (dashboardLoading || dashboardComparisonLoading || dashboardAdjustmentsLoading)) return;
+        (dashboardLoading || dashboardComparisonLoading || dashboardAdjustmentsLoading)) {
+      return;
+    }
     if (comparisonOnly && (_dashboardKey != key || summary == null)) return;
 
     final generation = ++_summaryGeneration;
