@@ -30,6 +30,7 @@ class OwnerLflScreen extends StatefulWidget {
         query: query,
         retryTransient: false,
         timeout: const Duration(seconds: 115),
+        streamReport: true,
       );
 
   @override

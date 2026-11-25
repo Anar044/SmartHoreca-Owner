@@ -637,6 +637,7 @@ class OwnerState extends ChangeNotifier {
           query: {...range, 'mode': dashboardDateMode},
           retryTransient: false,
           timeout: salesReadTimeout(range),
+          streamReport: periodDays(range['from']!, range['to']!) > 32,
         );
 
     _dashboardKey = key;

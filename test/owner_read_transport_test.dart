@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -64,5 +65,25 @@ void main() {
     ]);
     expect(calls, 4);
     transport.close();
+  });
+
+  test('report keepalives preserve the final application status and UTF-8 JSON', () async {
+    final chunks = StreamController<List<int>>();
+    final transport = OwnerReadTransport(client: MockClient.streaming((request, _) async {
+      expect(request.headers['X-SH-Report-Stream'], '1');
+      return http.StreamedResponse(chunks.stream, 200,
+        headers: {'x-sh-report-stream': '1'});
+    }));
+    addTearDown(transport.close);
+    final result = transport.get(uri, headers: headers, streamReport: true);
+    chunks.add(utf8.encode('\n'));
+    chunks.add(utf8.encode(jsonEncode({
+      'status': 403,
+      'body': jsonEncode({'success': false, 'message': 'Нет доступа.'}),
+    })));
+    await chunks.close();
+    final reply = await result;
+    expect(reply.statusCode, 403);
+    expect(jsonDecode(reply.body)['message'], 'Нет доступа.');
   });
 }

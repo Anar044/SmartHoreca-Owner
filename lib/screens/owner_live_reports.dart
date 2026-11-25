@@ -124,6 +124,8 @@ class _OwnerLiveReportScreenState extends State<OwnerLiveReportScreen> {
         departmentIds: ids,
         query: args,
         retryTransient: false,
+        streamReport: endpoint == '/api/mobile/v1/report' ||
+            widget.kind == 'orders' || widget.kind == 'movements' || widget.kind == 'pnl',
         timeout: endpoint == '/api/mobile/v1/report'
             ? OwnerState.salesReadTimeout(dates)
             : const Duration(seconds: 50),

@@ -214,7 +214,7 @@ class OwnerOlapClient {
           'from': from,
           'to': to
         },
-        retryTransient: false);
+        retryTransient: false, streamReport: true);
     return (data['values'] as List)
         .cast<Map<String, dynamic>>()
         .map(OwnerOlapChoice.fromJson)
@@ -254,6 +254,7 @@ class OwnerOlapClient {
         timeout: action == 'run'
             ? const Duration(minutes: 5)
             : const Duration(seconds: 45),
+        streamReport: action == 'run',
         timeoutMessage:
             'Сервер Smart Horeca не ответил вовремя. Повторите запрос.',
       );

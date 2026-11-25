@@ -5,6 +5,7 @@ import '../core/owner_backend.dart';
 import '../core/owner_state.dart';
 import '../core/owner_theme.dart';
 import '../ui/owner_components.dart';
+import '../ui/owner_date_range_picker.dart';
 import 'owner_live_reports.dart';
 
 /// Live owner-only cash shift list. Financial values are displayed only when
@@ -18,18 +19,29 @@ class OwnerLiveCashShifts extends StatefulWidget {
 
 class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
   String period = 'Сегодня';
+  DateTimeRange? customRange;
   String search = '';
   String status = 'Все';
   bool loading = true;
   String? error;
   Map<String, dynamic>? data;
   int generation = 0;
+  String? _scopeKey;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final owner = OwnerScope.of(context);
+    final ids = owner.selectedRestaurantIds.toList()..sort();
+    final key = '${owner.live}|${owner.workspaceId}|${owner.cacheEpoch}|${ids.join(',')}';
+    if (key == _scopeKey) return;
+    _scopeKey = key;
+    ++generation;
+    data = null;
+    error = null;
+    loading = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _load();
+      if (mounted && _scopeKey == key) _load();
     });
   }
 
@@ -38,6 +50,10 @@ class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
       '${value.day.toString().padLeft(2, '0')}';
 
   Map<String, String> _periodQuery() {
+    final range = customRange;
+    if (period == 'Период' && range != null) {
+      return {'from': _date(range.start), 'to': _date(range.end)};
+    }
     final now = DateTime.now();
     final end = period == 'Вчера'
         ? now.subtract(const Duration(days: 1)) : now;
@@ -49,6 +65,16 @@ class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
       'from': _date(start), 'to': _date(end),
       if (period == 'Сегодня') 'mode': 'operational',
     };
+  }
+
+  Future<void> _chooseDates() async {
+    final range = await showOwnerDateRangePicker(context, initialRange: customRange);
+    if (!mounted || range == null) return;
+    setState(() {
+      period = 'Период';
+      customRange = range;
+    });
+    await _load();
   }
 
   Future<void> _load() async {
@@ -73,6 +99,8 @@ class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
         workspaceId: owner.workspaceId,
         departmentIds: owner.selectedRestaurantIds,
         query: _periodQuery(),
+        streamReport: period == 'Период',
+        retryTransient: false,
       );
       if (!mounted || current != generation) return;
       setState(() {
@@ -140,6 +168,15 @@ class _OwnerLiveCashShiftsState extends State<OwnerLiveCashShifts> {
               _load();
             },
           ),
+        ChoiceChip(
+          avatar: const Icon(Icons.calendar_month_outlined, size: 16),
+          label: period == 'Период' && customRange != null
+              ? Text(ownerDisplayDateRange(customRange!))
+              : const OwnerText('Выбрать даты'),
+          selected: period == 'Период',
+          showCheckmark: false,
+          onSelected: (_) => _chooseDates(),
+        ),
       ]),
       const SizedBox(height: 13),
       TextField(

@@ -203,6 +203,7 @@ class OwnerBackend {
     required Iterable<String> departmentIds,
     required Map<String, dynamic> payload,
     Duration timeout = const Duration(seconds: 120),
+    bool streamReport = false,
     String timeoutMessage = 'Сервер Smart Horeca не ответил вовремя. '
         'Проверьте историю диалога перед повторной отправкой.',
   }) async {
@@ -223,7 +224,7 @@ class OwnerBackend {
         'Authorization': 'Bearer $token',
         'X-SH-Workspace-Id': workspaceId,
         'X-SH-Department-Ids': (departmentIds.toList()..sort()).join(','),
-      }, body: jsonEncode(payload)).timeout(timeout);
+      }, body: jsonEncode(payload), timeout: timeout, streamReport: streamReport);
       // AI POST is not retried automatically: resending could create duplicate
       // messages if the server processed the first request.
       return _decodeResponse(result);
@@ -297,6 +298,7 @@ class OwnerBackend {
     Map<String, String>? query,
     bool retryTransient = true,
     Duration timeout = const Duration(seconds: 50),
+    bool streamReport = false,
   }) async {
     if (!configured) {
       throw const OwnerApiException('NOT_CONFIGURED',
@@ -327,7 +329,8 @@ class OwnerBackend {
     var renewedAfter401 = false;
     while (true) {
       try {
-        final result = await _transport.get(uri, headers: headers, timeout: timeout);
+        final result = await _transport.get(uri, headers: headers,
+          timeout: timeout, streamReport: streamReport);
         if (result.statusCode == 401 && !renewedAfter401) {
           renewedAfter401 = true;
           token = await freshAccessToken(forceRefresh: true);
