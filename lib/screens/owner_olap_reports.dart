@@ -984,7 +984,6 @@ class _ReportViewState extends State<_ReportView> {
     final range = await showOwnerDateRangePicker(
       context,
       initialRange: _dates,
-      startWithInput: true,
     );
     if (mounted && range != null) _setDates(range);
   }

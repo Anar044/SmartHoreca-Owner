@@ -8,6 +8,9 @@ class OwnerL10n {
 
   static const Map<String, Map<String, String>> _translations = {
     'Azərbaycan': {
+      'День': 'Gün',
+      'Год': 'İl',
+      'Календарь': 'Təqvim',
       'Текущий период': 'Cari dövr',
       'Период сравнения': 'Müqayisə dövrü',
       'Предыдущий период': 'Əvvəlki dövr',
@@ -512,6 +515,9 @@ class OwnerL10n {
       'Не удалось проверить активность подразделений. Список доступных ресторанов остаётся без изменений.': 'Bölmələrin fəaliyyətini yoxlamaq mümkün olmadı. Restoran siyahısı dəyişməyib.',
     },
     'English': {
+      'День': 'Day',
+      'Год': 'Year',
+      'Календарь': 'Calendar',
       'Текущий период': 'Current period',
       'Период сравнения': 'Comparison period',
       'Предыдущий период': 'Previous period',

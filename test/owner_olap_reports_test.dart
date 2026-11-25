@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_horeca_owner/core/owner_olap_client.dart';
 import 'package:smart_horeca_owner/core/owner_state.dart';
 import 'package:smart_horeca_owner/screens/owner_olap_reports.dart';
+import 'package:smart_horeca_owner/ui/owner_date_range_picker.dart';
 
 class _Reports extends OwnerOlapClient {
   _Reports({this.result}) : super('org');
@@ -218,7 +219,7 @@ void main() {
     expect(find.text('Этот месяц'), findsOneWidget);
     await tester.tap(find.text('Выбрать даты'));
     await tester.pumpAndSettle();
-    expect(find.byType(DateRangePickerDialog), findsOneWidget);
+    expect(find.byType(OwnerDateRangeDialog), findsOneWidget);
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.text('42.5'), findsOneWidget);

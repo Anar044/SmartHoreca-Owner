@@ -97,7 +97,6 @@ class _OwnerLflScreenState extends State<OwnerLflScreen> {
       context,
       initialRange: comparison ? _comparison : _current,
       title: comparison ? 'Период сравнения' : 'Текущий период',
-      startWithInput: true,
     );
     if (!mounted || range == null) return;
     setState(() {

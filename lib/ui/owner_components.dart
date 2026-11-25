@@ -317,7 +317,7 @@ class OwnerPeriodPicker extends StatelessWidget {
   Future<void> _chooseCustomPeriod(
       BuildContext context, OwnerState state) async {
     final range = await showOwnerDateRangePicker(context,
-      initialRange: _customRange(state), startWithInput: true);
+      initialRange: _customRange(state));
     if (range == null || !context.mounted) return;
     state.setCustomPeriod(range.start, range.end);
   }
