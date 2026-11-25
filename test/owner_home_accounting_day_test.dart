@@ -4,7 +4,69 @@ import 'package:smart_horeca_owner/core/owner_state.dart';
 import 'package:smart_horeca_owner/core/owner_backend.dart';
 import 'package:smart_horeca_owner/screens/home_screen.dart';
 
+class _HomeReader extends OwnerState {
+  final calls = <String>[];
+  bool interruptComparison = true;
+
+  @override
+  Future<Map<String, dynamic>> readDashboardPart(
+    String workspace, Set<String> ids, Map<String, String> query, {
+    required bool phased, required String section, required bool freshHistory,
+  }) async {
+    final from = query['from']!;
+    final current = from.startsWith('2026');
+    calls.add('$section/${current ? 'current' : 'previous'}');
+    if (!current && interruptComparison) {
+      throw const OwnerApiException('NETWORK_UNAVAILABLE', 'Связь прервана.', 503);
+    }
+    return {
+      'success': true, 'mode': 'calendar', 'section': section,
+      'from': from, 'to': query['to'],
+      'updatedAt': '2026-11-25T08:00:00Z',
+      'scope': {'departmentScopeApplied': true, 'selectedDepartmentIds': ids.toList()},
+      'daily': <Map<String, dynamic>>[],
+      'metrics': section == 'core'
+          ? {'revenue': 100, 'checks': 20}
+          : {'discounts': 3, 'surcharges': 1},
+    };
+  }
+}
+
 void main() {
+  test('Home tries previous core before adjustments and retries comparison alone', () async {
+    final owner = _HomeReader()
+      ..live = true
+      ..stage = OwnerStage.shell
+      ..workspaceId = 'chain'
+      ..restaurantIdsByName = {'Центр': 'one'}
+      ..selectedRestaurants = {'Центр'}
+      ..period = 'Период'
+      ..customFrom = DateTime(2026, 1, 1)
+      ..customTo = DateTime(2026, 3, 31);
+    addTearDown(owner.dispose);
+    await owner.loadSummary();
+    expect(owner.calls, [
+      'core/current', 'core/current', 'core/previous',
+      'adjustments/current', 'adjustments/current',
+    ]);
+    expect(owner.summary?['metrics']['revenue'], 200);
+    expect(owner.summary?['metrics']['discounts'], 6);
+    expect(owner.dashboardComparisonFailed, isTrue);
+    expect(owner.dashboardComparisonError, contains('NETWORK_UNAVAILABLE'));
+    expect(owner.dashboardComparison, isNull);
+
+    owner.interruptComparison = false;
+    owner.calls.clear();
+    await owner.retryDashboardComparison();
+    expect(owner.calls, [
+      'core/previous', 'core/previous', 'adjustments/previous', 'adjustments/previous',
+    ]);
+    expect(owner.summary?['metrics']['revenue'], 200);
+    expect(owner.dashboardComparison?['metrics']['revenue'], 200);
+    expect(owner.dashboardComparison?['metrics']['discounts'], 6);
+    expect(owner.dashboardComparisonFailed, isFalse);
+  });
+
   test('push covers all accessible restaurants independently of Dashboard', () {
     final state=OwnerState()
       ..availableRestaurants=['RMS 1','RMS 2']

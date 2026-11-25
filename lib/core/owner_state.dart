@@ -58,6 +58,9 @@ class OwnerState extends ChangeNotifier {
   bool dashboardLoading = false;
   bool dashboardComparisonLoading = false;
   bool dashboardComparisonFailed = false;
+  String? dashboardComparisonError;
+  bool dashboardAdjustmentsLoading = false;
+  String? dashboardAdjustmentsError;
   double? lastDashboardLoadSeconds;
 
   String? workspaceId;
@@ -66,11 +69,10 @@ class OwnerState extends ChangeNotifier {
   Map<String, dynamic>? summary;
   int _summaryGeneration = 0;
   String? _dashboardKey;
-  ({String key, OwnerSummaryPeriod load})? _pendingSummary;
-  ({String key, OwnerSummaryPeriod load})? _pendingComparison;
+  final _pendingSummaryParts = <(String, String), OwnerSummaryPeriod>{};
 
   OwnerSummaryPeriod? get dashboardPeriodProgress =>
-      _pendingSummary?.key == _dashboardKey ? _pendingSummary?.load : null;
+      _pendingSummaryParts[(_dashboardKey ?? '', 'core')];
 
   // Session RAM cache for read-only mobile reports. Scoped by the
   // verified workspace, restaurant IDs and period supplied by each caller.
@@ -110,8 +112,7 @@ class OwnerState extends ChangeNotifier {
   void clearResponseCache() {
     _responseCache.clear();
     _responseCachedAt.clear();
-    _pendingSummary = null;
-    _pendingComparison = null;
+    _pendingSummaryParts.clear();
     ++cacheEpoch;
   }
 
@@ -121,6 +122,9 @@ class OwnerState extends ChangeNotifier {
     _dashboardKey = null;
     dashboardComparisonLoading = false;
     dashboardComparisonFailed = false;
+    dashboardComparisonError = null;
+    dashboardAdjustmentsLoading = false;
+    dashboardAdjustmentsError = null;
     unawaited(_snapshots.clear());
     notifyListeners();
   }
@@ -617,115 +621,193 @@ class OwnerState extends ChangeNotifier {
     }
   }
 
-  Future<void> loadSummary() async {
+  Future<void> refreshSummary() => loadSummary(freshHistory: true);
+
+  Future<void> retryDashboardComparison() => loadSummary(comparisonOnly: true);
+
+  Future<Map<String, dynamic>> readDashboardPart(
+    String workspace, Set<String> ids, Map<String, String> query, {
+    required bool phased, required String section, required bool freshHistory,
+  }) => OwnerBackend.getJson('/api/mobile/v1/summary',
+      workspaceId: workspace, departmentIds: ids,
+      query: {...query, 'mode': dashboardDateMode,
+        if (phased) 'batch': 'calendar',
+        if (phased) 'section': section,
+        if (freshHistory) 'fresh': '1',
+      },
+      retryTransient: false,
+      timeout: phased ? const Duration(seconds: 78) : salesReadTimeout(query),
+    );
+
+  Future<void> loadSummary({
+    bool comparisonOnly = false, bool freshHistory = false,
+  }) async {
     final workspace = workspaceId;
     final ids = selectedRestaurantIds;
     if (!live || workspace == null || ids.isEmpty) return;
     final dates = reportDates();
-    final key = summaryCacheKey(workspace, ids,
-        dates['from']!, dates['to']!, dashboardDateMode);
-    if (_dashboardKey == key && (dashboardLoading || dashboardComparisonLoading)) return;
+    String cacheKey(Map<String, String> range) => summaryCacheKey(
+      workspace, ids, range['from']!, range['to']!, dashboardDateMode,
+    );
+    final key = cacheKey(dates);
+    if (_dashboardKey == key &&
+        (dashboardLoading || dashboardComparisonLoading || dashboardAdjustmentsLoading)) return;
+    if (comparisonOnly && (_dashboardKey != key || summary == null)) return;
+
     final generation = ++_summaryGeneration;
     final accessEpoch = cacheEpoch;
     final watch = Stopwatch()..start();
-    final comparisonDates = previousReportDates(dates);
-    final comparisonKey = comparisonDates == null ? null : summaryCacheKey(
-      workspace, ids, comparisonDates['from']!, comparisonDates['to']!,
-      dashboardDateMode,
-    );
-    final loadComparison = comparisonKey != null &&
-        cachedResponse(comparisonKey, maxAge: const Duration(minutes: 1)) == null;
-    if (_pendingSummary?.key != key) _pendingSummary = null;
-    if (_pendingComparison?.key != comparisonKey) _pendingComparison = null;
-    bool currentLoad() => generation == _summaryGeneration && live &&
+    final compareDates = previousReportDates(dates);
+    final compareKey = compareDates == null ? null : cacheKey(compareDates);
+    final recentComparison = compareKey == null ? null
+        : cachedResponse(compareKey, maxAge: const Duration(minutes: 5));
+    final compare = compareKey != null && (comparisonOnly || freshHistory ||
+        recentComparison == null || recentComparison['section'] == 'core');
+    final phased = periodDays(dates['from']!, dates['to']!) > 31;
+    _pendingSummaryParts.removeWhere((slot, _) =>
+      freshHistory || (slot.$1 != key && slot.$1 != compareKey));
+
+    bool current() => generation == _summaryGeneration && live &&
         stage == OwnerStage.shell && workspaceId == workspace &&
         cacheEpoch == accessEpoch && setEquals(selectedRestaurantIds, ids);
-    Future<Map<String, dynamic>> read(
-      Map<String, String> range, {bool batch = false}
-    ) =>
-        OwnerBackend.getJson(
-          '/api/mobile/v1/summary',
-          workspaceId: workspace,
-          departmentIds: ids,
-          query: {...range, 'mode': dashboardDateMode, if (batch) 'batch': 'calendar'},
-          retryTransient: false,
-          timeout: batch ? const Duration(seconds: 78) : salesReadTimeout(range),
-        );
-    Future<Map<String, dynamic>> readSummary(
-      Map<String, String> range, String reportKey, {bool comparison = false}
+    bool unauthorized(Object error) =>
+        error is OwnerApiException && (error.status == 401 || error.status == 403);
+
+    Future<Map<String, dynamic>> readPart(
+      Map<String, String> range, String reportKey, String section,
     ) async {
-      final window = (from: range['from']!, to: range['to']!);
-      if (periodDays(window.from, window.to) <= 31) return read(range);
-      final pending = comparison ? _pendingComparison : _pendingSummary;
-      final plan = pending?.key == reportKey
-          ? pending!.load : OwnerSummaryPeriod(window, ids);
-      if (comparison) {
-        _pendingComparison = (key: reportKey, load: plan);
-      } else {
-        _pendingSummary = (key: reportKey, load: plan);
-      }
+      Future<Map<String, dynamic>> request(Map<String, String> query) =>
+          readDashboardPart(workspace, ids, query,
+            phased: phased, section: section, freshHistory: freshHistory,
+          );
+      if (!phased) return request(range);
+      final slot = (reportKey, section);
+      final plan = _pendingSummaryParts.putIfAbsent(slot, () => OwnerSummaryPeriod(
+        (from: range['from']!, to: range['to']!), ids, section: section,
+      ));
       final value = await plan.load(
-        (part) => read({'from': part.from, 'to': part.to}, batch: true),
-        isCurrent: currentLoad,
+        (part) => request({'from': part.from, 'to': part.to}),
+        isCurrent: current,
         onProgress: () {
-          if (!comparison && currentLoad()) notifyListeners();
+          if (current()) notifyListeners();
         },
       );
-      if (currentLoad()) {
-        if (comparison) {
-          _pendingComparison = null;
-        } else {
-          _pendingSummary = null;
-        }
-      }
+      if (current()) _pendingSummaryParts.remove(slot);
       return value;
     }
 
+    final coreSection = phased ? 'core' : 'full';
     _dashboardKey = key;
-    dashboardLoading = true;
-    dashboardError = null;
-    dashboardComparisonLoading = loadComparison;
+    if (!comparisonOnly) {
+      dashboardLoading = true;
+      dashboardError = null;
+      dashboardAdjustmentsError = null;
+      summary = cachedResponse(key);
+    }
+    dashboardComparisonLoading = compare;
     dashboardComparisonFailed = false;
-    // Reuse only same-workspace, department IDs and accounting dates.
-    summary = cachedResponse(key);
+    dashboardComparisonError = null;
+    dashboardAdjustmentsLoading = false;
     notifyListeners();
-    try {
-      final result = await readSummary(dates, key);
-      if (currentLoad()) {
-        summary = result;
-        rememberResponse(key, result);
+
+    void recordComparisonError(Object error) {
+      if (!current()) return;
+      if (unauthorized(error)) {
+        discardUnauthorizedSnapshots();
+        dashboardError = summaryErrorText(error);
+      } else {
+        dashboardComparisonFailed = true;
+        dashboardComparisonError = summaryErrorText(error);
       }
-    } catch (e) {
-      if (currentLoad()) {
-        if (e is OwnerApiException && (e.status == 401 || e.status == 403)) {
-          discardUnauthorizedSnapshots();
+    }
+
+    bool incompleteAdjustments(Map<String, dynamic> value) {
+      final errors = value['unavailableMetrics'];
+      return errors is Map && errors.values.any((entry) =>
+        entry is Map && entry['code'] != 'METRIC_UNAVAILABLE');
+    }
+
+    try {
+      Map<String, dynamic>? primaryCore, comparisonCore;
+      if (!comparisonOnly) {
+        try {
+          final result = await readPart(dates, key, coreSection);
+          if (!current()) return;
+          primaryCore = result;
+          summary = result;
+          if (!phased) rememberResponse(key, result);
+        } catch (error) {
+          if (!current()) return;
+          if (unauthorized(error)) discardUnauthorizedSnapshots();
+          dashboardError = summaryErrorText(error);
+          return;
+        } finally {
+          if (generation == _summaryGeneration) {
+            dashboardLoading = false;
+            lastDashboardLoadSeconds = watch.elapsedMilliseconds / 1000;
+            notifyListeners();
+          }
         }
-        dashboardError = summaryErrorText(e);
+      }
+
+      if (compare && current()) {
+        try {
+          comparisonCore = !freshHistory && phased && recentComparison?['section'] == 'core'
+              ? recentComparison : await readPart(compareDates!, compareKey, coreSection);
+          if (!current()) return;
+          if (comparisonCore != null) rememberResponse(compareKey, comparisonCore);
+          notifyListeners();
+        } catch (error) {
+          recordComparisonError(error);
+        }
+      }
+
+      if (phased && (primaryCore != null || comparisonCore != null) && current()) {
+        dashboardAdjustmentsLoading = true;
+        notifyListeners();
+        if (primaryCore != null) {
+          try {
+            final value = await readPart(dates, key, 'adjustments');
+            if (!current()) return;
+            summary = mergeSummarySections(primaryCore, value);
+            if (incompleteAdjustments(value)) {
+              dashboardAdjustmentsError = 'Источник не подтвердил все скидки и надбавки.';
+            } else {
+              rememberResponse(key, summary!);
+            }
+            notifyListeners();
+          } catch (error) {
+            if (!current()) return;
+            if (unauthorized(error)) {
+              discardUnauthorizedSnapshots();
+              dashboardError = summaryErrorText(error);
+              return;
+            }
+            dashboardAdjustmentsError = summaryErrorText(error);
+          }
+        }
+        if (comparisonCore != null && compareDates != null && compareKey != null) {
+          try {
+            final value = await readPart(compareDates, compareKey, 'adjustments');
+            if (!current()) return;
+            final merged = mergeSummarySections(comparisonCore, value);
+            if (incompleteAdjustments(value)) {
+              dashboardComparisonFailed = true;
+              dashboardComparisonError = 'Источник не подтвердил все скидки и надбавки.';
+              rememberResponse(compareKey, {...merged, 'section': 'core'});
+            } else {
+              rememberResponse(compareKey, merged);
+            }
+          } catch (error) {
+            recordComparisonError(error);
+          }
+        }
       }
     } finally {
       if (generation == _summaryGeneration) {
         dashboardLoading = false;
-        lastDashboardLoadSeconds = watch.elapsedMilliseconds / 1000;
-        dashboardComparisonLoading = currentLoad() && summary != null && loadComparison;
-        notifyListeners();
-      }
-    }
-    if (!currentLoad() || summary == null || !loadComparison) return;
-    try {
-      final result = await readSummary(comparisonDates!, comparisonKey, comparison: true);
-      if (currentLoad()) rememberResponse(comparisonKey, result);
-    } catch (e) {
-      if (currentLoad()) {
-        if (e is OwnerApiException && (e.status == 401 || e.status == 403)) {
-          discardUnauthorizedSnapshots();
-          dashboardError = summaryErrorText(e);
-        } else {
-          dashboardComparisonFailed = true;
-        }
-      }
-    } finally {
-      if (generation == _summaryGeneration) {
         dashboardComparisonLoading = false;
+        dashboardAdjustmentsLoading = false;
         notifyListeners();
       }
     }
@@ -781,6 +863,9 @@ class OwnerState extends ChangeNotifier {
     _dashboardKey = null;
     dashboardComparisonLoading = false;
     dashboardComparisonFailed = false;
+    dashboardComparisonError = null;
+    dashboardAdjustmentsLoading = false;
+    dashboardAdjustmentsError = null;
     error = null;
     notifyListeners();
   }

@@ -69,7 +69,7 @@ class OwnerHomeScreen extends StatelessWidget {
           ifAbsent: () => (row['revenue'] as num).toDouble());
     }
 
-    return OwnerScreenFrame(onRefresh: state.live ? state.loadSummary : null, children: [
+    return OwnerScreenFrame(onRefresh: state.live ? state.refreshSummary : null, children: [
       const OwnerHeading('Главная', caption: 'Обзор бизнеса'),
       const SizedBox(height: 14),
       const OwnerRestaurantPicker(),
@@ -162,11 +162,30 @@ class OwnerHomeScreen extends StatelessWidget {
                 child: OwnerText('Загружаем предыдущий период…'),
               ),
             if (state.dashboardComparisonFailed)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: OwnerText('Не удалось загрузить предыдущий период.'),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  if (state.dashboardComparisonError != null)
+                    OwnerText(state.dashboardComparisonError!),
+                  OutlinedButton.icon(
+                    onPressed: state.dashboardAdjustmentsLoading
+                        ? null : state.retryDashboardComparison,
+                    icon: const Icon(Icons.refresh),
+                    label: const OwnerText('Повторить сравнение'),
+                  ),
+                ]),
               ),
           ],
+          if (state.dashboardAdjustmentsLoading)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: OwnerText('Загружаем скидки и надбавки…'),
+            ),
+          if (state.dashboardAdjustmentsError != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: OwnerText(state.dashboardAdjustmentsError!),
+            ),
           Row(children: [
             Expanded(child: OwnerMetric('Выручка', _money(metrics['revenue']),
               previousValue: previousMoney('revenue'),

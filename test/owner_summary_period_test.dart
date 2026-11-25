@@ -39,6 +39,60 @@ Map<String, dynamic> reply(SummaryWindow window, Set<String> restaurants) => {
 void main() {
   final restaurants = {for (int i = 1; i <= 22; i++) 'dept-$i'};
 
+  test('Home core extends stable historical windows without losing any day',
+      () async {
+    final period = OwnerSummaryPeriod(
+      (from: '2026-01-01', to: '2026-11-25'),
+      restaurants,
+      section: 'core',
+    );
+    final calls = <SummaryWindow>[];
+    final current = await period.load((window) async {
+      calls.add(window);
+      return {...reply(window, restaurants), 'section': 'core'};
+    }, isCurrent: () => true, onProgress: () {});
+    expect(calls, hasLength(6));
+    expect(calls[0], (from: '2026-01-01', to: '2026-02-28'));
+    expect(calls.last.to, '2026-11-25');
+    expect(period.completedDays, 329);
+    expect(current['metrics']['revenue'], 329 * 22 * 10);
+    expect(current['metrics']['avgCheck'], 5);
+  });
+
+  test(
+      'adding delayed adjustments preserves sales calculations and the older timestamp',
+      () {
+    final core = {
+      'section': 'core',
+      'updatedAt': '2026-11-25T08:00:00Z',
+      'metrics': {
+        'revenue': 700,
+        'checks': 10,
+        'avgCheck': 70,
+        'discounts': null
+      },
+      'daily': [
+        {'date': '2026-11-25', 'revenue': 700}
+      ],
+    };
+    final adjustments = {
+      'section': 'adjustments',
+      'updatedAt': '2026-11-25T09:00:00Z',
+      'metrics': {'revenue': null, 'discounts': 42, 'surcharges': 3},
+    };
+    final result = mergeSummarySections(core, adjustments);
+    expect(result['section'], 'full');
+    expect(result['metrics'], {
+      'revenue': 700,
+      'checks': 10,
+      'avgCheck': 70,
+      'discounts': 42,
+      'surcharges': 3,
+    });
+    expect(DateTime.parse(result['updatedAt']), DateTime.utc(2026, 11, 25, 8));
+    expect(result['daily'], core['daily']);
+  });
+
   test(
       '22 restaurants through November survive timeouts and resume confirmed months',
       () async {

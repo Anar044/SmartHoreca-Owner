@@ -10,11 +10,12 @@ DateTime _date(String key) => DateTime.parse('${key}T00:00:00Z');
 int _days(SummaryWindow window) =>
     _date(window.to).difference(_date(window.from)).inDays + 1;
 
-Iterable<SummaryWindow> _months(SummaryWindow range) sync* {
+Iterable<SummaryWindow> _months(SummaryWindow range, int span) sync* {
   final end = _date(range.to);
   var first = _date(range.from);
   while (!first.isAfter(end)) {
-    final nextMonth = DateTime.utc(first.year, first.month + 1);
+    final blockStart = (first.month - 1) ~/ span * span + 1;
+    final nextMonth = DateTime.utc(first.year, blockStart + span);
     final last = nextMonth.isAfter(end)
         ? end
         : nextMonth.subtract(const Duration(days: 1));
@@ -24,7 +25,8 @@ Iterable<SummaryWindow> _months(SummaryWindow range) sync* {
 }
 
 class OwnerSummaryPeriod {
-  OwnerSummaryPeriod(this.range, Set<String> departments)
+  OwnerSummaryPeriod(this.range, Set<String> departments,
+      {this.section = 'full'})
       : _departments = departments.map(_departmentKey).toSet();
 
   static const _metrics = [
@@ -37,6 +39,7 @@ class OwnerSummaryPeriod {
   ];
 
   final SummaryWindow range;
+  final String section;
   final Set<String> _departments;
   final _completed = <SummaryWindow, Map<String, dynamic>>{};
   final _split = <SummaryWindow>{};
@@ -107,7 +110,7 @@ class OwnerSummaryPeriod {
     }
 
     onProgress();
-    for (final window in _months(range)) {
+    for (final window in _months(range, section == 'full' ? 1 : 2)) {
       await visit(window);
     }
     if (!isCurrent()) throw _interrupted;
@@ -118,6 +121,7 @@ class OwnerSummaryPeriod {
     final scope = value['scope'];
     final days = value['daily'];
     if (value['success'] != true ||
+        (value['section'] ?? 'full') != section ||
         value['mode'] != 'calendar' ||
         value['from'] != window.from ||
         value['to'] != window.to ||
@@ -191,4 +195,24 @@ class OwnerSummaryPeriod {
           : parts.first['costOfGoodsSource'],
     };
   }
+}
+
+Map<String, dynamic> mergeSummarySections(
+  Map<String, dynamic> core,
+  Map<String, dynamic> adjustments,
+) {
+  final coreDate = DateTime.parse(core['updatedAt'] as String);
+  final adjustmentDate = DateTime.parse(adjustments['updatedAt'] as String);
+  return {
+    ...core,
+    'section': 'full',
+    'updatedAt': (coreDate.isBefore(adjustmentDate) ? coreDate : adjustmentDate)
+        .toIso8601String(),
+    'metrics': {
+      ...(core['metrics'] as Map),
+      for (final name in ['discounts', 'surcharges'])
+        name: (adjustments['metrics'] as Map)[name],
+    },
+    'unavailableMetrics': adjustments['unavailableMetrics'],
+  };
 }
