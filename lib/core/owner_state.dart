@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'owner_backend.dart';
 import 'owner_push_service.dart';
 import 'owner_department_evidence.dart';
+import 'owner_summary_period.dart';
 
 enum OwnerStage { signIn, workspaces, restaurants, shell }
 
@@ -65,6 +66,11 @@ class OwnerState extends ChangeNotifier {
   Map<String, dynamic>? summary;
   int _summaryGeneration = 0;
   String? _dashboardKey;
+  ({String key, OwnerSummaryPeriod load})? _pendingSummary;
+  ({String key, OwnerSummaryPeriod load})? _pendingComparison;
+
+  OwnerSummaryPeriod? get dashboardPeriodProgress =>
+      _pendingSummary?.key == _dashboardKey ? _pendingSummary?.load : null;
 
   // Session RAM cache for read-only mobile reports. Scoped by the
   // verified workspace, restaurant IDs and period supplied by each caller.
@@ -104,6 +110,8 @@ class OwnerState extends ChangeNotifier {
   void clearResponseCache() {
     _responseCache.clear();
     _responseCachedAt.clear();
+    _pendingSummary = null;
+    _pendingComparison = null;
     ++cacheEpoch;
   }
 
@@ -613,12 +621,13 @@ class OwnerState extends ChangeNotifier {
     final workspace = workspaceId;
     final ids = selectedRestaurantIds;
     if (!live || workspace == null || ids.isEmpty) return;
-    final generation = ++_summaryGeneration;
-    final accessEpoch = cacheEpoch;
-    final watch = Stopwatch()..start();
     final dates = reportDates();
     final key = summaryCacheKey(workspace, ids,
         dates['from']!, dates['to']!, dashboardDateMode);
+    if (_dashboardKey == key && (dashboardLoading || dashboardComparisonLoading)) return;
+    final generation = ++_summaryGeneration;
+    final accessEpoch = cacheEpoch;
+    final watch = Stopwatch()..start();
     final comparisonDates = previousReportDates(dates);
     final comparisonKey = comparisonDates == null ? null : summaryCacheKey(
       workspace, ids, comparisonDates['from']!, comparisonDates['to']!,
@@ -626,19 +635,51 @@ class OwnerState extends ChangeNotifier {
     );
     final loadComparison = comparisonKey != null &&
         cachedResponse(comparisonKey, maxAge: const Duration(minutes: 1)) == null;
+    if (_pendingSummary?.key != key) _pendingSummary = null;
+    if (_pendingComparison?.key != comparisonKey) _pendingComparison = null;
     bool currentLoad() => generation == _summaryGeneration && live &&
         stage == OwnerStage.shell && workspaceId == workspace &&
         cacheEpoch == accessEpoch && setEquals(selectedRestaurantIds, ids);
-    Future<Map<String, dynamic>> readSummary(Map<String, String> range) =>
+    Future<Map<String, dynamic>> read(
+      Map<String, String> range, {bool batch = false}
+    ) =>
         OwnerBackend.getJson(
           '/api/mobile/v1/summary',
           workspaceId: workspace,
           departmentIds: ids,
-          query: {...range, 'mode': dashboardDateMode},
+          query: {...range, 'mode': dashboardDateMode, if (batch) 'batch': 'calendar'},
           retryTransient: false,
-          timeout: salesReadTimeout(range),
-          streamReport: periodDays(range['from']!, range['to']!) > 32,
+          timeout: batch ? const Duration(seconds: 78) : salesReadTimeout(range),
         );
+    Future<Map<String, dynamic>> readSummary(
+      Map<String, String> range, String reportKey, {bool comparison = false}
+    ) async {
+      final window = (from: range['from']!, to: range['to']!);
+      if (periodDays(window.from, window.to) <= 31) return read(range);
+      final pending = comparison ? _pendingComparison : _pendingSummary;
+      final plan = pending?.key == reportKey
+          ? pending!.load : OwnerSummaryPeriod(window, ids);
+      if (comparison) {
+        _pendingComparison = (key: reportKey, load: plan);
+      } else {
+        _pendingSummary = (key: reportKey, load: plan);
+      }
+      final value = await plan.load(
+        (part) => read({'from': part.from, 'to': part.to}, batch: true),
+        isCurrent: currentLoad,
+        onProgress: () {
+          if (!comparison && currentLoad()) notifyListeners();
+        },
+      );
+      if (currentLoad()) {
+        if (comparison) {
+          _pendingComparison = null;
+        } else {
+          _pendingSummary = null;
+        }
+      }
+      return value;
+    }
 
     _dashboardKey = key;
     dashboardLoading = true;
@@ -649,7 +690,7 @@ class OwnerState extends ChangeNotifier {
     summary = cachedResponse(key);
     notifyListeners();
     try {
-      final result = await readSummary(dates);
+      final result = await readSummary(dates, key);
       if (currentLoad()) {
         summary = result;
         rememberResponse(key, result);
@@ -671,7 +712,7 @@ class OwnerState extends ChangeNotifier {
     }
     if (!currentLoad() || summary == null || !loadComparison) return;
     try {
-      final result = await readSummary(comparisonDates!);
+      final result = await readSummary(comparisonDates!, comparisonKey, comparison: true);
       if (currentLoad()) rememberResponse(comparisonKey, result);
     } catch (e) {
       if (currentLoad()) {

@@ -32,6 +32,10 @@ class OwnerHomeScreen extends StatelessWidget {
     final lastVerified = DateTime.tryParse(
       (data?['updatedAt'] ?? '').toString())?.toLocal();
     final metrics = data?['metrics'] is Map ? data!['metrics'] as Map : const {};
+    final progress = state.dashboardPeriodProgress;
+    final loadedDays = progress?.completedDays ?? 0;
+    final periodProgress = progress == null ? null
+        : '${OwnerL10n.tr(state.language, 'Загружено дней')} · $loadedDays / ${progress.totalDays}';
     final daily = (data?['daily'] is List ? data!['daily'] as List : const [])
         .whereType<Map<String, dynamic>>()
         .where((e) => e['revenue'] is num)
@@ -81,12 +85,15 @@ class OwnerHomeScreen extends StatelessWidget {
       const SizedBox(height: 15),
       if (state.live) ...[
         if (state.dashboardLoading && data == null)
-          const OwnerCard(child: Center(child: Padding(
-            padding: EdgeInsets.all(20),
+          OwnerCard(child: Center(child: Padding(
+            padding: const EdgeInsets.all(20),
             child: Column(children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 14),
-              OwnerText('Загружаем отчёт…'),
+              if (progress == null)
+                const CircularProgressIndicator()
+              else
+                LinearProgressIndicator(value: loadedDays / progress.totalDays),
+              const SizedBox(height: 14),
+              Text(periodProgress ?? OwnerL10n.tr(state.language, 'Загружаем отчёт…')),
             ]),
           )))
         else if (state.dashboardError != null && data == null) ...[
@@ -94,12 +101,22 @@ class OwnerHomeScreen extends StatelessWidget {
             const Icon(Icons.cloud_off_rounded, color: OwnerPalette.error, size: 34),
             const SizedBox(height: 9),
             Text(state.dashboardError!, textAlign: TextAlign.center),
+            if (loadedDays > 0 && periodProgress != null) ...[
+              const SizedBox(height: 6),
+              Text(periodProgress),
+            ],
             const SizedBox(height: 10),
             FilledButton.icon(onPressed: state.loadSummary,
-              icon: const Icon(Icons.refresh), label: const OwnerText('Повторить')),
+              icon: const Icon(Icons.refresh),
+              label: OwnerText(loadedDays > 0 ? 'Продолжить' : 'Повторить')),
           ])),
         ] else if (data != null) ...[
           OwnerDataFreshness(data: data, updating: state.dashboardLoading),
+          if (state.dashboardLoading && periodProgress != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(periodProgress),
+            ),
           if (state.dashboardError != null)
             OwnerCard(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,7 +145,7 @@ class OwnerHomeScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 OutlinedButton.icon(onPressed: state.loadSummary,
                   icon: const Icon(Icons.refresh),
-                  label: const OwnerText('Повторить')),
+                  label: OwnerText(loadedDays > 0 ? 'Продолжить' : 'Повторить')),
               ],
             )),
           if (previousLabel != null) ...[
