@@ -35,20 +35,27 @@ class _OwnerAssistantMessage {
 }
 
 class OwnerLiveAssistantScreen extends StatefulWidget {
-  const OwnerLiveAssistantScreen({super.key});
+  const OwnerLiveAssistantScreen({
+    super.key,
+    this.transcribeVoice = OwnerBackend.transcribeVoice,
+  });
+
+  final Future<String> Function(String) transcribeVoice;
+
   @override
   State<OwnerLiveAssistantScreen> createState() =>
       _OwnerLiveAssistantScreenState();
 }
 
+enum _VoicePhase { idle, starting, recording, discarding, transcribing }
+
 class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   final controller = TextEditingController();
   final FlutterTts _tts = FlutterTts();
   final AudioRecorder _cloudRecorder = AudioRecorder();
-  bool _transcribing = false;
+  _VoicePhase _voicePhase = _VoicePhase.idle;
   DateTime? _recordingStartedAt;
   final List<_OwnerAssistantMessage> conversation = [];
-  bool listening = false;
   bool speaking = false;
   _OwnerAssistantMessage? _speakingMessage;
   int _speechToken = 0;
@@ -108,16 +115,22 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   /// Always record explicitly into a well-formed WAV for language-agnostic
   /// transcription. No phone or app locale is used for speech recognition.
   Future<void> _startCloudListening() async {
+    if (sending || _voicePhase != _VoicePhase.idle) return;
     final generation = _generation;
+    FocusScope.of(context).unfocus();
+    setState(() => _voicePhase = _VoicePhase.starting);
     try {
-      if (!await _cloudRecorder.hasPermission()) {
-        if (mounted) {
-          setState(() => error = OwnerL10n.tr(
-            OwnerScope.of(context).language, 'Нет разрешения на микрофон.'));
-        }
+      await _stopSpeech();
+      if (!mounted || generation != _generation) return;
+      final allowed = await _cloudRecorder.hasPermission();
+      if (!mounted || generation != _generation) return;
+      if (!allowed) {
+        setState(() => error = OwnerL10n.tr(
+          OwnerScope.of(context).language, 'Нет разрешения на микрофон.'));
         return;
       }
       final dir = await getTemporaryDirectory();
+      if (!mounted || generation != _generation) return;
       final path = '${dir.path}/sh-owner-voice-'
           '${DateTime.now().microsecondsSinceEpoch}.wav';
       await _cloudRecorder.start(
@@ -128,36 +141,60 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         ),
         path: path,
       );
-      _recordingStartedAt = DateTime.now();
-      if (!mounted || generation != _generation) {
-        await _cancelCloudRecording();
-        return;
-      }
+      // A scope reset or disposal already queues cancellation on the recorder.
+      if (!mounted || generation != _generation) return;
       setState(() {
+        _recordingStartedAt = DateTime.now();
         error = null;
-        listening = true;
+        _voicePhase = _VoicePhase.recording;
       });
     } catch (_) {
-      if (mounted) {
+      if (mounted && generation == _generation) {
         setState(() {
-          listening = false;
           error = OwnerL10n.tr(OwnerScope.of(context).language,
               'Не удалось начать запись голоса.');
         });
+      }
+    } finally {
+      if (mounted && generation == _generation && _voicePhase == _VoicePhase.starting) {
+        setState(() => _voicePhase = _VoicePhase.idle);
+      }
+    }
+  }
+
+  Future<void> _discardVoiceRecording() async {
+    if (_voicePhase != _VoicePhase.recording) return;
+    final generation = _generation;
+    setState(() {
+      _recordingStartedAt = null;
+      _voicePhase = _VoicePhase.discarding;
+    });
+    try {
+      final path = await _cloudRecorder.stop();
+      if (path != null) await File(path).delete();
+    } catch (_) {
+      if (mounted && generation == _generation) {
+        await _cancelCloudRecording();
+        if (mounted && generation == _generation) {
+          setState(() => error = OwnerL10n.tr(
+            OwnerScope.of(context).language, 'Не удалось удалить запись.'));
+        }
+      }
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _voicePhase = _VoicePhase.idle);
       }
     }
   }
 
   Future<void> _finishCloudListening() async {
+    if (_voicePhase != _VoicePhase.recording) return;
     final generation = _generation;
-    setState(() {
-      listening = false;
-      _transcribing = true;
-    });
+    final startedAt = _recordingStartedAt;
+    _recordingStartedAt = null;
+    setState(() => _voicePhase = _VoicePhase.transcribing);
     String? path;
     try {
-      final startedAt = _recordingStartedAt;
-      _recordingStartedAt = null;
       if (startedAt == null ||
           DateTime.now().difference(startedAt) <
               OwnerVoiceRecording.minDuration) {
@@ -171,7 +208,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         throw const OwnerApiException('VOICE_INVALID_WAV',
           'Не удалось сохранить голосовой вопрос. Попробуйте ещё раз.', 422);
       }
-      final transcript = await OwnerBackend.transcribeVoice(path);
+      if (!mounted || generation != _generation) return;
+      final transcript = await widget.transcribeVoice(path);
       if (!mounted || generation != _generation) return;
       setState(() {
         controller.text = transcript;
@@ -192,7 +230,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
         try { await File(path).delete(); } catch (_) {}
       }
       if (mounted && generation == _generation) {
-        setState(() => _transcribing = false);
+        setState(() => _voicePhase = _VoicePhase.idle);
       }
     }
   }
@@ -242,8 +280,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       conversationId = null;
       error = null;
       sending = false;
-      listening = false;
-      _transcribing = false;
+      _voicePhase = _VoicePhase.idle;
       _recordingStartedAt = null;
       unawaited(_cancelCloudRecording());
       speaking = false;
@@ -253,20 +290,8 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
     }
   }
 
-  Future<void> _toggleListening() async {
-    if (sending || _transcribing) return;
-    if (listening) {
-      await _finishCloudListening();
-      return;
-    }
-    await _stopSpeech();
-    if (!mounted) return;
-    // Always use one multilingual transcription pipeline. Neither the app
-    // language nor the iPhone/Android speech locale selects the input language.
-    await _startCloudListening();
-  }
-
   Future<void> _readAnswer(_OwnerAssistantMessage message) async {
+    if (_voicePhase != _VoicePhase.idle) return;
     if (speaking && identical(_speakingMessage, message)) {
       await _stopSpeech();
       return;
@@ -274,7 +299,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
 
     // Another answer may be playing. Never allow two speeches to overlap.
     await _stopSpeech();
-    if (!mounted) return;
+    if (!mounted || _voicePhase != _VoicePhase.idle) return;
     final locale = OwnerVoiceLocale.ttsLocale(OwnerScope.of(context).language);
     final requestToken = ++_speechToken;
     setState(() {
@@ -440,8 +465,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       conversation.clear();
       error = null;
       sending = false;
-      listening = false;
-      _transcribing = false;
+      _voicePhase = _VoicePhase.idle;
       _recordingStartedAt = null;
       speaking = false;
       _speakingMessage = null;
@@ -449,11 +473,11 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   }
 
   Future<void> _send([String? preset]) async {
-    if (sending || _transcribing || listening) return;
+    if (sending || _voicePhase != _VoicePhase.idle) return;
     final owner = OwnerScope.of(context);
+    final generation = _generation;
     await _stopSpeech();
-    if (!mounted) return;
-    setState(() => listening = false);
+    if (!mounted || generation != _generation || sending || _voicePhase != _VoicePhase.idle) return;
     final message = (preset ?? controller.text).trim();
     if (message.isEmpty || owner.workspaceId == null) return;
 
@@ -552,8 +576,9 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
   @override
   Widget build(BuildContext context) {
     final state = OwnerScope.of(context);
-    return Stack(children: [
-      OwnerScreenFrame(onRefresh: _refreshCurrentConversation, children: [
+    final voiceBusy = _voicePhase != _VoicePhase.idle;
+    return Column(children: [
+      Expanded(child: OwnerScreenFrame(onRefresh: _refreshCurrentConversation, children: [
       const OwnerRestaurantPicker(),
       const SizedBox(height: 12),
       const OwnerHeading('AI Smart Horeca Assistant', prominent: true),
@@ -561,7 +586,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
       Row(children: [
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: _showHistory,
+            onPressed: voiceBusy ? null : _showHistory,
             icon: const Icon(Icons.history, size: 18),
             label: Text(OwnerL10n.tr(state.language, 'История диалогов')),
           ),
@@ -588,7 +613,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
               'Какие товары заканчиваются?',
             ]) ...[
               OutlinedButton(
-                onPressed: sending ? null :
+                onPressed: sending || voiceBusy ? null :
                     () => _send(OwnerL10n.tr(state.language, question)),
                 child: Align(
                   alignment: Alignment.centerLeft,
@@ -606,7 +631,7 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           text: message.text,
           userLabel: OwnerL10n.tr(state.language, 'Вы'),
           speaking: speaking && identical(_speakingMessage, message),
-          onSpeak: message.role == 'assistant'
+          onSpeak: message.role == 'assistant' && !voiceBusy
               ? () => _readAnswer(message) : null,
           onCopy: message.role == 'assistant'
               ? () => _copyAnswer(message) : null,
@@ -656,78 +681,97 @@ class _OwnerLiveAssistantScreenState extends State<OwnerLiveAssistantScreen> {
           ])),
         const SizedBox(height: 8),
       ],
-      if (_transcribing)
-        const OwnerCard(child: Row(children: [
-          SizedBox(width: 18, height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2)),
-          SizedBox(width: 12),
-          OwnerText('Распознаём голосовой вопрос…'),
-        ])),
       if (sending) const OwnerCard(child: Row(children: [
         SizedBox(width: 18, height: 18,
           child: CircularProgressIndicator(strokeWidth: 2)),
         SizedBox(width: 12),
         OwnerText('AI анализирует данные Smart Horeca…'),
       ])),
-      if (error != null) ...[
-        const SizedBox(height: 8),
-        OwnerCard(child: Row(children: [
-          const Icon(Icons.error_outline, color: OwnerPalette.error),
-          const SizedBox(width: 9),
-          Expanded(child: Text(error!)),
-        ])),
-      ],
-      if (listening) ...[
-        const SizedBox(height: 8),
-        OwnerCard(child: Row(children: [
-          const Icon(Icons.mic, color: Colors.redAccent),
-          const SizedBox(width: 8),
-          const Expanded(child: OwnerText('Слушаю… Нажми микрофон ещё раз, чтобы остановить.')),
-          TextButton(onPressed: _toggleListening, child: const OwnerText('Стоп')),
-        ])),
-      ],
-      const SizedBox(height: 12),
-      TextField(
-        controller: controller,
-        minLines: 1, maxLines: 5,
-        decoration: InputDecoration(
-          hintText: OwnerL10n.tr(state.language, 'Напишите вопрос...'),
-          prefixIcon: const Icon(Icons.smart_toy_outlined),
-          suffixIcon: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: Icon(listening ? Icons.stop_circle_outlined
-                    : Icons.mic_none_rounded,
-                    color: listening ? Colors.redAccent
-                        : OwnerPalette.accent(context)),
-                tooltip: OwnerL10n.tr(state.language,
-                  listening ? 'Остановить запись' : 'Голосовой вопрос'),
-                onPressed: sending || _transcribing ? null : _toggleListening,
-              ),
-              IconButton(
-                icon: const Icon(Icons.send_rounded),
-                tooltip: OwnerL10n.tr(state.language, 'Отправить'),
-                onPressed: sending || _transcribing ? null : _send,
-              ),
-            ],
-          ),
-        ),
-        onSubmitted: sending || _transcribing ? null : (value) => _send(value),
-      ),
-      const SizedBox(height: 6),
-      OwnerText('Только аналитика. Изменение документов и настроек через AI запрещено.',
-        style: TextStyle(fontSize: 11,
-          color: OwnerPalette.muted(context))),
-      const SizedBox(height: 15),
-      ]),
-      if (speaking)
-        Positioned(
-          left: 16, right: 16, bottom: 12,
-          child: OwnerSpeechStopBanner(
-            onStop: () => unawaited(_stopSpeech()),
-          ),
-        ),
+      ])),
+      _buildComposer(state.language),
     ]);
+  }
+
+  Widget _buildComposer(String language) {
+    final recording = _voicePhase == _VoicePhase.recording;
+    final voiceBusy = _voicePhase != _VoicePhase.idle;
+    final canSubmit = !sending && !voiceBusy;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (error != null) ...[
+            OwnerCard(child: Row(children: [
+              const Icon(Icons.error_outline, color: OwnerPalette.error),
+              const SizedBox(width: 9),
+              Expanded(child: Text(error!)),
+            ])),
+            const SizedBox(height: 8),
+          ],
+          if (speaking) ...[
+            OwnerSpeechStopBanner(onStop: () => unawaited(_stopSpeech())),
+            const SizedBox(height: 8),
+          ],
+          if (_voicePhase == _VoicePhase.transcribing) ...[
+            const OwnerCard(child: Row(children: [
+              SizedBox.square(dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2)),
+              SizedBox(width: 12),
+              Expanded(child: OwnerText('Распознаём голосовой вопрос…')),
+            ])),
+            const SizedBox(height: 8),
+          ],
+          if (recording || _voicePhase == _VoicePhase.discarding)
+            OwnerCard(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Row(children: [
+                SizedBox(width: 48, child: IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  tooltip: OwnerL10n.tr(language, 'Удалить запись'),
+                  onPressed: recording ? _discardVoiceRecording : null,
+                )),
+                Expanded(child: Center(child: FilledButton.icon(
+                  icon: const Icon(Icons.stop_rounded),
+                  label: const OwnerText('Стоп'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                  ),
+                  onPressed: recording ? _finishCloudListening : null,
+                ))),
+                const SizedBox(width: 48),
+              ]),
+            )
+          else
+            TextField(
+              controller: controller,
+              readOnly: voiceBusy,
+              minLines: 1, maxLines: 5,
+              decoration: InputDecoration(
+                hintText: OwnerL10n.tr(language, 'Напишите вопрос...'),
+                prefixIcon: const Icon(Icons.smart_toy_outlined),
+                suffixIcon: Row(mainAxisSize: MainAxisSize.min, children: [
+                  IconButton(
+                    icon: const Icon(Icons.mic_none_rounded),
+                    tooltip: OwnerL10n.tr(language, 'Голосовой вопрос'),
+                    onPressed: canSubmit ? _startCloudListening : null,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.send_rounded),
+                    tooltip: OwnerL10n.tr(language, 'Отправить'),
+                    onPressed: canSubmit ? _send : null,
+                  ),
+                ]),
+              ),
+              onSubmitted: canSubmit ? (value) => _send(value) : null,
+            ),
+          const SizedBox(height: 6),
+          OwnerText('Только аналитика. Изменение документов и настроек через AI запрещено.',
+            style: TextStyle(fontSize: 11, color: OwnerPalette.muted(context))),
+        ],
+      ),
+    );
   }
 }
